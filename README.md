@@ -2,7 +2,7 @@
 
 An always-on wall or kiosk dashboard for a 1080x1920 portrait display. Built to run continuously and be read from across a room.
 
-A large digital clock sits at the top, with today's date underneath. Under that, a slow ticker scrolls what each running agent is doing right now. Below that is a live list of the Claude Code agent sessions currently running on the machine.
+A large digital clock sits at the top, with today's date underneath. Under that, a slow ticker scrolls what each running agent is doing right now. Below that is a live list of the Claude Code agent sessions currently running on the machine, with the subagents running inside each one indented beneath it.
 
 ![ClockWall](docs/preview.png)
 
@@ -10,12 +10,42 @@ A large digital clock sits at the top, with today's date underneath. Under that,
 
 Name, project folder, session kind, working directory, BUSY/IDLE status, uptime, time in the current state, context used as a percentage, total output tokens, model, Claude Code version, and pid.
 
-Example rows as rendered:
+A session running subagents also shows a tally under its status pill, `1 of 23 subagents` — running now, out of every subagent that session has started.
+
+Example rows as rendered, with one subagent indented under the session that spawned it:
 
 ```
 clock-e9             BUSY  Clock . interactive             2h 52m  8m 24s  27%  419k   opus-5 . v2.1.247 . pid 1364
+  1 of 23 subagents
+    | Add subagent tree view   Bash git status                       22% . 17k . opus-5
 graniteai-website-a9 BUSY  graniteai-website . interactive 3h 23m     53s  42%  545k   fable-5 . v2.1.240 . pid 3952
 ```
+
+## Subagents
+
+A subagent runs inside its parent session's process. It has no pid and no registry file, so the registry alone shows nothing for it — a session can be busy running an Agent tool with no sign of what that agent is doing.
+
+They are found through the transcripts the parent writes for them:
+
+```
+~/.claude/projects/<slug>/<sessionId>/subagents/agent-<agentId>.jsonl
+~/.claude/projects/<slug>/<sessionId>/subagents/agent-<agentId>.meta.json
+~/.claude/projects/<slug>/<sessionId>/subagents/workflows/wf_<id>/agent-<agentId>.jsonl
+```
+
+The transcript is the same format as a session's, so the same reader produces the subagent's context, tokens, model and current activity with no parsing of its own. The `.meta.json` beside it gives the name (its `description`, the label typed when it was spawned) and the model it was asked for; workflow agents carry no description and fall back to their agent type. The `journal.jsonl` in a workflow directory is not an agent and is skipped.
+
+### Liveness is a heuristic here
+
+There is no status field for a subagent and no process to ask about, so ClockWall infers it: a subagent counts as running if its transcript was written to in the last 45 seconds **and** its parent session's own status is `busy`. The parent check is what makes it worth trusting — a subagent cannot be working while the session hosting it is not.
+
+This is weaker than the pid check a session gets. A subagent that is killed or crashes reads as running until its transcript goes stale, and one that spends longer than the window inside a single slow tool call reads as finished until it writes again.
+
+### At scale
+
+Sessions are budgeted first. Every session that physically fits gets a card, at full size, before any subagent gets a row; subagents spend what is left over, so a session running twelve of them can never be pushed off the display by its own children. When there is no room for child rows, the count under the status pill is what the session shows instead. The header counts sessions and subagents separately (`5 RUNNING · 3 BUSY · 9 SUBAGENTS`), and anything that did not fit is named in the footer (`6 MORE SUBAGENTS`), because silent truncation is the failure mode that matters on a wall.
+
+Cost is kept flat the same way. Liveness is a file timestamp, which is read for every subagent on every poll; the transcript is opened and parsed only for the handful of rows the measured budget can actually show. Five sessions with a dozen subagents each is sixty transcripts, and the display polls forever.
 
 ## How it finds running sessions
 

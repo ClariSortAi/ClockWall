@@ -28,10 +28,18 @@
 
     <UserControl.Resources>
 
-        <!-- One agent. Reads left-to-right as: what state is it in / who is it
-             and where / how long has it been like that. -->
+        <!-- One row, in one of two shapes: the full card for a SESSION, and a
+             compact indented line for a SUBAGENT running inside one. Exactly one
+             of the two is visible, chosen by IsChild - which is cheaper than a
+             DataTemplateSelector and keeps both shapes in one place, where the
+             indent that relates them is easy to see.
+
+             The card reads left-to-right as: what state is it in / who is it and
+             where / how long has it been like that. -->
         <DataTemplate x:Key="AgentCardTemplate" x:DataType="local:AgentSession">
-            <Border Style="{StaticResource AgentCardStyle}">
+          <Grid>
+            <Border Style="{StaticResource AgentCardStyle}"
+                    Visibility="{x:Bind local:AgentListPanel.WhenParent(IsChild)}">
                 <Grid ColumnSpacing="{StaticResource SpacingLarge}">
                     <Grid.ColumnDefinitions>
                         <!-- Fixed-ish status gutter so every pill starts on the
@@ -45,7 +53,12 @@
                     <!-- The three pills overlap; exactly one is visible. Keeping
                          them as separate elements lets every brush stay a
                          {ThemeResource} at its usage site. -->
-                    <Grid Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                Spacing="{StaticResource SpacingSmall}">
+
+                    <Grid HorizontalAlignment="Left">
 
                         <Border Style="{StaticResource AgentStatusPillStyle}"
                                 Background="{ThemeResource AgentStatusBusyBackgroundBrush}"
@@ -88,6 +101,25 @@
 
                     </Grid>
 
+                        <!-- The session's subagents, running over spawned. It
+                             says the same thing whether or not any child rows
+                             fitted underneath, which is what a session running a
+                             dozen of them has instead of a tree.
+
+                             It lives in the status gutter, under the pill,
+                             because that column is 150px wide for the pill's
+                             sake and otherwise empty: a fifth stat column would
+                             have cost the agent NAME a hundred pixels on every
+                             card, subagents or not. Collapsed when none are
+                             running, so a session with no subagents is the card
+                             it always was. -->
+                        <TextBlock Style="{StaticResource AgentMetaTextStyle}"
+                                   Margin="4,0,0,0"
+                                   Visibility="{x:Bind local:AgentListPanel.WhenPositive(SubagentLiveCount), Mode=OneWay}"
+                                   Text="{x:Bind local:AgentListPanel.SubagentTally(SubagentLiveCount, SubagentCount), Mode=OneWay}" />
+
+                    </StackPanel>
+
                     <!-- ==================== IDENTITY ==================== -->
                     <StackPanel Grid.Column="1"
                                 VerticalAlignment="Center"
@@ -95,6 +127,7 @@
                         <TextBlock Style="{StaticResource AgentNameTextStyle}"
                                    Text="{x:Bind DisplayName, Mode=OneWay}" />
                         <TextBlock Style="{StaticResource AgentDetailTextStyle}"
+                                   TextTrimming="CharacterEllipsis"
                                    Text="{x:Bind local:AgentListPanel.ProjectLine(ProjectName, Kind), Mode=OneWay}" />
                         <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                    Text="{x:Bind Cwd, Mode=OneWay}" />
@@ -166,6 +199,51 @@
 
                 </Grid>
             </Border>
+
+            <!-- ==================== SUBAGENT ROW ====================
+                 One line, no card, inset past the parent's status gutter and
+                 set in the two smallest sizes on the ramp: subordinate at a
+                 glance, from across a room, without needing to be read. It does
+                 NOT mirror the card's stat columns - those are already tight,
+                 and a child has less to say. -->
+            <Grid Visibility="{x:Bind local:AgentListPanel.WhenChild(IsChild)}"
+                  Margin="72,0,24,0"
+                  VerticalAlignment="Center"
+                  ColumnSpacing="{StaticResource SpacingMedium}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Column="0"
+                           Style="{StaticResource AgentMetaTextStyle}"
+                           VerticalAlignment="Center"
+                           Text="&#x21B3;" />
+
+                <!-- The name is what the agent was spawned to do, so it gets the
+                     room; capped so a long one cannot crowd out everything else. -->
+                <TextBlock Grid.Column="1"
+                           Style="{StaticResource AgentDetailTextStyle}"
+                           VerticalAlignment="Center"
+                           MaxWidth="420"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{x:Bind DisplayName, Mode=OneWay}" />
+
+                <TextBlock Grid.Column="2"
+                           Style="{StaticResource AgentMetaTextStyle}"
+                           VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{x:Bind Activity, Mode=OneWay}" />
+
+                <TextBlock Grid.Column="3"
+                           Style="{StaticResource AgentMetaTextStyle}"
+                           VerticalAlignment="Center"
+                           TextAlignment="Right"
+                           Text="{x:Bind local:AgentListPanel.ChildStats(ContextTokens, OutputTokens, Model), Mode=OneWay}" />
+            </Grid>
+          </Grid>
         </DataTemplate>
 
     </UserControl.Resources>

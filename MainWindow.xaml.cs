@@ -39,6 +39,7 @@ public sealed partial class MainWindow : Window
 
     private bool _isFullScreen;
     private bool _closed;
+    private double _heroDesiredHeight;
 
     public MainWindow()
     {
@@ -109,11 +110,23 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void PushRosterBudget()
     {
+        // The hero is the one band in the ELASTIC row, so once the roster is
+        // full its DesiredSize is what the hero was squeezed to, not what the
+        // clock wants - and feeding that back in here lets the roster claim the
+        // space it just took, one row at a time, until the date is clipped off
+        // the top. The canvas is a fixed 1080x1920 and the type ramp is
+        // constant, so the largest height the hero has ever asked for IS what it
+        // wants, and the first layout pass (empty roster) establishes it.
+        _heroDesiredHeight = Math.Max(_heroDesiredHeight, HeroClock.DesiredSize.Height);
+
         var used = 0d;
         foreach (var child in DesignCanvas.Children)
         {
-            // DesiredSize already includes the child's own margins.
-            if (child is FrameworkElement band && band != AgentList) used += band.DesiredSize.Height;
+            // DesiredSize already includes the child's own margins. A band that
+            // collapses (the ticker with nothing to say) hands its height to the
+            // roster, which is why this is not max-tracked in general.
+            if (child is FrameworkElement band && band != AgentList)
+                used += band == HeroClock ? _heroDesiredHeight : band.DesiredSize.Height;
         }
 
         AgentList.ListBudget = DesignCanvas.ActualHeight

@@ -38,13 +38,20 @@ internal sealed class TranscriptTokens
     public (int Context, long Output, string Model, string Activity) Read(string cwd, string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, string.Empty, string.Empty);
+        return ReadFile(sessionId, Path.Combine(ProjectsRoot, Slug(cwd), sessionId + ".jsonl"));
+    }
 
-        if (!_bySession.TryGetValue(sessionId, out var tally))
-            _bySession[sessionId] = tally = new Tally();
+    /// <summary>The same follower pointed at an arbitrary transcript, keyed by
+    /// an arbitrary id. A SUBAGENT's transcript is byte-for-byte the same shape
+    /// as a session's, so it needs no parser of its own - only a path.</summary>
+    public (int Context, long Output, string Model, string Activity) ReadFile(string key, string path)
+    {
+        if (!_bySession.TryGetValue(key, out var tally))
+            _bySession[key] = tally = new Tally();
 
         try
         {
-            Follow(Path.Combine(ProjectsRoot, Slug(cwd), sessionId + ".jsonl"), tally);
+            Follow(path, tally);
         }
         catch
         {
@@ -53,6 +60,12 @@ internal sealed class TranscriptTokens
 
         return (tally.Context, tally.Output, tally.Model, tally.Activity);
     }
+
+    /// <summary>"...\projects\&lt;cwd-slug&gt;\&lt;sessionId&gt;\subagents" - the
+    /// directory holding the transcripts of the subagents this session spawned,
+    /// with workflow agents one level deeper still.</summary>
+    public static string SubagentsDirectory(string cwd, string sessionId) =>
+        Path.Combine(ProjectsRoot, Slug(cwd), sessionId, "subagents");
 
     /// <summary>"C:\dev\Clock" -&gt; "C--dev-Clock", the on-disk project folder.</summary>
     private static string Slug(string? cwd) =>

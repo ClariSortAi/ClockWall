@@ -19,9 +19,21 @@ public sealed class AgentSession : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    // Identity - set once at construction, never reassigned.
+    // Identity - set once at construction, never reassigned. These four are
+    // deliberately absent from UpdateFrom: a given SessionId is a child (or is
+    // not) for its whole life, so there is nothing to copy forward.
     public int Pid { get; }
     public string SessionId { get; }
+
+    /// <summary>True when this row is a SUBAGENT - an agent running INSIDE a
+    /// parent session's process. It has no pid and no session file of its own;
+    /// it is discovered from the transcript its parent writes for it. The view
+    /// renders these as indented child rows under <see cref="ParentSessionId"/>.</summary>
+    public bool IsChild { get; }
+
+    /// <summary>SessionId of the session that spawned this subagent, empty for
+    /// a top-level session.</summary>
+    public string ParentSessionId { get; }
 
     private string _name = string.Empty;
     public string Name
@@ -103,6 +115,18 @@ public sealed class AgentSession : INotifyPropertyChanged
     /// the session has not called a tool yet.</summary>
     public string Activity { get => _activity; private set => SetField(ref _activity, value ?? string.Empty); }
 
+    private int _subagentCount;
+    /// <summary>How many subagents this session has spawned in its lifetime -
+    /// one per transcript on disk, finished ones included. Counted by a
+    /// directory listing, so it costs a stat rather than a parse.</summary>
+    public int SubagentCount { get => _subagentCount; private set => SetField(ref _subagentCount, value); }
+
+    private int _subagentLiveCount;
+    /// <summary>How many of those subagents look like they are running right
+    /// now. See SessionWatcher.SubagentLiveWindow - this is an mtime heuristic,
+    /// not the pid check the session itself gets.</summary>
+    public int SubagentLiveCount { get => _subagentLiveCount; private set => SetField(ref _subagentLiveCount, value); }
+
     public DateTime StartedAt { get; private set; }
 
     private DateTime _updatedAt;
@@ -157,10 +181,18 @@ public sealed class AgentSession : INotifyPropertyChanged
         long outputTokens,
         string model,
         string activity,
-        bool isRunning)
+        bool isRunning,
+        int subagentCount = 0,
+        int subagentLiveCount = 0,
+        bool isChild = false,
+        string parentSessionId = "")
     {
         Pid = pid;
         SessionId = sessionId ?? string.Empty;
+        IsChild = isChild;
+        ParentSessionId = parentSessionId ?? string.Empty;
+        _subagentCount = subagentCount;
+        _subagentLiveCount = subagentLiveCount;
         StartedAt = startedAt;
         _name = name ?? string.Empty;
         _cwd = cwd ?? string.Empty;
@@ -201,6 +233,8 @@ public sealed class AgentSession : INotifyPropertyChanged
         Model = fresh.Model;
         Activity = fresh.Activity;
         IsRunning = fresh.IsRunning;
+        SubagentCount = fresh.SubagentCount;
+        SubagentLiveCount = fresh.SubagentLiveCount;
 
         if (fresh.StartedAt != default && StartedAt != fresh.StartedAt)
         {

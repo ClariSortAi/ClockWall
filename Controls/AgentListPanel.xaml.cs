@@ -36,9 +36,19 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     // dead pixels, but only so far - one lone agent should not become a poster.
     private const double CardMaxHeight = 190d;
 
+    // A subagent row is one line of text, not a card - it has to cost a small
+    // fraction of a card or a session with a dozen of them owns the whole panel.
+    private const double ChildRowHeight = 48d;
+
     private readonly SessionWatcher _watcher;
     private double _rowHeight = CardMinHeight;
     private double _listBudget = 920d;
+
+    /// <summary>How many subagent rows the measured budget currently affords.
+    /// The watcher is told the same number and stops producing more, but it
+    /// learns it one scan late, so the view enforces it too - see
+    /// <see cref="IsOverBudget"/>.</summary>
+    private int _childBudget = int.MaxValue;
 
     /// <summary>
     /// The panel's vertical budget in design pixels - what the host has left
@@ -190,42 +200,156 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         var chrome = Math.Max(0d, ActualHeight - ListHost.ActualHeight);
         var available = Math.Max(CardMinHeight, _listBudget - chrome);
 
-        // Whole cards only - a half-clipped card at the fold looks like a bug,
-        // not an affordance.
-        var capacity = Math.Max(1, (int)((available + CardGutter) / (CardMinHeight + CardGutter)));
-        var shown = Math.Min(capacity, count);
-        var rowHeight = Math.Clamp((available + CardGutter) / shown - CardGutter, CardMinHeight, CardMaxHeight);
-
-        if (Math.Abs(rowHeight - _rowHeight) > 0.5)
+        var parents = 0;
+        var liveChildren = 0;
+        foreach (var session in Sessions)
         {
-            _rowHeight = rowHeight;
-            foreach (var child in AgentListView.ItemsPanelRoot?.Children ?? Enumerable.Empty<UIElement>())
-            {
-                if (child is FrameworkElement item) item.Height = _rowHeight;
-            }
+            if (session.IsChild) continue;
+            parents++;
+            liveChildren += session.SubagentLiveCount;
         }
 
-        var listHeight = shown * (_rowHeight + CardGutter) - CardGutter;
+        // SESSIONS ARE THE BACKBONE, so they are budgeted first, at minimum
+        // height: sessions are few and each one matters, subagents are many and
+        // individually disposable, and a session that cannot show its children
+        // still says how many it has. So childRoom is what is left when every
+        // session that physically fits has its card - space no CARD could use -
+        // and a burst of subagents can never cost a session its row.
+        var parentCapacity = Math.Max(1, (int)((available + CardGutter) / (CardMinHeight + CardGutter)));
+        var parentsFit = Math.Min(parents, parentCapacity);
+        var childRoom = available - (parentsFit * (CardMinHeight + CardGutter) - CardGutter);
+        var childCapacity = Math.Max(0, (int)(childRoom / (ChildRowHeight + CardGutter)));
+        _childBudget = childCapacity;
+
+        // What the NEXT scan is allowed to open and parse. Liveness is a stat
+        // and is done for every subagent; the transcript is only read for the
+        // handful of rows that will be rendered.
+        _watcher.MaxChildren = childCapacity;
+
+        // Whole rows only - a half-clipped card at the fold looks like a bug,
+        // not an affordance - and a prefix, because a ListView cannot skip a row
+        // in the middle. Walking the collection rather than dividing by a row
+        // height is what lets the two row sizes coexist.
+        var shown = 0;
+        var childrenShown = 0;
+        var used = 0d;
+        foreach (var session in Sessions)
+        {
+            // A child the budget cannot afford is COLLAPSED, not skipped: the
+            // watcher only learns the number one scan late, and a child left in
+            // the layout in the meantime would cost a SESSION its row - the one
+            // thing a burst of subagents must never do.
+            if (session.IsChild && childrenShown >= childCapacity) continue;
+
+            var next = used
+                + (shown == 0 ? 0d : CardGutter)
+                + (session.IsChild ? ChildRowHeight : CardMinHeight);
+
+            if (shown > 0 && next > available) break;
+
+            used = next;
+            shown++;
+            if (session.IsChild) childrenShown++;
+        }
+
+        // Cards grow into whatever is still spare so the list does not trail off
+        // into a band of dead pixels; child rows stay one line tall.
+        var cardsShown = shown - childrenShown;
+        var slack = cardsShown > 0 ? Math.Max(0d, available - used) / cardsShown : 0d;
+        var rowHeight = Math.Clamp(CardMinHeight + slack, CardMinHeight, CardMaxHeight);
+
+        _rowHeight = rowHeight;
+        foreach (var child in AgentListView.ItemsPanelRoot?.Children ?? Enumerable.Empty<UIElement>())
+        {
+            if (child is SelectorItem item && item.Content is AgentSession session)
+                ApplyRowMetrics(item, session);
+        }
+
+        var listHeight = used + cardsShown * (_rowHeight - CardMinHeight);
         if (double.IsNaN(AgentListView.Height) || Math.Abs(AgentListView.Height - listHeight) > 0.5)
             AgentListView.Height = listHeight;
 
-        var hidden = count - shown;
-        OverflowIndicator.Visibility = hidden > 0 ? Visibility.Visible : Visibility.Collapsed;
-        if (hidden > 0)
-            OverflowText.Text = hidden == 1 ? "1 MORE AGENT" : $"{hidden} MORE AGENTS";
+        // Both kinds of remainder are announced. Silent truncation is the actual
+        // failure mode on a wall: what is not on screen has to be said.
+        var hiddenParents = parents - cardsShown;
+        var hiddenChildren = Math.Max(0, liveChildren - childrenShown);
+
+        OverflowIndicator.Visibility = hiddenParents > 0 || hiddenChildren > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        if (hiddenParents > 0 || hiddenChildren > 0)
+            OverflowText.Text = OverflowLine(hiddenParents, hiddenChildren);
     }
 
+    /// <summary>Sizes one row for what it is - card, subagent line, or a
+    /// subagent the budget cannot afford, which takes no space at all
+    /// (Collapsed, so its gutter goes with it).</summary>
+    private void ApplyRowMetrics(SelectorItem container, AgentSession session)
+    {
+        var affordable = !IsOverBudget(session);
+        container.Visibility = affordable ? Visibility.Visible : Visibility.Collapsed;
+        if (affordable) container.Height = session.IsChild ? ChildRowHeight : _rowHeight;
+    }
+
+    /// <summary>True for a subagent past the row budget. Collection order is
+    /// the priority order - the watcher hands over the most recently active
+    /// children first, under the sessions they belong to.</summary>
+    private bool IsOverBudget(AgentSession session)
+    {
+        if (!session.IsChild) return false;
+
+        var seen = 0;
+        foreach (var candidate in Sessions)
+        {
+            if (ReferenceEquals(candidate, session)) return seen >= _childBudget;
+            if (candidate.IsChild) seen++;
+        }
+
+        return false;
+    }
+
+    private static string OverflowLine(int sessions, int subagents)
+    {
+        if (sessions > 0 && subagents > 0)
+            return $"{sessions} MORE {(sessions == 1 ? "SESSION" : "SESSIONS")}  ·  {subagents} MORE {(subagents == 1 ? "SUBAGENT" : "SUBAGENTS")}";
+
+        if (sessions > 0)
+            return sessions == 1 ? "1 MORE AGENT" : $"{sessions} MORE AGENTS";
+
+        return subagents == 1 ? "1 MORE SUBAGENT" : $"{subagents} MORE SUBAGENTS";
+    }
+
+    /// <summary>
+    /// Sessions and subagents are counted separately and named separately: one
+    /// number covering both would be a count of nothing in particular, and the
+    /// subagent figure is the LIVE one, including the children that did not fit.
+    /// With nothing spawned this is the line it has always been.
+    /// </summary>
     private void UpdateSummary()
     {
-        var count = Sessions.Count;
-        if (count == 0)
+        var parents = 0;
+        var busy = 0;
+        var live = 0;
+
+        foreach (var session in Sessions)
+        {
+            if (session.IsChild) continue;
+            parents++;
+            if (session.IsBusy) busy++;
+            live += session.SubagentLiveCount;
+        }
+
+        if (parents == 0)
         {
             SummaryText.Text = string.Empty;
             return;
         }
 
-        var busy = Sessions.Count(s => s.IsBusy);
-        SummaryText.Text = busy > 0 ? $"{count} RUNNING  ·  {busy} BUSY" : $"{count} RUNNING";
+        var line = busy > 0 ? $"{parents} RUNNING  ·  {busy} BUSY" : $"{parents} RUNNING";
+        if (live > 0) line += $"  ·  {live} {(live == 1 ? "SUBAGENT" : "SUBAGENTS")}";
+
+        SummaryText.Text = line;
     }
 
     // ------------------------------------------------------------------
@@ -245,10 +369,10 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
             return;
         }
 
-        container.Height = _rowHeight;
+        if (args.Item is not AgentSession session) return;
 
-        if (args.Item is AgentSession session)
-            ApplyPulse(container, session);
+        ApplyRowMetrics(container, session);
+        ApplyPulse(container, session);
     }
 
     /// <summary>
@@ -280,6 +404,10 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
 
     private static void ApplyPulse(SelectorItem container, AgentSession session)
     {
+        // A subagent row has no status pill - the dot in the collapsed half of
+        // the template is not its own, and animating it would be invisible work.
+        if (session.IsChild) return;
+
         if (container.ContentTemplateRoot is not FrameworkElement root) return;
         if (root.FindName("BusyDot") is not UIElement dot) return;
 
@@ -323,6 +451,21 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     public static Visibility WhenIdle(string status) => Vis(IsIdle(status));
 
     public static Visibility WhenOther(string status) => Vis(!IsBusy(status) && !IsIdle(status));
+
+    /// <summary>The two halves of the row template: a session gets the card, a
+    /// subagent gets the indented line.</summary>
+    public static Visibility WhenParent(bool isChild) => Vis(!isChild);
+
+    public static Visibility WhenChild(bool isChild) => Vis(isChild);
+
+    /// <summary>The subagent row's own figures: "18%  ·  12k  ·  opus-5". Read
+    /// from its transcript by the same follower the sessions use.</summary>
+    public static string ChildStats(int contextTokens, long outputTokens, string model)
+    {
+        var line = ContextShare(contextTokens) + "  ·  " + TokenCount(outputTokens);
+        var shortModel = ShortModel(model);
+        return shortModel.Length == 0 ? line : line + "  ·  " + shortModel;
+    }
 
     /// <summary>Label for a status the session file reports that we have no
     /// dedicated pill for - shown verbatim rather than swallowed.</summary>
@@ -382,6 +525,14 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         if (sessionKind.Length == 0) return project;
         return project + "  ·  " + sessionKind;
     }
+
+    /// <summary>The line under the status pill: "3 of 12 subagents". The
+    /// denominator counts every subagent this session has ever started, so "1 of
+    /// 23" is one running now out of twenty-three it has been through.</summary>
+    public static string SubagentTally(int live, int total) =>
+        string.Create(CultureInfo.InvariantCulture, $"{live} of {total} subagents");
+
+    public static Visibility WhenPositive(int value) => Vis(value > 0);
 
     /// <summary>The quiet provenance line: "opus-5 · v2.1.247 · pid 1364".
     /// Each piece drops out cleanly when it is missing.</summary>

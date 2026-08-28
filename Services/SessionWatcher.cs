@@ -13,6 +13,13 @@ namespace ClockWall;
 /// busy-first, then most-recently-active) suitable for direct binding from
 /// a WinUI ListView.
 ///
+/// The collection is FLAT but reads as a tree: each session is followed by the
+/// SUBAGENTS running inside it (<see cref="AgentSession.IsChild"/>), which have
+/// no session file of their own because they have no process of their own - they
+/// are found through the transcripts their parent writes for them, under
+/// "...\projects\&lt;cwd-slug&gt;\&lt;sessionId&gt;\subagents". The view indents
+/// them; nothing here needs a nested collection type.
+///
 /// Designed to run unattended for days: a missing/locked/mid-write file, a
 /// missing directory, or a watcher failure is tolerated and self-heals via
 /// a periodic poll - it never lets an exception escape to the caller.
@@ -23,6 +30,19 @@ public sealed class SessionWatcher : IDisposable
     /// startedAt recorded in its session file before we treat the pid as
     /// reused by an unrelated process rather than the original session.</summary>
     private static readonly TimeSpan ProcessStartTolerance = TimeSpan.FromMinutes(2);
+
+    /// <summary>How recently a subagent's transcript must have been written to
+    /// for it to count as running.</summary>
+    // ponytail: this is an MTIME HEURISTIC and it is weaker than the pid check a
+    // session gets. A subagent has no pid and no session file - it runs inside
+    // its parent's process - so there is nothing to ask the OS about. A killed
+    // or crashed agent therefore reads as live until its transcript goes stale,
+    // and an agent that spends longer than this window on one slow tool call
+    // reads as finished until it writes again. The parent's own "busy" status is
+    // required as corroboration, which is what makes it trustworthy enough to
+    // put on a wall. Upgrade path: the day a subagent gets a status file, check
+    // that instead and delete this window.
+    private static readonly TimeSpan SubagentLiveWindow = TimeSpan.FromSeconds(45);
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -49,6 +69,19 @@ public sealed class SessionWatcher : IDisposable
 
     /// <summary>The directory being watched.</summary>
     public string SessionsDirectory => _sessionsDirectory;
+
+    /// <summary>
+    /// How many subagent rows are worth materialising - set by the view from
+    /// the height it measured for them.
+    ///
+    /// Liveness is a stat and is done for every subagent there is; context,
+    /// tokens and activity need the transcript OPENED and PARSED, so that is
+    /// done only for the few that will actually be rendered. Five sessions each
+    /// running a dozen subagents is 60 transcripts every poll otherwise, and the
+    /// display polls forever. An int assignment is atomic, so the scan thread
+    /// reading this while the UI thread writes it is safe as-is.
+    /// </summary>
+    public int MaxChildren { get; set; } = 4;
 
     /// <param name="dispatcherQueue">
     /// The UI-thread dispatcher to marshal collection changes onto. Pass
@@ -259,16 +292,127 @@ public sealed class SessionWatcher : IDisposable
             return results; // directory briefly unreadable - next poll retries
         }
 
+        // Subagents of every session, competing for the same few rows: most
+        // recently active first, since that is the closest thing to "busiest".
+        var candidates = new List<(FileInfo File, AgentSession Parent)>();
+
         foreach (var file in files)
         {
-            var session = TryLoadSession(file);
+            var session = TryLoadSession(file, candidates);
             if (session != null) results.Add(session);
+        }
+
+        foreach (var (transcript, parent) in candidates
+                     .OrderByDescending(c => c.File.LastWriteTime)
+                     .Take(Math.Max(0, MaxChildren)))
+        {
+            results.Add(LoadSubagent(transcript, parent));
         }
 
         return results;
     }
 
-    private AgentSession? TryLoadSession(string path)
+    /// <summary>
+    /// Stats every subagent transcript this session has, returning how many
+    /// there are in total and which of them look live. Reads nothing: the
+    /// enumeration already carries each file's timestamp, so this stays cheap
+    /// at a session with dozens of finished agents behind it.
+    /// </summary>
+    private static (int Total, List<FileInfo> Live) SubagentFiles(string cwd, string sessionId, bool parentIsBusy)
+    {
+        var live = new List<FileInfo>();
+        var total = 0;
+
+        try
+        {
+            var directory = new DirectoryInfo(TranscriptTokens.SubagentsDirectory(cwd, sessionId));
+            if (!directory.Exists) return (0, live);
+
+            var cutoff = DateTime.Now - SubagentLiveWindow;
+
+            // "agent-*.jsonl" recursively: it takes in the workflow agents one
+            // level down and leaves out the journal.jsonl sitting beside them,
+            // which is not an agent.
+            foreach (var file in directory.EnumerateFiles("agent-*.jsonl", SearchOption.AllDirectories))
+            {
+                total++;
+
+                // A subagent cannot be working while the session hosting it is
+                // not. That corroboration is most of what makes the mtime
+                // window above worth trusting.
+                if (parentIsBusy && file.LastWriteTime >= cutoff) live.Add(file);
+            }
+        }
+        catch
+        {
+            // Missing or unreadable this cycle - the next poll retries.
+        }
+
+        return (total, live);
+    }
+
+    /// <summary>Builds the row for one subagent: its name and model come from
+    /// the "agent-&lt;id&gt;.meta.json" beside the transcript, everything else
+    /// from the transcript itself, through the same follower the sessions
+    /// use.</summary>
+    private AgentSession LoadSubagent(FileInfo transcript, AgentSession parent)
+    {
+        var id = Path.GetFileNameWithoutExtension(transcript.Name);
+        var metaPath = Path.Combine(transcript.DirectoryName ?? string.Empty, id + ".meta.json");
+
+        SubagentMetaDto? meta = null;
+        var startedAt = transcript.CreationTime;
+        try
+        {
+            var metaFile = new FileInfo(metaPath);
+            if (metaFile.Exists)
+            {
+                // The meta file is written once, when the agent is spawned, so
+                // its timestamp is the agent's start time.
+                startedAt = metaFile.LastWriteTime;
+                using var stream = metaFile.OpenRead();
+                meta = JsonSerializer.Deserialize<SubagentMetaDto>(stream, JsonOptions);
+            }
+        }
+        catch
+        {
+            // No metadata: fall back to the id below rather than dropping a
+            // subagent we can see is running.
+        }
+
+        var (contextTokens, outputTokens, model, activity) = _transcripts.ReadFile(id, transcript.FullName);
+
+        // The transcript's model id is the precise one ("claude-opus-5"); the
+        // meta file's is the alias that was asked for ("opus"). Prefer the
+        // former, keep the latter for an agent that has not answered yet.
+        if (string.IsNullOrWhiteSpace(model)) model = meta?.Model ?? string.Empty;
+
+        var name = meta?.Description;
+        if (string.IsNullOrWhiteSpace(name)) name = meta?.AgentType;      // workflow agents carry no description
+        if (string.IsNullOrWhiteSpace(name)) name = id;
+
+        return new AgentSession(
+            parent.Pid,                 // it runs inside the parent's process
+            id,
+            name!,
+            parent.Cwd,
+            "busy",                     // only live subagents are surfaced at all
+            string.Empty,
+            meta?.AgentType ?? string.Empty,
+            string.Empty,
+            startedAt,
+            transcript.LastWriteTime,
+            startedAt,
+            contextTokens,
+            outputTokens,
+            model,
+            activity,
+            isRunning: true,
+            isChild: true,
+            parentSessionId: parent.SessionId);
+    }
+
+    private AgentSession? TryLoadSession(string path, List<(FileInfo File, AgentSession Parent)> candidates)
     {
         SessionFileDto? dto = null;
 
@@ -311,7 +455,10 @@ public sealed class SessionWatcher : IDisposable
 
         var (contextTokens, outputTokens, model, activity) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
 
-        return new AgentSession(
+        var isBusy = string.Equals(dto.Status, "busy", StringComparison.OrdinalIgnoreCase);
+        var (subagentTotal, subagentLive) = SubagentFiles(dto.Cwd ?? string.Empty, dto.SessionId!, isBusy);
+
+        var session = new AgentSession(
             dto.Pid,
             dto.SessionId!,
             dto.Name ?? string.Empty,
@@ -327,7 +474,14 @@ public sealed class SessionWatcher : IDisposable
             outputTokens,
             model,
             activity,
-            isRunning: true);
+            isRunning: true,
+            subagentCount: subagentTotal,
+            subagentLiveCount: subagentLive.Count);
+
+        foreach (var live in subagentLive)
+            candidates.Add((live, session));
+
+        return session;
     }
 
     /// <summary>True only if pid is alive right now AND its actual process
@@ -394,13 +548,20 @@ public sealed class SessionWatcher : IDisposable
         Reorder();
     }
 
-    /// <summary>Busy sessions first, then most-recently-active. Reorders via
-    /// Move so the ObservableCollection emits minimal, animatable changes.</summary>
+    /// <summary>Busy sessions first, then most-recently-active - with each
+    /// session's subagents immediately after it, so a child row is never
+    /// separated from the parent it is indented under. Reorders via Move so the
+    /// ObservableCollection emits minimal, animatable changes.</summary>
     private void Reorder()
     {
         var target = Sessions
+            .Where(s => !s.IsChild)
             .OrderByDescending(s => s.IsBusy)
             .ThenByDescending(s => s.UpdatedAt)
+            .SelectMany(parent => Sessions
+                .Where(c => c.IsChild && c.ParentSessionId == parent.SessionId)
+                .OrderByDescending(c => c.UpdatedAt)
+                .Prepend(parent))
             .ToList();
 
         for (var i = 0; i < target.Count; i++)
@@ -427,5 +588,16 @@ public sealed class SessionWatcher : IDisposable
         public string? Entrypoint { get; set; }
         public long UpdatedAt { get; set; }
         public long StatusUpdatedAt { get; set; }
+    }
+
+    /// <summary>Shape of an "agent-&lt;id&gt;.meta.json" sitting beside a
+    /// subagent transcript: {"agentType":"general-purpose","description":"Add
+    /// agent activity ticker","spawnDepth":1,"model":"opus"}. Workflow agents
+    /// carry no description.</summary>
+    private sealed class SubagentMetaDto
+    {
+        public string? AgentType { get; set; }
+        public string? Description { get; set; }
+        public string? Model { get; set; }
     }
 }
