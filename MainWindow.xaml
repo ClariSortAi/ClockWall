@@ -88,10 +88,10 @@
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center" />
 
-                <!-- TICKER: what the running agents are doing, scrolling. Sits
-                     in the band under the date; collapses to nothing when no
-                     agent has called a tool, which returns its height to the
-                     roster with no edit here (see PushRosterBudget). -->
+                <!-- TICKER: one static line of what the working agents are
+                     doing. Sits in the band under the date; collapses to
+                     nothing when nothing is working, which returns its height
+                     to the roster with no edit here (see PushRosterBudget). -->
                 <local:ActivityTicker x:Name="Ticker"
                                       Grid.Row="1"
                                       Margin="0,40,0,0"

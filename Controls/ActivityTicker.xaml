@@ -7,30 +7,20 @@
     mc:Ignorable="d">
 
     <!--
-        One scrolling line naming what every running agent is doing right now.
+        One static line naming what every agent that is working right now is
+        doing. The code-behind rewrites it in place on a 1s poll; nothing here
+        moves, so there is never a moment when the line has to finish something
+        before it can tell the truth.
 
-        A Canvas, not a panel: the text has to be free to sit at a negative X
-        and to be wider than the wall, and a Canvas is the one container that
-        measures its child with infinity and then leaves it alone. That is also
-        why the Canvas carries an explicit Height - it has no desired size of
-        its own, and MainWindow.PushRosterBudget sums desired heights to work
-        out what is left for the roster.
-
-        The Canvas is clipped in code-behind (its size is only known after
-        layout); the transform is driven by a Storyboard, also in code-behind,
-        because From/To/Duration all depend on the measured text width.
+        The explicit Height is the band MainWindow.PushRosterBudget budgets for,
+        and it is the theme's number rather than this file's. A line too wide
+        for the wall is trimmed with an ellipsis - the far end of an overlong
+        line is worth less than the near end being readable at a glance.
     -->
-    <Canvas x:Name="Track"
-            Height="{StaticResource ActivityTickerHeight}"
-            HorizontalAlignment="Stretch">
-
-        <TextBlock x:Name="Line"
-                   Style="{StaticResource ActivityTickerTextStyle}">
-            <TextBlock.RenderTransform>
-                <TranslateTransform x:Name="Offset" />
-            </TextBlock.RenderTransform>
-        </TextBlock>
-
-    </Canvas>
+    <TextBlock x:Name="Line"
+               Height="{StaticResource ActivityTickerHeight}"
+               Style="{StaticResource ActivityTickerTextStyle}"
+               TextAlignment="Center"
+               TextTrimming="CharacterEllipsis" />
 
 </UserControl>

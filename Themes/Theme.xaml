@@ -160,9 +160,9 @@
 
     <!-- ==================== ACTIVITY TICKER ====================
          The band between the date and the AGENTS rule. Height is the line box
-         the scrolling text is clipped to - the ticker reserves it from the
-         canvas budget when it has something to say and collapses to nothing
-         when it does not. -->
+         the activity text sits in - the ticker reserves it from the canvas
+         budget when it has something to say and collapses to nothing when it
+         does not. -->
     <x:Double x:Key="ActivityTickerHeight">44</x:Double>
 
     <!-- ==================== AGENT CARD METRICS ==================== -->
@@ -218,7 +218,7 @@
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
 
-    <!-- The scrolling activity line. Deliberately one step down from the date
+    <!-- The activity line. Deliberately one step down from the date
          in size, weight and brush - it is a caption to the hero, not a peer -
          but still set at agent-name scale so it carries across a room. -->
     <Style x:Key="ActivityTickerTextStyle" TargetType="TextBlock">

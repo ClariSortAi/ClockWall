@@ -1,21 +1,24 @@
-using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
-using Windows.Foundation;
 
 namespace ClockWall;
 
 /// <summary>
-/// The band between the date and the AGENTS rule: one line, scrolling right to
-/// left, naming what every running agent is doing right now - the tool it last
-/// called and a short hint at what it called it on.
+/// The band between the date and the AGENTS rule: one static line naming what
+/// an agent that is WORKING right now is doing - the tool it last called and a
+/// short hint at what it called it on. It is rewritten in place on a 1s poll,
+/// so what it says is never more than a second behind the roster.
 ///
 /// It renders <see cref="AgentSession.Activity"/>, which the existing
 /// transcript follower already produces; this control adds no reading of its
 /// own. Give it the roster's live collection with <see cref="Attach"/>.
+///
+/// Idle sessions are left out on purpose: an idle agent's last tool call can be
+/// an hour old and still reads as news. The rest take the band in turn, a few
+/// seconds each, and whatever still overruns 1080px is trimmed by the TextBlock
+/// rather than scrolled. A line that has to travel to be read is out of date
+/// everywhere except the instant it is redrawn.
 ///
 /// With nothing to say it collapses, which hands its height straight back to
 /// the roster (MainWindow.PushRosterBudget). The "no agents" case belongs to
@@ -23,51 +26,16 @@ namespace ClockWall;
 /// </summary>
 public sealed partial class ActivityTicker : UserControl
 {
-    /// <summary>Scroll speed in design pixels per second. This is read from
-    /// across a room, all day: fast is unreadable and irritating. At this rate a
-    /// word takes about 24 seconds to cross the 968px-wide band.</summary>
-    private const double PixelsPerSecond = 40d;
-
-    /// <summary>Between agents. Wide enough that two agents never read as one
-    /// sentence.</summary>
-    private const string Separator = "     ●     ";
-
-    private readonly Storyboard _scroll = new();
-    private readonly DoubleAnimation _slide = new();
+    /// <summary>Ticks of the 1s poll one agent holds the band for.</summary>
+    private const int SlotTicks = 4;
 
     private DispatcherQueueTimer? _timer;
     private IReadOnlyList<AgentSession>? _sessions;
-    private string _pending = string.Empty;
-    private bool _scrolling;
+    private int _tick;
 
     public ActivityTicker()
     {
         InitializeComponent();
-
-        Storyboard.SetTarget(_slide, Line);
-        Storyboard.SetTargetProperty(_slide, "(UIElement.RenderTransform).(TranslateTransform.X)");
-        _scroll.Children.Add(_slide);
-
-        // One pass per Begin, relaunched here, rather than RepeatBehavior
-        // Forever: the loop seam is then the ONE moment the text is off screen,
-        // which is where a change of text has to land if the line is not to
-        // snap back to the right edge every time a busy agent calls a tool.
-        // The guard is not paranoia: Stop() is documented differently across
-        // XAML stacks, and a Stop that raised Completed would re-enter
-        // StartPass forever. StartPass clears the flag before it stops.
-        _scroll.Completed += (_, _) => { if (_scrolling) StartPass(); };
-
-        // The band's width is only known after layout, and the animation is
-        // expressed in it, so a resize has to re-arm. It fires once in practice
-        // (the design canvas is a fixed 1080 wide).
-        Track.SizeChanged += (_, _) =>
-        {
-            Track.Clip = new RectangleGeometry
-            {
-                Rect = new Rect(0, 0, Track.ActualWidth, Track.ActualHeight),
-            };
-            if (!_scrolling) StartPass();
-        };
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -85,10 +53,9 @@ public sealed partial class ActivityTicker : UserControl
     {
         // ponytail: a 1s poll rather than subscribing to CollectionChanged plus
         // every session's PropertyChanged (and unsubscribing again on recycle).
-        // Refresh is a string compare over at most a handful of sessions and
-        // does nothing at all when the text has not changed, and the underlying
-        // data only moves every 5s anyway. If the roster ever grows to hundreds
-        // of sessions, swap this for those two subscriptions.
+        // Refresh is a sort and a list build over at most a handful of sessions
+        // plus one TextBlock assignment, and the canvas relays out every second
+        // for the clock regardless.
         if (_timer is null)
         {
             _timer = DispatcherQueue.CreateTimer();
@@ -101,62 +68,40 @@ public sealed partial class ActivityTicker : UserControl
         _timer.Start();
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e)
-    {
-        _timer?.Stop();
-        _scrolling = false;
-        _scroll.Stop();
-    }
+    private void OnUnloaded(object sender, RoutedEventArgs e) => _timer?.Stop();
 
-    /// <summary>Recomposes the line. New text is held until the current pass
-    /// runs off the left edge - a mid-flight swap is the one thing that reads
-    /// as a glitch on a wall, and a busy agent changes tool every few seconds.
-    /// A tick that finds nothing new does nothing at all.</summary>
+    /// <summary>Rebuilds the line from live state and shows it immediately.
+    /// Nothing defers the assignment - no animation, no phase, no completion
+    /// callback - because whatever the text has to wait for is time the wall
+    /// spends stating something that has stopped being true.</summary>
     private void Refresh()
     {
-        var builder = new StringBuilder();
+        var slot = _tick++ / SlotTicks;
+        var working = new List<string>();
 
-        foreach (var session in _sessions ?? Array.Empty<AgentSession>())
+        // Most recently active first, which for a session waiting on a subagent
+        // puts the subagent - the one actually touching files - in the first
+        // slot. UpdatedAt is the transcript's mtime for a subagent and the
+        // registry file's for a session, so it is exactly "who moved last".
+        foreach (var session in (_sessions ?? Array.Empty<AgentSession>()).OrderByDescending(s => s.UpdatedAt))
         {
-            // No activity yet means nothing to say about it - printing the name
-            // alone would leave a dangling separator on the wall.
-            if (string.IsNullOrEmpty(session.Activity)) continue;
+            // Not working, or working but yet to call anything: either way
+            // there is nothing true to say about it this second. Subagents are
+            // in here too, and are often the thing actually doing the work -
+            // the watcher only surfaces the live ones, and it marks them busy.
+            if (!session.IsBusy || string.IsNullOrEmpty(session.Activity)) continue;
 
-            if (builder.Length > 0) builder.Append(Separator);
-            builder.Append(session.DisplayName).Append("  ·  ").Append(session.Activity);
+            working.Add($"{session.DisplayName}  ·  {session.Activity}");
         }
 
-        var text = builder.ToString();
-        if (text == _pending) return;
-
-        _pending = text;
-        if (!_scrolling) StartPass();
-    }
-
-    /// <summary>Puts the latest text on screen and runs it once, right to left.
-    /// Called at every loop seam, so the text shown is never more than one pass
-    /// old.</summary>
-    private void StartPass()
-    {
-        _scrolling = false;
-        _scroll.Stop();
-
-        Line.Text = _pending;
-        Visibility = _pending.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-
-        if (_pending.Length == 0 || Track.ActualWidth <= 0) return;
-
-        // Canvas children are measured against infinity, so this is the text's
-        // natural width - but only after an explicit measure, since the text
-        // was assigned after the last layout pass.
-        Line.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        var width = Line.DesiredSize.Width;
-
-        _slide.From = Track.ActualWidth;
-        _slide.To = -width;
-        _slide.Duration = TimeSpan.FromSeconds((Track.ActualWidth + width) / PixelsPerSecond);
-
-        _scrolling = true;
-        _scroll.Begin();
+        // One agent at a time, taking turns. Two busy agents already overrun
+        // 1080px at this type size - a session and the subagent inside it is
+        // the ordinary case - and each of them in turn, whole, beats both of
+        // them at once with the second one cut off mid-word forever. With one
+        // agent working the index is 0 every tick, so nothing moves. The list
+        // is rebuilt here, on the tick, so the agent on screen is current to
+        // the second whether or not the turn just changed.
+        Line.Text = working.Count == 0 ? string.Empty : working[slot % working.Count];
+        Visibility = Line.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 }

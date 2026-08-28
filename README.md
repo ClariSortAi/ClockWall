@@ -2,7 +2,7 @@
 
 An always-on wall or kiosk dashboard for a 1080x1920 portrait display. Built to run continuously and be read from across a room.
 
-A large digital clock sits at the top, with today's date underneath. Under that, a slow ticker scrolls what each running agent is doing right now. Below that is a live list of the Claude Code agent sessions currently running on the machine, with the subagents running inside each one indented beneath it.
+A large digital clock sits at the top, with today's date underneath. Under that, a single static line names what an agent that is working right now is doing, rewritten in place once a second. Below that is a live list of the Claude Code agent sessions currently running on the machine, with the subagents running inside each one indented beneath it.
 
 ![ClockWall](docs/preview.png)
 
@@ -57,7 +57,9 @@ Token and model numbers aren't in the registry. They come from the session trans
 
 Context used is the last assistant message's `input_tokens` plus `cache_read_input_tokens` plus `cache_creation_input_tokens`. Total tokens is the sum of `output_tokens` across the transcript. Summing input tokens across turns instead would double count cache reads by a huge margin, so ClockWall doesn't do that.
 
-The ticker line comes out of the same read: the last `tool_use` block in the newest assistant message gives the tool name, and one field of its input (`file_path`, `command`, `pattern`, `description` or `prompt`) gives the hint beside it, as `Edit MainWindow.xaml.cs` or `Bash git status`. A tool carrying none of those shows just its name. Only the first line of a hint is used, and every path is reduced to its file name - partly because that reads better from a distance, and partly because a wall display should not publish the directory structure of the machine next to it.
+The activity line comes out of the same read: the last `tool_use` block in the newest assistant message gives the tool name, and one field of its input (`file_path`, `command`, `pattern`, `description` or `prompt`) gives the hint beside it, as `Edit MainWindow.xaml.cs` or `Bash git status`. A tool carrying none of those shows just its name. Only the first line of a hint is used, and every path is reduced to its file name - partly because that reads better from a distance, and partly because a wall display should not publish the directory structure of the machine next to it.
+
+That line is rebuilt from live state and redrawn every second, and it considers only the agents that are busy at that moment, sessions and subagents alike. An idle agent's last tool call is minutes or hours old and would read as current, so it is left out. One busy agent holds the line for four seconds and then the next one takes it, most recently active first, because a session and the subagent working inside it already overrun 1080px at this type size and each of them whole, in turn, reads better than both at once with the second cut off. Anything still too wide is trimmed with an ellipsis. Nothing about the line animates, so a tool call that lasts two seconds can appear for those two seconds. With nothing busy, the band collapses and the space goes to the session list.
 
 These transcripts grow without bound (some are already megabytes), so ClockWall reads them like a tail follower: it keeps a byte offset and a running total per session, and only reads the bytes appended since the last poll.
 
