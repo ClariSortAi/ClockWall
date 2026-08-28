@@ -25,6 +25,7 @@
             <SolidColorBrush x:Key="AgentCardBackgroundBrush" Color="#FFFFFFFF" />
             <SolidColorBrush x:Key="AgentCardStrokeBrush"     Color="#FFE1E1E8" />
             <SolidColorBrush x:Key="SectionDividerBrush"      Color="#FFDCDCE4" />
+            <SolidColorBrush x:Key="SystemMeterTrackBrush"    Color="#FFE4E4EC" />
 
             <!-- Text -->
             <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="TextFillColorPrimaryBrush" />
@@ -35,6 +36,9 @@
             <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="TextFillColorSecondaryBrush" />
             <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="TextFillColorTertiaryBrush" />
             <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SystemMeterLabelTextBrush" ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SystemMeterValueTextBrush" ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="SystemMeterFillBrush"      ResourceKey="TextFillColorTertiaryBrush" />
 
             <!-- Accent -->
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
@@ -61,6 +65,7 @@
             <SolidColorBrush x:Key="AgentCardBackgroundBrush" Color="#FF1B1B22" />
             <SolidColorBrush x:Key="AgentCardStrokeBrush"     Color="#FF2F2F3A" />
             <SolidColorBrush x:Key="SectionDividerBrush"      Color="#FF32323D" />
+            <SolidColorBrush x:Key="SystemMeterTrackBrush"    Color="#FF2A2A34" />
 
             <!-- Text -->
             <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="TextFillColorPrimaryBrush" />
@@ -71,6 +76,9 @@
             <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="TextFillColorSecondaryBrush" />
             <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="TextFillColorTertiaryBrush" />
             <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SystemMeterLabelTextBrush" ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SystemMeterValueTextBrush" ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="SystemMeterFillBrush"      ResourceKey="TextFillColorTertiaryBrush" />
 
             <!-- Accent -->
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
@@ -96,6 +104,7 @@
             <StaticResource x:Key="AgentCardBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
             <StaticResource x:Key="AgentCardStrokeBrush"     ResourceKey="SystemColorWindowTextColorBrush" />
             <StaticResource x:Key="SectionDividerBrush"      ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="SystemMeterTrackBrush"    ResourceKey="SystemColorGrayTextColorBrush" />
 
             <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="SystemColorWindowTextColorBrush" />
             <StaticResource x:Key="ClockSecondaryTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
@@ -105,6 +114,9 @@
             <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="SystemColorWindowTextColorBrush" />
             <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="SystemColorGrayTextColorBrush" />
             <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="SystemMeterLabelTextBrush" ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="SystemMeterValueTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="SystemMeterFillBrush"      ResourceKey="SystemColorWindowTextColorBrush" />
 
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="WallAccentTextBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
@@ -139,6 +151,8 @@
     <x:Double x:Key="HeroMeridiemFontSize">88</x:Double>
     <x:Double x:Key="WallDateFontSize">56</x:Double>
     <x:Double x:Key="ActivityTickerFontSize">30</x:Double>
+    <x:Double x:Key="SystemMeterValueFontSize">26</x:Double>
+    <x:Double x:Key="SystemMeterLabelFontSize">20</x:Double>
     <x:Double x:Key="SectionHeaderFontSize">28</x:Double>
     <x:Double x:Key="AgentNameFontSize">30</x:Double>
     <x:Double x:Key="AgentStatusLabelFontSize">22</x:Double>
@@ -165,6 +179,19 @@
          does not. -->
     <x:Double x:Key="ActivityTickerHeight">44</x:Double>
 
+    <!-- ==================== SYSTEM METERS ====================
+         The CPU / RAM / NET line under the date. The bar is a fixed track the
+         fill is a fraction of - the control sets that fraction as a column
+         weight, so this width is the only place the bar's size is stated.
+
+         These are sized against a MEASURED ceiling: all three readouts plus
+         their labels and bars have to fit 968px (1080 less the inset both
+         sides) on ONE line, and every string is padded to its widest form, so
+         what renders is already the worst case. Growing the type here is what
+         will overflow that line. -->
+    <x:Double x:Key="SystemMeterBarWidth">84</x:Double>
+    <x:Double x:Key="SystemMeterBarHeight">10</x:Double>
+
     <!-- ==================== AGENT CARD METRICS ==================== -->
     <x:Double x:Key="AgentCardMinHeight">150</x:Double>
     <x:Double x:Key="AgentCardGutter">16</x:Double>
@@ -176,6 +203,7 @@
     <!-- ==================== CORNER RADII ==================== -->
     <CornerRadius x:Key="AgentCardCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="AgentStatusPillCornerRadius">16</CornerRadius>
+    <CornerRadius x:Key="SystemMeterBarCornerRadius">5</CornerRadius>
 
     <!-- ==================== TEXT STYLES ==================== -->
 
@@ -229,7 +257,31 @@
         <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
 
-    <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">
+    <!-- The system meter line. One step BELOW the ticker in brush and weight:
+         it is ambient, and must not compete with either the clock above it or
+         the agent cards below. The label is set at caption scale with the
+         section header's letter-spacing, so "CPU" reads as a label rather than
+         as a word in the sentence. -->
+    <Style x:Key="SystemMeterLabelTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource SystemMeterLabelFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="Foreground" Value="{ThemeResource SystemMeterLabelTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="SystemMeterValueTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource SystemMeterValueFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource SystemMeterValueTextBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+        <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource SectionHeaderFontSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
@@ -314,6 +366,26 @@
         <Setter Property="Width" Value="{StaticResource AgentStatusDotSize}" />
         <Setter Property="Height" Value="{StaticResource AgentStatusDotSize}" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- The unfilled track of a meter bar. Sits at divider weight: present,
+         but never louder than the number beside it. -->
+    <Style x:Key="SystemMeterBarTrackStyle" TargetType="Border">
+        <Setter Property="Width" Value="{StaticResource SystemMeterBarWidth}" />
+        <Setter Property="Height" Value="{StaticResource SystemMeterBarHeight}" />
+        <Setter Property="CornerRadius" Value="{StaticResource SystemMeterBarCornerRadius}" />
+        <Setter Property="Background" Value="{ThemeResource SystemMeterTrackBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- The filled part. Width is a column weight the control sets, never a
+         value here. Deliberately ONE brush at every load: a bar that changes
+         colour is an alarm, and this display is meant to be permanent
+         furniture. Tint it with AgentStatusBusyBrush above some threshold if
+         that ever proves worth it. -->
+    <Style x:Key="SystemMeterBarFillStyle" TargetType="Border">
+        <Setter Property="CornerRadius" Value="{StaticResource SystemMeterBarCornerRadius}" />
+        <Setter Property="Background" Value="{ThemeResource SystemMeterFillBrush}" />
     </Style>
 
     <!-- 1px horizontal rule between the hero zone and the agent list. -->

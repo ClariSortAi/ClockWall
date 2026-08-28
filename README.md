@@ -2,9 +2,44 @@
 
 An always-on wall or kiosk dashboard for a 1080x1920 portrait display. Built to run continuously and be read from across a room.
 
-A large digital clock sits at the top, with today's date underneath. Under that, a single static line names what an agent that is working right now is doing, rewritten in place once a second. Below that is a live list of the Claude Code agent sessions currently running on the machine, with the subagents running inside each one indented beneath it.
+A large digital clock sits at the top, with today's date underneath. Below that is a line of meters for the machine itself - CPU, RAM and network throughput. Under those, a single static line names what an agent that is working right now is doing, rewritten in place once a second. Below that is a live list of the Claude Code agent sessions currently running on the machine, with the subagents running inside each one indented beneath it.
 
 ![ClockWall](docs/preview.png)
+
+## The meters
+
+One line under the date, showing CPU, RAM and network for the machine ClockWall is running on. It is resampled once a second.
+
+```
+CPU 100%  ====    RAM  39% . 12.3/32 GB  ==      NET  11.8 KB/s   4.5 KB/s
+```
+
+CPU and RAM are percentages and each has a slim bar beside the number. Network is a rate, not a percentage, so it is shown as a rate in both directions, in whichever of KB/s, MB/s or GB/s keeps the figure in three significant digits. There is no bar for it, because a bar would need a maximum and there isn't an honest one.
+
+Every figure comes from an OS call that ships with Windows, so this adds no dependency:
+
+- CPU is `GetSystemTimes`, sampled twice and differenced. Kernel time already includes idle time, so busy is `(kernel + user - idle)` over `(kernel + user)` across the interval.
+- RAM is `GlobalMemoryStatusEx`. Used is total physical less available physical.
+- Network is `NetworkInterface.GetIPv4Statistics()` summed over the adapters that are up, differenced against the previous sample and divided by the elapsed time.
+
+`System.Diagnostics.PerformanceCounter` is deliberately not used. It is a separate NuGet package on modern .NET and its first read has to be discarded, which is more moving parts than these three calls need.
+
+### Counting the network once
+
+Windows lists every NDIS filter bound to an adapter as an interface in its own right — `Ethernet-QoS Packet Scheduler-0000`, `Ethernet-WFP Native MAC Layer LightWeight Filter-0000` — each with its own interface GUID but with the byte counters of the one real adapter underneath. On the machine this was written on, that is the same Ethernet card four times over, and summing them reported four times the real throughput. Adapters are therefore keyed by MAC address rather than by GUID, so a wire is counted once however many filters are stacked on it. Loopback and tunnel interfaces are left out for the same reason.
+
+The adapter list is re-enumerated every ten seconds rather than every second. `GetAllNetworkInterfaces()` measures 46ms on a machine with 41 adapters, and spending that on the UI thread every second — on a display whose job is to show what the machine is doing — costs more than it is worth. Reading the byte counters off the cached list is 0.7ms. The trade is that an adapter appearing or disappearing takes up to ten seconds to be counted or dropped.
+
+### Getting deltas right
+
+Two of the three readings are differences between samples, which is where this kind of display usually goes wrong:
+
+- The first sample has nothing to compare against, so CPU and network show `--` for the first second rather than a wrong number or a spike.
+- Byte counters reset when an adapter reconnects. A negative delta clamps to zero.
+- Adapters are differenced individually, not as a summed total. One appearing brings its whole lifetime byte count with it, and one disappearing takes its count away; differencing the sum would read those as a huge spike and a negative.
+- Elapsed time comes from `Stopwatch`, not from subtracting wall-clock readings, so an NTP correction or a DST shift can't produce an absurd rate.
+
+Numbers are padded with figure spaces (U+2007), which are exactly one digit wide, rather than ordinary spaces, which are about half that. Together with tabular figures that keeps every readout the same rendered width whatever the value is, so the bars don't shuffle sideways as CPU crosses from 9% to 10% to 100%.
 
 ## What a session row shows
 

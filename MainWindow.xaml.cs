@@ -646,8 +646,42 @@ internal static class Native
         public uint Mask2;
     }
 
+    /// <summary>
+    /// Physical and virtual memory figures. Only <c>ullTotalPhys</c> and
+    /// <c>ullAvailPhys</c> are read (see SystemMeters), but the layout must
+    /// match the OS struct in full or <c>dwLength</c> is wrong and the call
+    /// fails.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct MEMORYSTATUSEX
+    {
+        public uint dwLength;
+        public uint dwMemoryLoad;
+        public ulong ullTotalPhys;
+        public ulong ullAvailPhys;
+        public ulong ullTotalPageFile;
+        public ulong ullAvailPageFile;
+        public ulong ullTotalVirtual;
+        public ulong ullAvailVirtual;
+        public ulong ullAvailExtendedVirtual;
+    }
+
     [DllImport("kernel32.dll")]
     internal static extern uint SetThreadExecutionState(uint esFlags);
+
+    /// <summary>
+    /// System-wide CPU time since boot, in 100ns units summed over every core.
+    /// The out parameters are FILETIMEs, which are byte-identical to a 64-bit
+    /// integer, so they are marshalled as one rather than as a struct pair.
+    /// A single reading says nothing - CPU load is the delta between two.
+    /// </summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetSystemTimes(out long idleTime, out long kernelTime, out long userTime);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer);
 
     [DllImport("user32.dll")]
     internal static extern int GetDpiForWindow(IntPtr hwnd);

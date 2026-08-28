@@ -1,0 +1,104 @@
+<UserControl
+    x:Class="ClockWall.SystemMeters"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        Three ambient readouts on one line under the date: CPU, RAM, NET.
+        Subordinate to the clock by size, weight and brush - this is the
+        machine's pulse, not the headline.
+
+        CPU and RAM are percentages, so each gets a slim bar beside its number:
+        a bar is read from across a room faster than digits are. NET is a rate,
+        which has no meaningful full scale, so it is shown as a rate only - a
+        bar there would need an invented maximum and would lie about it.
+
+        Anti-jitter, the same discipline as ClockPanel: every string the
+        code-behind produces is a FIXED character count (numbers are padded to
+        width, units are all four characters), and Tabular numeral alignment
+        pins every digit to a common advance. The three cells are pinned to the
+        left, centre and right of the canvas, so a cell that did change width
+        would drag its neighbours - it never does.
+
+        The bars carry no pixel maths. The fill is column 0 of a two-column
+        grid and the code sets the two star weights to f and 1-f, so the fill
+        is a fraction of whatever width the track has, resolved by layout.
+    -->
+    <Grid HorizontalAlignment="Stretch">
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+
+        <!-- CPU -->
+        <StackPanel Grid.Column="0"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    VerticalAlignment="Center">
+
+            <TextBlock Style="{StaticResource SystemMeterLabelTextStyle}" Text="CPU" />
+
+            <TextBlock x:Name="CpuValue"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+            <Border Style="{StaticResource SystemMeterBarTrackStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="CpuBarFill" Width="0*" />
+                        <ColumnDefinition x:Name="CpuBarRest" Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource SystemMeterBarFillStyle}" />
+                </Grid>
+            </Border>
+
+        </StackPanel>
+
+        <!-- RAM -->
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    VerticalAlignment="Center">
+
+            <TextBlock Style="{StaticResource SystemMeterLabelTextStyle}" Text="RAM" />
+
+            <TextBlock x:Name="RamValue"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+            <Border Style="{StaticResource SystemMeterBarTrackStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition x:Name="RamBarFill" Width="0*" />
+                        <ColumnDefinition x:Name="RamBarRest" Width="1*" />
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource SystemMeterBarFillStyle}" />
+                </Grid>
+            </Border>
+
+        </StackPanel>
+
+        <!-- NET -->
+        <StackPanel Grid.Column="4"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    VerticalAlignment="Center">
+
+            <TextBlock Style="{StaticResource SystemMeterLabelTextStyle}" Text="NET" />
+
+            <TextBlock x:Name="NetValue"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+        </StackPanel>
+
+    </Grid>
+
+</UserControl>
