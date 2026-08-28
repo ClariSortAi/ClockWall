@@ -77,11 +77,18 @@ public sealed partial class MainWindow : Window
 
         if (_screenshotPath is not null)
         {
+            // Screenshot mode forces 0,0; it neither restores nor saves, so a
+            // capture run cannot poison the remembered position.
             Activated += OnActivatedForScreenshot;
         }
-        else if (_startFullScreen)
+        else
         {
-            EnterFullScreen();
+            RestorePosition();
+
+            if (_startFullScreen)
+            {
+                EnterFullScreen();
+            }
         }
     }
 
@@ -165,6 +172,14 @@ public sealed partial class MainWindow : Window
     {
         ExtendsContentIntoTitleBar = true;
 
+        // The entire wall IS the title bar. There is no caption to grab, so the
+        // root grid is nominated as the drag region and the OS moves the window
+        // from anywhere on it - no pointer handling, no WM_NCHITTEST of our own.
+        // A drag region swallows input to controls inside it; the wall has none,
+        // and the Escape/F11 accelerators are window-scoped, so that costs
+        // nothing here.
+        SetTitleBar(WallRoot);
+
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             // No border, no title bar, no caption buttons: it reads as a panel,
@@ -211,6 +226,82 @@ public sealed partial class MainWindow : Window
         catch (Exception ex)
         {
             Debug.WriteLine($"[ClockWall] could not size client area: {ex}");
+        }
+    }
+
+    // ---------------------------------------------------------------- position
+
+    /// <summary>
+    /// Where the window position is remembered: two integers, one line. Not a
+    /// settings store - if a second setting ever needs to persist, that is the
+    /// point to reach for one.
+    /// </summary>
+    private static string PositionFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "ClockWall",
+        "window-position.txt");
+
+    /// <summary>
+    /// Puts the window back where it was last left. A missing, truncated or
+    /// garbage file simply leaves the OS default placement in force.
+    /// </summary>
+    /// <remarks>
+    /// The display check is the part that is not optional. Monitors get
+    /// unplugged, and a remembered position on a display that is now gone would
+    /// strand a border-less, task-bar-less window somewhere unreachable, with no
+    /// chrome to grab and no way to drag it back.
+    /// </remarks>
+    private void RestorePosition()
+    {
+        try
+        {
+            var saved = File.ReadAllText(PositionFile).Split(',');
+            if (saved.Length == 2
+                && int.TryParse(saved[0], out var x)
+                && int.TryParse(saved[1], out var y)
+                // ponytail: the top-left corner only. That is the recoverability
+                // test - a corner on a connected display means there is window
+                // to grab - not a full-visibility test, so a window can still
+                // hang off the right or bottom edge of a screen. Intersect the
+                // whole 1080x1920 rect with DisplayArea.WorkArea if that ever
+                // needs correcting too.
+                && DisplayArea.GetFromPoint(new PointInt32(x, y), DisplayAreaFallback.None) is not null)
+            {
+                AppWindow.Move(new PointInt32(x, y));
+
+                // Landing on a display of a different scale than the one the
+                // window was created on triggers a DPI change, and Windows
+                // rescales the client with it - 1080x1920 arrives as 864x1536 on
+                // a 100% panel. Re-assert the design size at the destination so
+                // startup is always exactly 1080x1920 physical pixels.
+                SizeClientToDesign();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ClockWall] could not restore window position: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Remembers where the window ended up. Skipped in full screen, where the
+    /// position is the presenter's 0,0 rather than the user's.
+    /// </summary>
+    private void SavePosition()
+    {
+        if (_screenshotPath is not null || _isFullScreen)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(PositionFile)!);
+            File.WriteAllText(PositionFile, $"{AppWindow.Position.X},{AppWindow.Position.Y}");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ClockWall] could not save window position: {ex}");
         }
     }
 
@@ -412,6 +503,8 @@ public sealed partial class MainWindow : Window
         }
 
         _closed = true;
+
+        SavePosition();
 
         // See the integration note in the constructor: a panel owns its own
         // construction and start/stop, the shell owns the final release. It
