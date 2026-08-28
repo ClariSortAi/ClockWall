@@ -96,6 +96,28 @@ announced honestly in the footer ("2 MORE AGENTS") rather than being clipped.
 
 ## Deploying to a wall machine
 
+### Updating the copy you actually run  (do this after every change)
+
+The app you launch lives in `%LOCALAPPDATA%\Programs\ClockWall`, **not** in `bin\`.
+Rebuilding does not update it. Use:
+
+```powershell
+.\deploy.ps1            # build, install, relaunch
+.\deploy.ps1 -NoRestart # build + install only
+```
+
+Skipping this is the single easiest way to waste time: the change is in the source and in
+`bin\`, but the window on screen is still the old binary, so the fix looks like it failed.
+
+> **On this machine, prefer `deploy.ps1` over `dotnet publish`.** Smart App Control is
+> enforced here (`VerifiedAndReputablePolicyState = 1`). A self-contained publish ships its
+> own unsigned copy of the .NET / Windows App SDK runtime, and SAC refuses to load it -
+> the app dies with `FileLoadException` and CodeIntegrity event 3077. `deploy.ps1` copies
+> the framework-dependent build output, which loads the runtime from `Program Files` where
+> it is Microsoft-signed. The publish instructions below apply to a *signed* build, or to a
+> wall machine without Smart App Control.
+
+
 ### Publish
 
 ```powershell
