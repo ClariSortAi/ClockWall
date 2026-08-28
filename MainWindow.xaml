@@ -54,6 +54,8 @@
                   rest       hero zone (clock + date), which takes the SLACK
                              and centres in it
                   40         gap
+                  44         activity ticker, or 0 when it has nothing to say
+                  40         gap
                   1          section divider rule
                   32         gap
                   ~280-1055  agent list, sized to its content by AgentListPanel
@@ -76,6 +78,7 @@
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- HERO: the large clock and, under it, the date. Centred in
@@ -85,18 +88,27 @@
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center" />
 
+                <!-- TICKER: what the running agents are doing, scrolling. Sits
+                     in the band under the date; collapses to nothing when no
+                     agent has called a tool, which returns its height to the
+                     roster with no edit here (see PushRosterBudget). -->
+                <local:ActivityTicker x:Name="Ticker"
+                                      Grid.Row="1"
+                                      Margin="0,40,0,0"
+                                      HorizontalAlignment="Stretch" />
+
                 <!-- Rule between the hero zone and the agent list. Owned by the
                      shell because it separates the two composed regions rather
                      than belonging to either - AgentListPanel deliberately
                      starts at its own section header, with no rule of its own. -->
                 <Border x:Name="SectionDivider"
-                        Grid.Row="1"
+                        Grid.Row="2"
                         Style="{StaticResource SectionDividerStyle}"
                         Margin="0,40,0,0" />
 
                 <!-- AGENTS: content-sized, anchored on the bottom inset. -->
                 <local:AgentListPanel x:Name="AgentList"
-                                      Grid.Row="2"
+                                      Grid.Row="3"
                                       Margin="0,32,0,0"
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Bottom" />

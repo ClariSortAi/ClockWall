@@ -1,0 +1,36 @@
+<UserControl
+    x:Class="ClockWall.ActivityTicker"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        One scrolling line naming what every running agent is doing right now.
+
+        A Canvas, not a panel: the text has to be free to sit at a negative X
+        and to be wider than the wall, and a Canvas is the one container that
+        measures its child with infinity and then leaves it alone. That is also
+        why the Canvas carries an explicit Height - it has no desired size of
+        its own, and MainWindow.PushRosterBudget sums desired heights to work
+        out what is left for the roster.
+
+        The Canvas is clipped in code-behind (its size is only known after
+        layout); the transform is driven by a Storyboard, also in code-behind,
+        because From/To/Duration all depend on the measured text width.
+    -->
+    <Canvas x:Name="Track"
+            Height="{StaticResource ActivityTickerHeight}"
+            HorizontalAlignment="Stretch">
+
+        <TextBlock x:Name="Line"
+                   Style="{StaticResource ActivityTickerTextStyle}">
+            <TextBlock.RenderTransform>
+                <TranslateTransform x:Name="Offset" />
+            </TextBlock.RenderTransform>
+        </TextBlock>
+
+    </Canvas>
+
+</UserControl>

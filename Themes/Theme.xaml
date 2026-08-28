@@ -138,6 +138,7 @@
     <x:Double x:Key="HeroSecondsFontSize">120</x:Double>
     <x:Double x:Key="HeroMeridiemFontSize">88</x:Double>
     <x:Double x:Key="WallDateFontSize">56</x:Double>
+    <x:Double x:Key="ActivityTickerFontSize">30</x:Double>
     <x:Double x:Key="SectionHeaderFontSize">28</x:Double>
     <x:Double x:Key="AgentNameFontSize">30</x:Double>
     <x:Double x:Key="AgentStatusLabelFontSize">22</x:Double>
@@ -156,6 +157,13 @@
     <!-- Distance from the panel edge to any content. -->
     <x:Double x:Key="WallEdgeInset">56</x:Double>
     <Thickness x:Key="WallEdgeMargin">56</Thickness>
+
+    <!-- ==================== ACTIVITY TICKER ====================
+         The band between the date and the AGENTS rule. Height is the line box
+         the scrolling text is clipped to - the ticker reserves it from the
+         canvas budget when it has something to say and collapses to nothing
+         when it does not. -->
+    <x:Double x:Key="ActivityTickerHeight">44</x:Double>
 
     <!-- ==================== AGENT CARD METRICS ==================== -->
     <x:Double x:Key="AgentCardMinHeight">150</x:Double>
@@ -208,6 +216,17 @@
         <Setter Property="IsTextSelectionEnabled" Value="False" />
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
+    <!-- The scrolling activity line. Deliberately one step down from the date
+         in size, weight and brush - it is a caption to the hero, not a peer -
+         but still set at agent-name scale so it carries across a room. -->
+    <Style x:Key="ActivityTickerTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource ActivityTickerFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockTertiaryTextBrush}" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
 
     <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">

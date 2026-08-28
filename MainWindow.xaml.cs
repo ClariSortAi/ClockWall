@@ -73,6 +73,9 @@ public sealed partial class MainWindow : Window
         // blind IDisposable sweep, so the shell never names a panel's field.
         Closed += OnClosed;
 
+        // The ticker reads the same roster - it does not start a watcher either.
+        Ticker.Attach(AgentList.Sessions);
+
         DesignCanvas.LayoutUpdated += (_, _) => PushRosterBudget();
 
         if (_screenshotPath is not null)

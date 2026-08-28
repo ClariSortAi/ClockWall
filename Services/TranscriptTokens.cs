@@ -25,11 +25,19 @@ internal sealed class TranscriptTokens
 
     private readonly Dictionary<string, Tally> _bySession = new(StringComparer.Ordinal);
 
+    /// <summary>Fields of a tool_use input worth showing, best first. The first
+    /// one present wins; a tool carrying none of them shows just its name.</summary>
+    private static readonly string[] HintKeys =
+        { "file_path", "command", "pattern", "description", "prompt" };
+
+    private static readonly char[] PathSeparators = { '\\', '/' };
+
     /// <summary>Context held by the most recent assistant turn, output tokens
-    /// summed over the session so far, and the model that turn ran on.</summary>
-    public (int Context, long Output, string Model) Read(string cwd, string sessionId)
+    /// summed over the session so far, the model that turn ran on, and the last
+    /// tool call it made ("Edit MainWindow.xaml.cs").</summary>
+    public (int Context, long Output, string Model, string Activity) Read(string cwd, string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, string.Empty);
+        if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, string.Empty, string.Empty);
 
         if (!_bySession.TryGetValue(sessionId, out var tally))
             _bySession[sessionId] = tally = new Tally();
@@ -43,7 +51,7 @@ internal sealed class TranscriptTokens
             // Absent, locked, mid-write, unreadable: keep what we already have.
         }
 
-        return (tally.Context, tally.Output, tally.Model);
+        return (tally.Context, tally.Output, tally.Model, tally.Activity);
     }
 
     /// <summary>"C:\dev\Clock" -&gt; "C--dev-Clock", the on-disk project folder.</summary>
@@ -111,6 +119,28 @@ internal sealed class TranscriptTokens
                 if (message.TryGetProperty("model", out var model) &&
                     model.ValueKind == JsonValueKind.String)
                     tally.Model = model.GetString() ?? string.Empty;
+
+                // What the session is DOING sits in the same message: its
+                // content blocks. Last tool_use in the last turn seen wins.
+                if (!message.TryGetProperty("content", out var content) ||
+                    content.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                foreach (var block in content.EnumerateArray())
+                {
+                    if (!block.TryGetProperty("type", out var type) ||
+                        type.ValueKind != JsonValueKind.String ||
+                        type.GetString() != "tool_use" ||
+                        !block.TryGetProperty("name", out var name) ||
+                        name.ValueKind != JsonValueKind.String)
+                        continue;
+
+                    var tool = name.GetString();
+                    if (string.IsNullOrEmpty(tool)) continue;
+
+                    var hint = Hint(block);
+                    tally.Activity = hint.Length == 0 ? tool : tool + " " + hint;
+                }
             }
             catch (JsonException)
             {
@@ -122,11 +152,57 @@ internal sealed class TranscriptTokens
     private static int Count(JsonElement usage, string name) =>
         usage.TryGetProperty(name, out var value) && value.TryGetInt32(out var number) ? number : 0;
 
+    /// <summary>
+    /// One short, wall-safe line describing a tool call's argument. Empty when
+    /// the tool carries nothing worth showing (SendMessage), so the caller can
+    /// fall back to the bare tool name rather than rendering a dangling
+    /// separator.
+    ///
+    /// Three rules, all of which have a real transcript behind them: a Bash
+    /// command is routinely multi-line, so only its FIRST line survives; every
+    /// path-like token is reduced to its leaf, because a wall panel must not
+    /// publish the directory structure of the machine beside it (and a file
+    /// name reads far better from across a room than a path); and the result is
+    /// truncated so one pathological argument cannot own the whole ticker.
+    /// </summary>
+    private static string Hint(JsonElement block)
+    {
+        if (!block.TryGetProperty("input", out var input) || input.ValueKind != JsonValueKind.Object)
+            return string.Empty;
+
+        foreach (var key in HintKeys)
+        {
+            if (!input.TryGetProperty(key, out var value) ||
+                value.ValueKind != JsonValueKind.String)
+                continue;
+
+            var raw = value.GetString();
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+
+            var line = raw.Split('\n')[0].Trim();
+            if (line.Length == 0) continue;
+
+            var parts = line.Split(' ');
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var leaf = parts[i].TrimEnd(PathSeparators);
+                var cut = leaf.LastIndexOfAny(PathSeparators);
+                if (cut >= 0 && cut < leaf.Length - 1) parts[i] = leaf[(cut + 1)..];
+            }
+
+            line = string.Join(' ', parts);
+            return line.Length <= 48 ? line : line[..47] + "…";
+        }
+
+        return string.Empty;
+    }
+
     private sealed class Tally
     {
         public long Offset;
         public long Output;
         public int Context;
         public string Model = string.Empty;
+        public string Activity = string.Empty;
     }
 }

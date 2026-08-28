@@ -309,7 +309,7 @@ public sealed class SessionWatcher : IDisposable
         if (!IsProcessAliveAndMatches(dto.Pid, startedAtLocal))
             return null; // stale file outliving its process, or pid reuse
 
-        var (contextTokens, outputTokens, model) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
+        var (contextTokens, outputTokens, model, activity) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
 
         return new AgentSession(
             dto.Pid,
@@ -326,6 +326,7 @@ public sealed class SessionWatcher : IDisposable
             contextTokens,
             outputTokens,
             model,
+            activity,
             isRunning: true);
     }
 

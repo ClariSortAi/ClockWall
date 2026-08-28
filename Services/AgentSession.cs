@@ -96,6 +96,13 @@ public sealed class AgentSession : INotifyPropertyChanged
     /// empty when it has none yet.</summary>
     public string Model { get => _model; private set => SetField(ref _model, value ?? string.Empty); }
 
+    private string _activity = string.Empty;
+    /// <summary>The last tool call this session made, already shortened for
+    /// display ("Edit MainWindow.xaml.cs", "Bash git status", "SendMessage").
+    /// Read from the transcript by <see cref="TranscriptTokens"/>; empty when
+    /// the session has not called a tool yet.</summary>
+    public string Activity { get => _activity; private set => SetField(ref _activity, value ?? string.Empty); }
+
     public DateTime StartedAt { get; private set; }
 
     private DateTime _updatedAt;
@@ -149,6 +156,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         int contextTokens,
         long outputTokens,
         string model,
+        string activity,
         bool isRunning)
     {
         Pid = pid;
@@ -166,6 +174,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         _contextTokens = contextTokens;
         _outputTokens = outputTokens;
         _model = model ?? string.Empty;
+        _activity = activity ?? string.Empty;
         _isRunning = isRunning;
     }
 
@@ -190,6 +199,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         ContextTokens = fresh.ContextTokens;
         OutputTokens = fresh.OutputTokens;
         Model = fresh.Model;
+        Activity = fresh.Activity;
         IsRunning = fresh.IsRunning;
 
         if (fresh.StartedAt != default && StartedAt != fresh.StartedAt)
