@@ -1,0 +1,50 @@
+<UserControl
+    x:Class="ClockWall.ClockPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        The hero of the wall display. Structure, top to bottom:
+          1. HH:MM  - HeroClockTextStyle (400px), the dominant element on screen.
+          2. :SS [AM/PM] - a de-emphasized row directly under the hero. Both
+             live in ONE TextBlock as two Runs: side-by-side TextBlocks are
+             top-aligned line boxes of different heights, so the smaller
+             meridiem would ride ~30px above the seconds baseline and read as a
+             superscript. Runs share a line box, so they share a baseline.
+             AM/PM only appears in 12-hour locales.
+          3. The date - WallDateTextStyle.
+
+        Anti-jitter: every clock/seconds string produced in code-behind is a
+        fixed character count (always 2-digit, zero-padded hour/minute/second -
+        even in 12-hour mode), and Typography.NumeralAlignment="Tabular" pins
+        every digit glyph in Segoe UI Variable to the same advance width (the
+        OpenType 'tnum' feature). Together the line's total measured width never
+        changes from tick to tick, so the centered text never re-flows.
+    -->
+    <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="{StaticResource SpacingXLarge}">
+
+        <StackPanel HorizontalAlignment="Center"
+                    Spacing="{StaticResource SpacingSmall}">
+
+            <TextBlock x:Name="HeroText"
+                       Style="{StaticResource HeroClockTextStyle}"
+                       Typography.NumeralAlignment="Tabular"
+                       Text="00:00" />
+
+            <TextBlock Style="{StaticResource HeroSecondsTextStyle}"
+                       Typography.NumeralAlignment="Tabular"><Run x:Name="SecondsRun" Text=":00" /><Run x:Name="MeridiemRun" FontSize="{StaticResource HeroMeridiemFontSize}" /></TextBlock>
+
+        </StackPanel>
+
+        <TextBlock x:Name="DateText"
+                   Style="{StaticResource WallDateTextStyle}"
+                   Text="" />
+
+    </StackPanel>
+
+</UserControl>

@@ -1,0 +1,328 @@
+<!--
+    ClockWall design system.
+
+    Every resource is named BY PURPOSE, never by hue or by the literal value it
+    happens to carry today. Consumers reference brushes with {ThemeResource} and
+    metrics / styles with {StaticResource}.
+
+    Theme dictionaries cover Light, Dark and HighContrast explicitly - never
+    "Default". The app is dark-first: Dark carries hand-tuned surface colours
+    suited to an always-on wall panel (deeper than the stock base, so a dim room
+    at night is not dominated by a grey rectangle), while text, accent and
+    status colours stay on the real Fluent theme resources.
+-->
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ResourceDictionary.ThemeDictionaries>
+
+        <!-- ============================ LIGHT ============================ -->
+        <ResourceDictionary x:Key="Light">
+
+            <!-- Surfaces -->
+            <SolidColorBrush x:Key="WallBackgroundBrush"      Color="#FFF7F7FA" />
+            <SolidColorBrush x:Key="AgentCardBackgroundBrush" Color="#FFFFFFFF" />
+            <SolidColorBrush x:Key="AgentCardStrokeBrush"     Color="#FFE1E1E8" />
+            <SolidColorBrush x:Key="SectionDividerBrush"      Color="#FFDCDCE4" />
+
+            <!-- Text -->
+            <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="ClockSecondaryTextBrush" ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="ClockTertiaryTextBrush"  ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SectionHeaderTextBrush"  ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="AgentNameTextBrush"      ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="TextFillColorTertiaryBrush" />
+
+            <!-- Accent -->
+            <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="WallAccentTextBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
+
+            <!-- Agent status. Hue never carries the meaning on its own - it is
+                 always paired with a text label on the card. -->
+            <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="AgentStatusIdleBrush"    ResourceKey="SystemFillColorSuccessBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBrush" ResourceKey="SystemFillColorNeutralBrush" />
+            <StaticResource x:Key="AgentStatusBusyBackgroundBrush"    ResourceKey="SystemFillColorCautionBackgroundBrush" />
+            <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemFillColorSuccessBackgroundBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemFillColorNeutralBackgroundBrush" />
+
+        </ResourceDictionary>
+
+        <!-- ============================= DARK ============================= -->
+        <ResourceDictionary x:Key="Dark">
+
+            <!-- Surfaces: hand-tuned for an always-on panel. The card sits one
+                 clear step above the wall and its stroke one clear step above
+                 the card, so a card reads as a card from across a room. -->
+            <SolidColorBrush x:Key="WallBackgroundBrush"      Color="#FF0E0E12" />
+            <SolidColorBrush x:Key="AgentCardBackgroundBrush" Color="#FF1B1B22" />
+            <SolidColorBrush x:Key="AgentCardStrokeBrush"     Color="#FF2F2F3A" />
+            <SolidColorBrush x:Key="SectionDividerBrush"      Color="#FF32323D" />
+
+            <!-- Text -->
+            <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="ClockSecondaryTextBrush" ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="ClockTertiaryTextBrush"  ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="SectionHeaderTextBrush"  ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="AgentNameTextBrush"      ResourceKey="TextFillColorPrimaryBrush" />
+            <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="TextFillColorSecondaryBrush" />
+            <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="TextFillColorTertiaryBrush" />
+            <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="TextFillColorTertiaryBrush" />
+
+            <!-- Accent -->
+            <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
+            <StaticResource x:Key="WallAccentTextBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
+
+            <!-- Agent status -->
+            <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="AgentStatusIdleBrush"    ResourceKey="SystemFillColorSuccessBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBrush" ResourceKey="SystemFillColorNeutralBrush" />
+            <StaticResource x:Key="AgentStatusBusyBackgroundBrush"    ResourceKey="SystemFillColorCautionBackgroundBrush" />
+            <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemFillColorSuccessBackgroundBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemFillColorNeutralBackgroundBrush" />
+
+        </ResourceDictionary>
+
+        <!-- ========================= HIGH CONTRAST ========================= -->
+        <!-- Only SystemColor*Brush is permitted here, paired by role, opacity
+             untouched. Status hue is not meaningful in a Contrast theme - the
+             card's "Busy" / "Idle" text label carries the state. -->
+        <ResourceDictionary x:Key="HighContrast">
+
+            <StaticResource x:Key="WallBackgroundBrush"      ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AgentCardBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AgentCardStrokeBrush"     ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="SectionDividerBrush"      ResourceKey="SystemColorWindowTextColorBrush" />
+
+            <StaticResource x:Key="ClockPrimaryTextBrush"   ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="ClockSecondaryTextBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="ClockTertiaryTextBrush"  ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="SectionHeaderTextBrush"  ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="AgentNameTextBrush"      ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="AgentDetailTextBrush"    ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="AgentMetaTextBrush"      ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="EmptyStateTextBrush"     ResourceKey="SystemColorGrayTextColorBrush" />
+
+            <StaticResource x:Key="WallAccentBrush"     ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="WallAccentTextBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+
+            <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="AgentStatusIdleBrush"    ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBrush" ResourceKey="SystemColorGrayTextColorBrush" />
+            <StaticResource x:Key="AgentStatusBusyBackgroundBrush"    ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+
+        </ResourceDictionary>
+
+    </ResourceDictionary.ThemeDictionaries>
+
+    <!-- ==================== TYPEFACES ====================
+         Segoe UI Variable optical sizes: Display for headline scale, Text for
+         UI/body, Small for captions. Weight is set per style so the variable
+         font interpolates rather than pinning a static named instance. -->
+    <FontFamily x:Key="WallDisplayFontFamily">Segoe UI Variable Display</FontFamily>
+    <FontFamily x:Key="WallTextFontFamily">Segoe UI Variable Text</FontFamily>
+    <FontFamily x:Key="WallSmallFontFamily">Segoe UI Variable Small</FontFamily>
+
+    <!-- ==================== TYPE RAMP (px) ====================
+         HeroClockFontSize is width-bound, not height-bound: at 1080px physical
+         width less a 56px inset per side, "88:88" in Segoe UI Variable Display
+         measures 915px wide at 400px - verified by measuring the style on a real
+         TextBlock, leaving ~53px of slack inside the inset. If seconds are ever set
+         inline with the hour, wrap the hero in a Viewbox rather than growing this. -->
+    <x:Double x:Key="HeroClockFontSize">400</x:Double>
+    <x:Double x:Key="HeroSecondsFontSize">120</x:Double>
+    <x:Double x:Key="HeroMeridiemFontSize">88</x:Double>
+    <x:Double x:Key="WallDateFontSize">56</x:Double>
+    <x:Double x:Key="SectionHeaderFontSize">28</x:Double>
+    <x:Double x:Key="AgentNameFontSize">30</x:Double>
+    <x:Double x:Key="AgentStatusLabelFontSize">22</x:Double>
+    <x:Double x:Key="AgentDetailFontSize">20</x:Double>
+    <x:Double x:Key="AgentMetaFontSize">18</x:Double>
+    <x:Double x:Key="EmptyStateFontSize">26</x:Double>
+
+    <!-- ==================== SPACING SCALE (px) ==================== -->
+    <x:Double x:Key="SpacingXSmall">4</x:Double>
+    <x:Double x:Key="SpacingSmall">8</x:Double>
+    <x:Double x:Key="SpacingMedium">16</x:Double>
+    <x:Double x:Key="SpacingLarge">24</x:Double>
+    <x:Double x:Key="SpacingXLarge">40</x:Double>
+    <x:Double x:Key="SpacingXXLarge">56</x:Double>
+
+    <!-- Distance from the panel edge to any content. -->
+    <x:Double x:Key="WallEdgeInset">56</x:Double>
+    <Thickness x:Key="WallEdgeMargin">56</Thickness>
+
+    <!-- ==================== AGENT CARD METRICS ==================== -->
+    <x:Double x:Key="AgentCardMinHeight">150</x:Double>
+    <x:Double x:Key="AgentCardGutter">16</x:Double>
+    <x:Double x:Key="AgentStatusDotSize">18</x:Double>
+    <Thickness x:Key="AgentCardPadding">24,20,24,20</Thickness>
+    <Thickness x:Key="AgentCardStrokeThickness">1</Thickness>
+    <Thickness x:Key="AgentStatusPillPadding">12,4,14,6</Thickness>
+
+    <!-- ==================== CORNER RADII ==================== -->
+    <CornerRadius x:Key="AgentCardCornerRadius">8</CornerRadius>
+    <CornerRadius x:Key="AgentStatusPillCornerRadius">16</CornerRadius>
+
+    <!-- ==================== TEXT STYLES ==================== -->
+
+    <Style x:Key="HeroClockTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallDisplayFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource HeroClockFontSize}" />
+        <!-- No LineHeight / LineStackingStrategy. A fixed block line height
+             overrides TextLineBounds="Tight" and pads ~160px of phantom leading
+             around a 290px-tall digit block, which then stands in for a margin
+             and shoves the whole composition off centre. Tight bounds mean the
+             hero measures its ink, and spacing is expressed as spacing. -->
+        <!-- SemiLight: at this scale Normal reads heavy and closes the counters. -->
+        <Setter Property="FontWeight" Value="SemiLight" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockPrimaryTextBrush}" />
+        <Setter Property="TextLineBounds" Value="Tight" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
+    <!-- Seconds and meridiem share ONE line box (see ClockPanel.xaml), so the
+         meridiem is a Run at HeroMeridiemFontSize inside this style rather than
+         a style of its own - that is what puts the two on a common baseline. -->
+    <Style x:Key="HeroSecondsTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallDisplayFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource HeroSecondsFontSize}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="FontWeight" Value="SemiLight" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockSecondaryTextBrush}" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="WallDateTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource WallDateFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockSecondaryTextBrush}" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="SectionHeaderTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource SectionHeaderFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="Foreground" Value="{ThemeResource SectionHeaderTextBrush}" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="AgentNameTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource AgentNameFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource AgentNameTextBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="AgentStatusLabelTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource AgentStatusLabelFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="60" />
+        <Setter Property="Foreground" Value="{ThemeResource AgentNameTextBrush}" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="AgentDetailTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource AgentDetailFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource AgentDetailTextBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="AgentMetaTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallSmallFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource AgentMetaFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource AgentMetaTextBrush}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="EmptyStateTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource EmptyStateFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource EmptyStateTextBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <!-- ==================== SURFACES ==================== -->
+
+    <!-- The agent card surface. Apply to the Border that roots the item
+         DataTemplate and put the card content inside it. -->
+    <Style x:Key="AgentCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource AgentCardBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource AgentCardStrokeBrush}" />
+        <Setter Property="BorderThickness" Value="{StaticResource AgentCardStrokeThickness}" />
+        <Setter Property="CornerRadius" Value="{StaticResource AgentCardCornerRadius}" />
+        <Setter Property="Padding" Value="{StaticResource AgentCardPadding}" />
+        <Setter Property="MinHeight" Value="{StaticResource AgentCardMinHeight}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- Pill behind a status label. Set Background per state to one of the
+         AgentStatus*BackgroundBrush keys. -->
+    <Style x:Key="AgentStatusPillStyle" TargetType="Border">
+        <Setter Property="CornerRadius" Value="{StaticResource AgentStatusPillCornerRadius}" />
+        <Setter Property="Padding" Value="{StaticResource AgentStatusPillPadding}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Status dot. Fill is set per state to AgentStatusBusyBrush /
+         AgentStatusIdleBrush / AgentStatusUnknownBrush - and never on its own:
+         it must always sit beside the matching text label. -->
+    <Style x:Key="AgentStatusDotStyle" TargetType="Ellipse">
+        <Setter Property="Width" Value="{StaticResource AgentStatusDotSize}" />
+        <Setter Property="Height" Value="{StaticResource AgentStatusDotSize}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 1px horizontal rule between the hero zone and the agent list. -->
+    <Style x:Key="SectionDividerStyle" TargetType="Border">
+        <Setter Property="Height" Value="1" />
+        <Setter Property="Background" Value="{ThemeResource SectionDividerBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <!-- Lightweight container overrides so cards fill their cell. No
+         re-templating - only property values are set. -->
+    <Style x:Key="AgentGridViewItemStyle" TargetType="GridViewItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,16,16" />
+        <Setter Property="MinWidth" Value="0" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="IsTabStop" Value="False" />
+    </Style>
+
+    <Style x:Key="AgentListViewItemStyle" TargetType="ListViewItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,16" />
+        <Setter Property="MinHeight" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="IsTabStop" Value="False" />
+    </Style>
+
+</ResourceDictionary>

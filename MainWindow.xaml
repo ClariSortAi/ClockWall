@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ClockWall.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ClockWall"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        WALL ROOT
+        =========
+        Two nested surfaces, and the distinction matters:
+
+          WallRoot     - fills whatever the OS actually gives us. Painted with
+                         the opaque WallBackgroundBrush and nothing else: no
+                         system backdrop is applied, because Mica/Acrylic drop to
+                         a solid #202020 whenever the window is not foreground -
+                         a kiosk's permanent state - and that grey is lighter
+                         than the cards. See MainWindow.xaml.cs.
+
+          DesignScaler - maps the fixed 1080x1920 DESIGN canvas onto that client
+                         area. The design system is denominated in PHYSICAL
+                         pixels (see Themes/Theme.xaml: "at 1080px physical width
+                         less a 56px inset per side"), but XAML lays out in DIPs.
+                         This machine's wall display runs at 125%, so a client
+                         area of 1080x1920 physical pixels is only 864x1536 DIPs
+                         and every number in the type ramp would overflow.
+                         Stretch="Uniform" on a fixed-size child collapses that
+                         mismatch: the canvas always measures 1080x1920, and the
+                         Viewbox scales it by exactly (96 / dpi). Text under that
+                         transform still rasterises at the composed scale, so
+                         glyphs stay crisp - this is a coordinate change, not a
+                         bitmap stretch. It also makes the fullscreen flag land
+                         cleanly on the 1440x2560 portrait panel as a full-bleed
+                         fit, since that panel is the same 9:16 aspect.
+    -->
+    <Grid x:Name="WallRoot" Background="{ThemeResource WallBackgroundBrush}">
+
+        <Grid.KeyboardAccelerators>
+            <!-- Window-scoped: nothing in the wall is focusable by design, so
+                 accelerators rather than KeyDown are what reliably fire. -->
+            <KeyboardAccelerator Key="Escape" Invoked="OnExitAccelerator" />
+            <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator" />
+        </Grid.KeyboardAccelerators>
+
+        <Viewbox x:Name="DesignScaler" Stretch="Uniform" StretchDirection="Both">
+
+            <!--
+                THE DESIGN CANVAS - 1080 x 1920, always.
+                Vertical budget (design px):
+                  56         top inset
+                  rest       hero zone (clock + date), which takes the SLACK
+                             and centres in it
+                  40         gap
+                  1          section divider rule
+                  32         gap
+                  ~280-1055  agent list, sized to its content by AgentListPanel
+                  56         bottom inset
+
+                Note which row is the elastic one. The roster is content-sized
+                and bounded (at most five cards; see AgentListPanel), so it can
+                never fill a reserved remainder at a realistic agent count -
+                handing it the slack just parks a third of the panel of dead
+                background under the last card. The hero takes the slack
+                instead, so the composition stays balanced from an empty roster
+                to a full one and the list always sits on the bottom inset.
+            -->
+            <Grid x:Name="DesignCanvas"
+                  Width="1080"
+                  Height="1920"
+                  Padding="{StaticResource WallEdgeMargin}">
+
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- HERO: the large clock and, under it, the date. Centred in
+                     whatever height the roster leaves. -->
+                <local:ClockPanel x:Name="HeroClock"
+                                  Grid.Row="0"
+                                  HorizontalAlignment="Stretch"
+                                  VerticalAlignment="Center" />
+
+                <!-- Rule between the hero zone and the agent list. Owned by the
+                     shell because it separates the two composed regions rather
+                     than belonging to either - AgentListPanel deliberately
+                     starts at its own section header, with no rule of its own. -->
+                <Border x:Name="SectionDivider"
+                        Grid.Row="1"
+                        Style="{StaticResource SectionDividerStyle}"
+                        Margin="0,40,0,0" />
+
+                <!-- AGENTS: content-sized, anchored on the bottom inset. -->
+                <local:AgentListPanel x:Name="AgentList"
+                                      Grid.Row="2"
+                                      Margin="0,32,0,0"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Bottom" />
+
+            </Grid>
+        </Viewbox>
+    </Grid>
+</Window>

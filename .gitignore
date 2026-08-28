@@ -1,0 +1,10 @@
+bin/
+obj/
+*.exe
+*.pdb
+*.user
+*.suo
+.vs/
+Generated Files/
+*.binlog
+captures/
