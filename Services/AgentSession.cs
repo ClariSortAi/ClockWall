@@ -90,6 +90,12 @@ public sealed class AgentSession : INotifyPropertyChanged
     /// <summary>Output tokens this session has produced since it started.</summary>
     public long OutputTokens { get => _outputTokens; private set => SetField(ref _outputTokens, value); }
 
+    private string _model = string.Empty;
+    /// <summary>Raw model id of this session's most recent assistant turn, e.g.
+    /// "claude-opus-5". Read from the transcript by <see cref="TranscriptTokens"/>;
+    /// empty when it has none yet.</summary>
+    public string Model { get => _model; private set => SetField(ref _model, value ?? string.Empty); }
+
     public DateTime StartedAt { get; private set; }
 
     private DateTime _updatedAt;
@@ -142,6 +148,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         DateTime statusUpdatedAt,
         int contextTokens,
         long outputTokens,
+        string model,
         bool isRunning)
     {
         Pid = pid;
@@ -158,6 +165,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         _statusUpdatedAt = statusUpdatedAt;
         _contextTokens = contextTokens;
         _outputTokens = outputTokens;
+        _model = model ?? string.Empty;
         _isRunning = isRunning;
     }
 
@@ -181,6 +189,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         StatusUpdatedAt = fresh.StatusUpdatedAt;
         ContextTokens = fresh.ContextTokens;
         OutputTokens = fresh.OutputTokens;
+        Model = fresh.Model;
         IsRunning = fresh.IsRunning;
 
         if (fresh.StartedAt != default && StartedAt != fresh.StartedAt)

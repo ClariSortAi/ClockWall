@@ -25,11 +25,11 @@ internal sealed class TranscriptTokens
 
     private readonly Dictionary<string, Tally> _bySession = new(StringComparer.Ordinal);
 
-    /// <summary>Context held by the most recent assistant turn, and output
-    /// tokens summed over the session so far.</summary>
-    public (int Context, long Output) Read(string cwd, string sessionId)
+    /// <summary>Context held by the most recent assistant turn, output tokens
+    /// summed over the session so far, and the model that turn ran on.</summary>
+    public (int Context, long Output, string Model) Read(string cwd, string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId)) return default;
+        if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, string.Empty);
 
         if (!_bySession.TryGetValue(sessionId, out var tally))
             _bySession[sessionId] = tally = new Tally();
@@ -43,7 +43,7 @@ internal sealed class TranscriptTokens
             // Absent, locked, mid-write, unreadable: keep what we already have.
         }
 
-        return (tally.Context, tally.Output);
+        return (tally.Context, tally.Output, tally.Model);
     }
 
     /// <summary>"C:\dev\Clock" -&gt; "C--dev-Clock", the on-disk project folder.</summary>
@@ -103,6 +103,14 @@ internal sealed class TranscriptTokens
                 tally.Context = Count(usage, "input_tokens")
                     + Count(usage, "cache_read_input_tokens")
                     + Count(usage, "cache_creation_input_tokens");
+
+                // The model sits beside "usage" on the same message. A session
+                // can switch models mid-run, so the last one seen wins. Read
+                // structurally, not by string search: transcripts are full of
+                // "model" keys nested inside tool inputs.
+                if (message.TryGetProperty("model", out var model) &&
+                    model.ValueKind == JsonValueKind.String)
+                    tally.Model = model.GetString() ?? string.Empty;
             }
             catch (JsonException)
             {
@@ -119,5 +127,6 @@ internal sealed class TranscriptTokens
         public long Offset;
         public long Output;
         public int Context;
+        public string Model = string.Empty;
     }
 }

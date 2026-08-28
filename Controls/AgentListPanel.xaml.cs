@@ -383,11 +383,36 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         return project + "  ·  " + sessionKind;
     }
 
-    /// <summary>The quiet provenance line: "v2.1.247 · pid 1364".</summary>
-    public static string MetaLine(string version, int pid)
+    /// <summary>The quiet provenance line: "opus-5 · v2.1.247 · pid 1364".
+    /// Each piece drops out cleanly when it is missing.</summary>
+    public static string MetaLine(string model, string version, int pid)
     {
-        var pidText = "pid " + pid.ToString(CultureInfo.InvariantCulture);
-        return string.IsNullOrWhiteSpace(version) ? pidText : "v" + version.Trim() + "  ·  " + pidText;
+        var line = "pid " + pid.ToString(CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(version)) line = "v" + version.Trim() + "  ·  " + line;
+
+        var shortModel = ShortModel(model);
+        return shortModel.Length == 0 ? line : shortModel + "  ·  " + line;
+    }
+
+    /// <summary>"claude-opus-5" -&gt; "opus-5", "claude-haiku-4-5-20251001" -&gt;
+    /// "haiku-4.5". Empty in, empty out - the meta line then omits it entirely
+    /// rather than showing a stray separator.</summary>
+    // ponytail: assumes today's family-first ids, "claude-<family>-<major>[-<minor>][-<datestamp>]".
+    // A legacy id like "claude-3-5-sonnet-20241022" comes out as "3.5-sonnet". If those ever come
+    // back, pick the family by matching known names instead of taking the first part.
+    public static string ShortModel(string model)
+    {
+        var name = (model ?? string.Empty).Trim();
+        if (name.StartsWith("claude-", StringComparison.OrdinalIgnoreCase)) name = name["claude-".Length..];
+
+        // Drop a trailing "-20251001" release stamp.
+        var stamp = name.LastIndexOf('-');
+        if (stamp > 0 && name.Length - stamp == 9 && name[(stamp + 1)..].All(char.IsAsciiDigit))
+            name = name[..stamp];
+
+        // Family stays dash-joined, the version parts after it join with dots.
+        var split = name.IndexOf('-');
+        return split < 0 ? name : name[..(split + 1)] + name[(split + 1)..].Replace('-', '.');
     }
 
     private static bool IsBusy(string status) => string.Equals(status, "busy", StringComparison.OrdinalIgnoreCase);
