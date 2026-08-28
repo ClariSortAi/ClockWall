@@ -69,8 +69,11 @@ public sealed partial class MainWindow : Window
         // directory, which the panel explicitly warns against.
         //
         // What the panel does NOT do is dispose: Unloaded only stops it. So the
-        // final release stays the shell's job, on window close, below.
+        // final release stays the shell's job, on window close, below - as a
+        // blind IDisposable sweep, so the shell never names a panel's field.
         Closed += OnClosed;
+
+        DesignCanvas.LayoutUpdated += (_, _) => PushRosterBudget();
 
         if (_screenshotPath is not null)
         {
@@ -80,6 +83,33 @@ public sealed partial class MainWindow : Window
         {
             EnterFullScreen();
         }
+    }
+
+    // ---------------------------------------------------------------- layout
+
+    /// <summary>
+    /// Hands the roster the canvas height nothing else is spending.
+    ///
+    /// The roster is content-sized, so it cannot measure its own budget - its
+    /// height IS the answer (see AgentListPanel.ListBudget). The shell can,
+    /// because every other band's desired height is independent of the roster.
+    /// Add a widget band to the canvas and it subtracts itself here with no
+    /// edit; the setter ignores an unchanged value, so this stays a no-op on
+    /// the layout passes the clock causes every second.
+    /// </summary>
+    private void PushRosterBudget()
+    {
+        var used = 0d;
+        foreach (var child in DesignCanvas.Children)
+        {
+            // DesiredSize already includes the child's own margins.
+            if (child is FrameworkElement band && band != AgentList) used += band.DesiredSize.Height;
+        }
+
+        AgentList.ListBudget = DesignCanvas.ActualHeight
+            - DesignCanvas.Padding.Top - DesignCanvas.Padding.Bottom
+            - AgentList.Margin.Top - AgentList.Margin.Bottom
+            - used;
     }
 
     // ---------------------------------------------------------------- command line
@@ -383,16 +413,21 @@ public sealed partial class MainWindow : Window
 
         _closed = true;
 
-        try
+        // See the integration note in the constructor: a panel owns its own
+        // construction and start/stop, the shell owns the final release. It
+        // sweeps rather than reaching for a known field, so a future band that
+        // holds a handle cleans itself up with no edit here.
+        foreach (var child in DesignCanvas.Children)
         {
-            // See the integration note in the constructor: the panel owns the
-            // watcher's construction and start/stop, the shell owns its final
-            // disposal so the FileSystemWatcher and timers are released.
-            AgentList.Watcher.Dispose();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[ClockWall] could not dispose the session watcher: {ex}");
+            if (child is not IDisposable disposable) continue;
+            try
+            {
+                disposable.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ClockWall] could not dispose {child.GetType().Name}: {ex}");
+            }
         }
 
         ReleaseDisplayRequest();

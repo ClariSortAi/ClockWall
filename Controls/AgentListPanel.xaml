@@ -6,8 +6,8 @@
       * A ListView (not a hand-rolled StackPanel of Borders) so the platform
         keeps virtualisation, reorder transitions and recycling. It is NOT
         wrapped in a ScrollViewer - code-behind sizes it to a whole number of
-        card rows against a fixed height BUDGET so nothing is ever half cut,
-        and the remainder is announced in the footer.
+        card rows against the height BUDGET the host measured out for it, so
+        nothing is ever half cut, and the remainder is announced in the footer.
       * The panel is CONTENT-SIZED, not stretched: the list row is Auto, so with
         two agents the control is ~500px tall rather than a 900px region with
         400px of dead background in it. The host gives the leftover height to
@@ -106,11 +106,15 @@
                                 HorizontalAlignment="Right"
                                 Spacing="{StaticResource SpacingXSmall}">
 
+                        <!-- Four stats across, so the gap between them steps down
+                             one notch on the spacing scale: at SpacingLarge the
+                             block crowds the agent name out of the identity
+                             column and trims it. -->
                         <StackPanel Orientation="Horizontal"
                                     HorizontalAlignment="Right"
-                                    Spacing="{StaticResource SpacingLarge}">
+                                    Spacing="{StaticResource SpacingMedium}">
 
-                            <StackPanel HorizontalAlignment="Right" MinWidth="92">
+                            <StackPanel HorizontalAlignment="Right" MinWidth="84">
                                 <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                            CharacterSpacing="120"
                                            TextAlignment="Right"
@@ -120,7 +124,7 @@
                                            Text="{x:Bind local:AgentListPanel.Duration(Uptime), Mode=OneWay}" />
                             </StackPanel>
 
-                            <StackPanel HorizontalAlignment="Right" MinWidth="108">
+                            <StackPanel HorizontalAlignment="Right" MinWidth="100">
                                 <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                            CharacterSpacing="120"
                                            TextAlignment="Right"
@@ -128,6 +132,28 @@
                                 <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
                                            TextAlignment="Right"
                                            Text="{x:Bind local:AgentListPanel.Duration(SinceStatusChange), Mode=OneWay}" />
+                            </StackPanel>
+
+                            <!-- Both figures come from the session TRANSCRIPT, not
+                                 the session file, which carries no token data. -->
+                            <StackPanel HorizontalAlignment="Right" MinWidth="76">
+                                <TextBlock Style="{StaticResource AgentMetaTextStyle}"
+                                           CharacterSpacing="120"
+                                           TextAlignment="Right"
+                                           Text="CONTEXT" />
+                                <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
+                                           TextAlignment="Right"
+                                           Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                            </StackPanel>
+
+                            <StackPanel HorizontalAlignment="Right" MinWidth="76">
+                                <TextBlock Style="{StaticResource AgentMetaTextStyle}"
+                                           CharacterSpacing="120"
+                                           TextAlignment="Right"
+                                           Text="TOKENS" />
+                                <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
+                                           TextAlignment="Right"
+                                           Text="{x:Bind local:AgentListPanel.TokenCount(OutputTokens), Mode=OneWay}" />
                             </StackPanel>
 
                         </StackPanel>
@@ -148,8 +174,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <!-- Auto, not star: the list region is exactly as tall as the cards
-                 in it. The height the fitting maths solves against is the fixed
-                 AgentListPanel.ListBudgetHeight, not this row. -->
+                 in it. The height the fitting maths solves against is
+                 AgentListPanel.ListBudget - what the HOST measured as left over
+                 - not this row, which is the result rather than the input. -->
             <RowDefinition Height="Auto" />
             <!-- Auto: with the panel content-sized, an always-reserved footer
                  band would just deepen the bottom inset from 56px to 106px.

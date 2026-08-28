@@ -32,6 +32,11 @@ public sealed class SessionWatcher : IDisposable
     private readonly DispatcherQueueTimer _debounceTimer;
     private readonly DispatcherQueueTimer _uptimeTimer;
 
+    /// <summary>Token figures live in the transcripts, not the session files.
+    /// The follower keeps a byte offset per session so a refresh only reads
+    /// what was appended. Touched only from the single in-flight scan.</summary>
+    private readonly TranscriptTokens _transcripts = new();
+
     private FileSystemWatcher? _fileWatcher;
     private bool _started;
     private bool _disposed;
@@ -239,7 +244,7 @@ public sealed class SessionWatcher : IDisposable
         });
     }
 
-    private static List<AgentSession> ScanDirectory(string directory)
+    private List<AgentSession> ScanDirectory(string directory)
     {
         var results = new List<AgentSession>();
 
@@ -263,7 +268,7 @@ public sealed class SessionWatcher : IDisposable
         return results;
     }
 
-    private static AgentSession? TryLoadSession(string path)
+    private AgentSession? TryLoadSession(string path)
     {
         SessionFileDto? dto = null;
 
@@ -304,6 +309,8 @@ public sealed class SessionWatcher : IDisposable
         if (!IsProcessAliveAndMatches(dto.Pid, startedAtLocal))
             return null; // stale file outliving its process, or pid reuse
 
+        var (contextTokens, outputTokens) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
+
         return new AgentSession(
             dto.Pid,
             dto.SessionId!,
@@ -316,6 +323,8 @@ public sealed class SessionWatcher : IDisposable
             startedAtLocal,
             updatedAtLocal,
             statusUpdatedAtLocal,
+            contextTokens,
+            outputTokens,
             isRunning: true);
     }
 

@@ -80,6 +80,16 @@ public sealed class AgentSession : INotifyPropertyChanged
     private string _entrypoint = string.Empty;
     public string Entrypoint { get => _entrypoint; private set => SetField(ref _entrypoint, value ?? string.Empty); }
 
+    private int _contextTokens;
+    /// <summary>Tokens in the prompt the model saw on this session's most
+    /// recent turn - fresh input plus cache reads and writes. Read from the
+    /// transcript by <see cref="TranscriptTokens"/>; 0 when it has none.</summary>
+    public int ContextTokens { get => _contextTokens; private set => SetField(ref _contextTokens, value); }
+
+    private long _outputTokens;
+    /// <summary>Output tokens this session has produced since it started.</summary>
+    public long OutputTokens { get => _outputTokens; private set => SetField(ref _outputTokens, value); }
+
     public DateTime StartedAt { get; private set; }
 
     private DateTime _updatedAt;
@@ -130,6 +140,8 @@ public sealed class AgentSession : INotifyPropertyChanged
         DateTime startedAt,
         DateTime updatedAt,
         DateTime statusUpdatedAt,
+        int contextTokens,
+        long outputTokens,
         bool isRunning)
     {
         Pid = pid;
@@ -144,6 +156,8 @@ public sealed class AgentSession : INotifyPropertyChanged
         _entrypoint = entrypoint ?? string.Empty;
         _updatedAt = updatedAt;
         _statusUpdatedAt = statusUpdatedAt;
+        _contextTokens = contextTokens;
+        _outputTokens = outputTokens;
         _isRunning = isRunning;
     }
 
@@ -165,6 +179,8 @@ public sealed class AgentSession : INotifyPropertyChanged
         Entrypoint = fresh.Entrypoint;
         UpdatedAt = fresh.UpdatedAt;
         StatusUpdatedAt = fresh.StatusUpdatedAt;
+        ContextTokens = fresh.ContextTokens;
+        OutputTokens = fresh.OutputTokens;
         IsRunning = fresh.IsRunning;
 
         if (fresh.StartedAt != default && StartedAt != fresh.StartedAt)

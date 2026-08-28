@@ -25,7 +25,7 @@ namespace ClockWall;
 /// header count. Everything visual - every brush, size and style - stays in
 /// XAML against the locked theme resources.
 /// </summary>
-public sealed partial class AgentListPanel : UserControl
+public sealed partial class AgentListPanel : UserControl, IDisposable
 {
     // Card metrics mirror Themes/Theme.xaml (AgentCardMinHeight / AgentCardGutter).
     // The gutter is the ListViewItem's bottom margin from AgentListViewItemStyle.
@@ -36,21 +36,32 @@ public sealed partial class AgentListPanel : UserControl
     // dead pixels, but only so far - one lone agent should not become a poster.
     private const double CardMaxHeight = 190d;
 
-    /// <summary>
-    /// The list's vertical BUDGET in design pixels - the most the roster may
-    /// ever take out of the 1080x1920 canvas, not the space it is handed.
-    ///
-    /// The list row is Auto-sized, so the control shrinks to its cards and the
-    /// host gives the leftover height to the hero. Fitting therefore has to
-    /// solve against a fixed number rather than ActualHeight, or the two would
-    /// chase each other. 920 is the worst case that still balances: five cards
-    /// at 171px plus four 16px gutters = 919, and with the header, the footer
-    /// and their spacing the panel still clears the hero and both insets.
-    /// </summary>
-    private const double ListBudgetHeight = 920d;
-
     private readonly SessionWatcher _watcher;
     private double _rowHeight = CardMinHeight;
+    private double _listBudget = 920d;
+
+    /// <summary>
+    /// The panel's vertical budget in design pixels - what the host has left
+    /// over once every other band on its canvas has taken what it wants.
+    ///
+    /// The panel is CONTENT-sized (the host hands the slack to the hero, see
+    /// MainWindow.xaml), so it cannot measure this for itself: its own height
+    /// is the answer, and reading ActualHeight back would just return whatever
+    /// the last <see cref="Relayout"/> set. The host can measure it without
+    /// that circularity - every other band's desired height is independent of
+    /// the roster - so the host pushes it in here. 920 is only what the very
+    /// first layout pass fits against, before any measurement exists.
+    /// </summary>
+    public double ListBudget
+    {
+        get => _listBudget;
+        set
+        {
+            if (double.IsNaN(value) || value <= CardMinHeight || Math.Abs(value - _listBudget) < 0.5) return;
+            _listBudget = value;
+            Relayout();
+        }
+    }
 
     public AgentListPanel()
     {
@@ -65,6 +76,11 @@ public sealed partial class AgentListPanel : UserControl
         Sessions.CollectionChanged += OnSessionsCollectionChanged;
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+
+        // Our own height moving means the chrome around the list moved (the
+        // overflow footer appearing, say), so the fit is stale. Relayout only
+        // assigns when a number actually changes, so this settles in one pass.
+        SizeChanged += (_, _) => Relayout();
     }
 
     /// <summary>The watcher backing this panel, for a host that needs the same
@@ -91,6 +107,10 @@ public sealed partial class AgentListPanel : UserControl
         foreach (var session in Sessions)
             session.PropertyChanged -= OnSessionPropertyChanged;
     }
+
+    /// <summary>Releases the watcher we own. Unloaded only stops it - the host
+    /// disposes on the way down, by sweeping its children for IDisposable.</summary>
+    public void Dispose() => _watcher.Dispose();
 
     private void SubscribeAll()
     {
@@ -164,7 +184,11 @@ public sealed partial class AgentListPanel : UserControl
             return;
         }
 
-        const double available = ListBudgetHeight;
+        // Measured, not assumed: everything of ours that is NOT the list host
+        // is the header, the overflow footer and their row spacing, so what is
+        // left of the budget is what the cards may have.
+        var chrome = Math.Max(0d, ActualHeight - ListHost.ActualHeight);
+        var available = Math.Max(CardMinHeight, _listBudget - chrome);
 
         // Whole cards only - a half-clipped card at the fold looks like a bug,
         // not an affordance.
@@ -319,6 +343,31 @@ public sealed partial class AgentListPanel : UserControl
         if (value.TotalHours >= 1) return $"{(int)value.TotalHours}h {value.Minutes:00}m";
         if (value.TotalMinutes >= 1) return $"{value.Minutes}m {value.Seconds:00}s";
         return $"{value.Seconds}s";
+    }
+
+    /// <summary>How full the context window is, as a percentage: "23%".</summary>
+    public static string ContextShare(int contextTokens)
+    {
+        if (contextTokens <= 0) return "--";
+
+        // ponytail: the transcript never records the context WINDOW, and
+        // message.model reads "claude-opus-5" for the 200k and the 1M build
+        // alike, so the window is inferred from the traffic: a session holding
+        // more than 200k can only be on the 1M one. A session on the 1M build
+        // that has not passed 200k yet therefore reads against 200k and shows
+        // a percentage that is too high. Upgrade path: take the window from
+        // the session file, the day it starts recording one.
+        var window = contextTokens > 200_000 ? 1_000_000d : 200_000d;
+        return Math.Round(contextTokens / window * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+    }
+
+    /// <summary>Tokens produced, abbreviated for a glance: "318k", "1.2M".</summary>
+    public static string TokenCount(long tokens)
+    {
+        if (tokens <= 0) return "--";
+        if (tokens >= 1_000_000) return (tokens / 1_000_000d).ToString("0.0", CultureInfo.InvariantCulture) + "M";
+        if (tokens >= 1_000) return (tokens / 1_000).ToString(CultureInfo.InvariantCulture) + "k";
+        return tokens.ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>Secondary identity line: "Clock · interactive". Kind rides here
