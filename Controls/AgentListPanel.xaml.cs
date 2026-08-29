@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Animation;
+using Windows.UI.ViewManagement;
 
 namespace ClockWall;
 
@@ -375,6 +376,17 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     // Busy pulse
     // ------------------------------------------------------------------
 
+    /// <summary>
+    /// The user's "Animation effects" switch (Settings &gt; Accessibility &gt;
+    /// Visual effects), which the two looping storyboards below are gated on.
+    ///
+    /// One instance for the life of the process: ACTIVATING a UISettings is
+    /// WinRT work and this is read on every roster scan, but the property read
+    /// off an existing instance goes to the live system setting, so a cached
+    /// instance is cheaper and no staler than a fresh one.
+    /// </summary>
+    private static readonly UISettings SystemUISettings = new UISettings();
+
     private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
     {
         var container = args.ItemContainer;
@@ -456,6 +468,18 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         if (container.ContentTemplateRoot is not FrameworkElement root) return;
         if (root.FindName("BusyDot") is not UIElement dot) return;
 
+        // These two are the only FOREVER animations on the wall, and a forever
+        // animation in someone's field of vision all day is precisely what the
+        // OS animation-effects switch is for, so it is a hard gate: with it off
+        // both take the same path as "not busy" / "not waiting" - stopped, at
+        // full opacity. Nothing is lost, because the motion was only ever the
+        // emphasis: the dot still sits beside the word BUSY and the glow is
+        // still drawn around the card. Read per call rather than through
+        // AnimationsEnabledChanged - ApplyPulse re-runs on every roster scan,
+        // so a flipped setting heals itself within a poll, the same mechanism
+        // the rest of the app already leans on for staying honest for days.
+        var animate = SystemUISettings.AnimationsEnabled;
+
         // Cached on the container, which outlives the item it is showing.
         if (container.Tag is not Storyboard pulse)
         {
@@ -463,7 +487,7 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
             container.Tag = pulse;
         }
 
-        if (session.IsBusy)
+        if (session.IsBusy && animate)
         {
             if (pulse.GetCurrentState() == ClockState.Stopped) pulse.Begin();
         }
@@ -484,7 +508,7 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
                 glow.Tag = flash;
             }
 
-            if (session.NeedsAttention)
+            if (session.NeedsAttention && animate)
             {
                 if (flash.GetCurrentState() == ClockState.Stopped) flash.Begin();
             }
