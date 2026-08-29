@@ -210,7 +210,10 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Sizes the CLIENT area to 1080x1920 physical pixels.
+    /// Sizes the CLIENT area to 1080x1920 physical pixels, shrunk uniformly
+    /// to the monitor's work area when the panel is too small to hold that -
+    /// the Viewbox renders the design canvas correctly at any client size,
+    /// so a landscape machine gets a fitted window instead of a clipped one.
     /// </summary>
     /// <remarks>
     /// The documented trap here is treating these numbers as DIPs.
@@ -237,7 +240,26 @@ public sealed partial class MainWindow : Window
                 $"{DesignWidth / scale:0}x{DesignHeight / scale:0} DIPs; " +
                 $"Viewbox factor {1 / scale:0.###}");
 
-            AppWindow.ResizeClient(new SizeInt32(DesignWidth, DesignHeight));
+            // ponytail: fit-to-monitor is one uniform scale-down, nothing more.
+            // WorkArea is physical pixels, same currency as ResizeClient. On the
+            // portrait wall panel the factor clamps to 1, so that machine still
+            // gets its exact 1080x1920 and this line is a no-op there.
+            var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+            var fit = Math.Min(1.0, Math.Min(
+                (double)work.Width / DesignWidth, (double)work.Height / DesignHeight));
+
+            AppWindow.ResizeClient(new SizeInt32(
+                (int)(DesignWidth * fit), (int)(DesignHeight * fit)));
+
+            // A fitted size still overflows if the window sits low on the
+            // screen (the OS cascades default placement). Snap it back inside.
+            var pos = AppWindow.Position;
+            var x = Math.Clamp(pos.X, work.X, Math.Max(work.X, work.X + work.Width - AppWindow.Size.Width));
+            var y = Math.Clamp(pos.Y, work.Y, Math.Max(work.Y, work.Y + work.Height - AppWindow.Size.Height));
+            if (x != pos.X || y != pos.Y)
+            {
+                AppWindow.Move(new PointInt32(x, y));
+            }
         }
         catch (Exception ex)
         {
@@ -327,6 +349,12 @@ public sealed partial class MainWindow : Window
     {
         args.Handled = true;
         Close();
+    }
+
+    private void OnClockModeAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.ToggleFace();
     }
 
     private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

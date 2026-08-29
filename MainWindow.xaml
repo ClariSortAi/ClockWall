@@ -43,6 +43,7 @@
                  accelerators rather than KeyDown are what reliably fire. -->
             <KeyboardAccelerator Key="Escape" Invoked="OnExitAccelerator" />
             <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator" />
+            <KeyboardAccelerator Key="C" Invoked="OnClockModeAccelerator" />
         </Grid.KeyboardAccelerators>
 
         <Viewbox x:Name="DesignScaler" Stretch="Uniform" StretchDirection="Both">

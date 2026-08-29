@@ -8,38 +8,84 @@
 
     <!--
         The hero of the wall display. Structure, top to bottom:
-          1. HH:MM  - HeroClockTextStyle (400px), the dominant element on screen.
-          2. :SS [AM/PM] - a de-emphasized row directly under the hero. Both
-             live in ONE TextBlock as two Runs: side-by-side TextBlocks are
-             top-aligned line boxes of different heights, so the smaller
-             meridiem would ride ~30px above the seconds baseline and read as a
-             superscript. Runs share a line box, so they share a baseline.
+          1. A 640px analogue face - ring, ticks (generated in code-behind, 60
+             of them is loop territory), hour/minute hands in the primary text
+             brush, second hand in the accent. All geometry is design px around
+             centre (320,320); each hand is a rounded Rectangle whose
+             RotateTransform pivot is where the hand crosses that centre, with a
+             short tail past it.
+          2. HH:MM:SS [AM/PM] - one TextBlock, multiple Runs. Runs share a line
+             box, so they share a baseline; separate TextBlocks would not.
              AM/PM only appears in 12-hour locales.
           3. The date - WallDateTextStyle.
 
         Anti-jitter: every clock/seconds string produced in code-behind is a
-        fixed character count (always 2-digit, zero-padded hour/minute/second -
-        even in 12-hour mode), and Typography.NumeralAlignment="Tabular" pins
-        every digit glyph in Segoe UI Variable to the same advance width (the
-        OpenType 'tnum' feature). Together the line's total measured width never
-        changes from tick to tick, so the centered text never re-flows.
+        fixed character count (always 2-digit, zero-padded) and
+        Typography.NumeralAlignment="Tabular" pins every digit glyph to the
+        same advance width, so the centered line never re-flows on a tick.
     -->
     <StackPanel HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Spacing="{StaticResource SpacingXLarge}">
 
-        <StackPanel HorizontalAlignment="Center"
-                    Spacing="{StaticResource SpacingSmall}">
+        <Canvas x:Name="FaceCanvas"
+                Width="640"
+                Height="640"
+                HorizontalAlignment="Center">
 
-            <TextBlock x:Name="HeroText"
-                       Style="{StaticResource HeroClockTextStyle}"
-                       Typography.NumeralAlignment="Tabular"
-                       Text="00:00" />
+            <Ellipse x:Name="FaceRing"
+                     Width="640" Height="640"
+                     Stroke="{ThemeResource SectionDividerBrush}"
+                     StrokeThickness="2" />
 
-            <TextBlock Style="{StaticResource HeroSecondsTextStyle}"
-                       Typography.NumeralAlignment="Tabular"><Run x:Name="SecondsRun" Text=":00" /><Run x:Name="MeridiemRun" FontSize="{StaticResource HeroMeridiemFontSize}" /></TextBlock>
+            <Rectangle x:Name="HourHand"
+                       Width="14" Height="190" RadiusX="7" RadiusY="7"
+                       Fill="{ThemeResource ClockPrimaryTextBrush}"
+                       Canvas.Left="313" Canvas.Top="158">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="HourAngle" CenterX="7" CenterY="162" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
 
-        </StackPanel>
+            <Rectangle x:Name="MinuteHand"
+                       Width="10" Height="278" RadiusX="5" RadiusY="5"
+                       Fill="{ThemeResource ClockPrimaryTextBrush}"
+                       Canvas.Left="315" Canvas.Top="70">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="MinuteAngle" CenterX="5" CenterY="250" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
+
+            <Rectangle x:Name="SecondHand"
+                       Width="4" Height="328" RadiusX="2" RadiusY="2"
+                       Fill="{ThemeResource WallAccentBrush}"
+                       Canvas.Left="318" Canvas.Top="48">
+                <Rectangle.RenderTransform>
+                    <RotateTransform x:Name="SecondAngle" CenterX="2" CenterY="272" />
+                </Rectangle.RenderTransform>
+            </Rectangle>
+
+            <Ellipse Width="24" Height="24"
+                     Fill="{ThemeResource ClockPrimaryTextBrush}"
+                     Canvas.Left="308" Canvas.Top="308" />
+            <Ellipse Width="8" Height="8"
+                     Fill="{ThemeResource WallAccentBrush}"
+                     Canvas.Left="316" Canvas.Top="316" />
+
+        </Canvas>
+
+        <!-- The DIGITAL hero, the face's alternate: the original 400px HH:MM.
+             Exactly one of the two is visible; the C accelerator flips them
+             (see ToggleFace). In digital mode the line below drops its own
+             HH:MM and reverts to the ":SS AM" it originally was. -->
+        <TextBlock x:Name="DigitalText"
+                   Style="{StaticResource HeroClockTextStyle}"
+                   Typography.NumeralAlignment="Tabular"
+                   Visibility="Collapsed"
+                   Text="00:00" />
+
+        <TextBlock Style="{StaticResource HeroSecondsTextStyle}"
+                   Typography.NumeralAlignment="Tabular"><Run x:Name="HeroRun" Foreground="{ThemeResource ClockPrimaryTextBrush}" Text="00:00" /><Run x:Name="SecondsRun" Text=":00" /><Run x:Name="MeridiemRun" FontSize="{StaticResource HeroMeridiemFontSize}" /></TextBlock>
 
         <TextBlock x:Name="DateText"
                    Style="{StaticResource WallDateTextStyle}"
