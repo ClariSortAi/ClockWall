@@ -77,7 +77,13 @@
         <!-- The DIGITAL hero, the face's alternate: the original 400px HH:MM.
              Exactly one of the two is visible; the C accelerator flips them
              (see ToggleFace). In digital mode the line below drops its own
-             HH:MM and reverts to the ":SS AM" it originally was. -->
+             HH:MM and reverts to the ":SS AM" it originally was.
+
+             "Exactly one" is a hard constraint, not a tidiness preference: this
+             TextBlock and FaceCanvas are siblings in a vertical StackPanel, so
+             a single frame with both Visible stacks them and shoves the date
+             down by the face's 640px. That is why the swap fades THROUGH -
+             out, flip, in - rather than crossfading; see ApplyModeAnimated. -->
         <TextBlock x:Name="DigitalText"
                    Style="{StaticResource HeroClockTextStyle}"
                    Typography.NumeralAlignment="Tabular"
