@@ -7,9 +7,9 @@
     mc:Ignorable="d">
 
     <!--
-        Three ambient readouts on one line under the date: CPU, RAM, NET.
-        Subordinate to the clock by size, weight and brush - this is the
-        machine's pulse, not the headline.
+        Two ambient lines under the date: the three processes eating the most
+        RAM, and over them CPU, RAM, NET. Subordinate to the clock by size,
+        weight and brush - this is the machine's pulse, not the headline.
 
         CPU and RAM are percentages, so each gets a slim bar beside its number:
         a bar is read from across a room faster than digits are. NET is a rate,
@@ -19,14 +19,86 @@
         Anti-jitter, the same discipline as ClockPanel: every string the
         code-behind produces is a FIXED character count (numbers are padded to
         width, units are all four characters), and Tabular numeral alignment
-        pins every digit to a common advance. The three cells are pinned to the
-        left, centre and right of the canvas, so a cell that did change width
-        would drag its neighbours - it never does.
+        pins every digit to a common advance. The meter line's three cells are
+        pinned to the left, centre and right of the canvas, so a cell that did
+        change width would drag its neighbours - it never does.
 
         The bars carry no pixel maths. The fill is column 0 of a two-column
         grid and the code sets the two star weights to f and 1-f, so the fill
         is a fraction of whatever width the track has, resolved by layout.
     -->
+    <StackPanel Spacing="{StaticResource SpacingMedium}">
+
+    <!--
+        TOP RAM EATERS - three "name size" pairs, one per third of the canvas.
+
+        Each pair is packed tight and the THIRD is what pins it: cell one to the
+        left, two to the centre, three to the right, so the three land over CPU,
+        RAM and NET below and read as the same line of information twice. Packed
+        rather than spread, because a name pushed to one edge of its third and a
+        size to the other stop reading as one fact - "2.2 GB SVCHOST" is what
+        the eye picks up instead.
+
+        The third is also the isolation: unlike the meter line under it, these
+        cells DO change width - a process name is not a padded number - and a
+        cell that grows inside a fixed third cannot drag its neighbours.
+
+        ponytail: nothing bounds a name to its third. Windows image names run to
+        a handful of characters and the widest seen here is "MSMPENG"; a 40
+        character one would overlap the cell beside it. If that ever shows up,
+        put a MaxWidth metric in Theme.xaml and trim - it needs a bounded width,
+        which a horizontal StackPanel does not give.
+    -->
+    <Grid HorizontalAlignment="Stretch"
+          ColumnSpacing="{StaticResource SpacingMedium}">
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <StackPanel Grid.Column="0"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    HorizontalAlignment="Left">
+
+            <TextBlock x:Name="Eater1Name" Style="{StaticResource SystemMeterLabelTextStyle}" />
+
+            <TextBlock x:Name="Eater1Size"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+        </StackPanel>
+
+        <StackPanel Grid.Column="1"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    HorizontalAlignment="Center">
+
+            <TextBlock x:Name="Eater2Name" Style="{StaticResource SystemMeterLabelTextStyle}" />
+
+            <TextBlock x:Name="Eater2Size"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+        </StackPanel>
+
+        <StackPanel Grid.Column="2"
+                    Orientation="Horizontal"
+                    Spacing="{StaticResource SpacingSmall}"
+                    HorizontalAlignment="Right">
+
+            <TextBlock x:Name="Eater3Name" Style="{StaticResource SystemMeterLabelTextStyle}" />
+
+            <TextBlock x:Name="Eater3Size"
+                       Style="{StaticResource SystemMeterValueTextStyle}"
+                       Typography.NumeralAlignment="Tabular" />
+
+        </StackPanel>
+
+    </Grid>
+
     <Grid HorizontalAlignment="Stretch">
 
         <Grid.ColumnDefinitions>
@@ -100,5 +172,7 @@
         </StackPanel>
 
     </Grid>
+
+    </StackPanel>
 
 </UserControl>

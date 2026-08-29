@@ -10,8 +10,9 @@ namespace ClockWall;
 
 /// <summary>
 /// CPU, RAM and network throughput for the machine the wall is running on,
-/// resampled once a second. Self-contained: it starts its own timer on Loaded
-/// and stops it on Unloaded, like <see cref="ClockPanel"/>.
+/// plus the three processes holding the most memory, resampled once a second.
+/// Self-contained: it starts its own timer on Loaded and stops it on Unloaded,
+/// like <see cref="ClockPanel"/>.
 ///
 /// Every figure comes from an in-box OS call - GetSystemTimes,
 /// GlobalMemoryStatusEx, and NetworkInterface statistics. No performance
@@ -52,7 +53,15 @@ public sealed partial class SystemMeters : UserControl
     /// <summary>Ticks between re-enumerations of the network adapters. See UpdateNetwork.</summary>
     private const int AdapterRescanTicks = 10;
 
+    /// <summary>Ticks between process-table scans. See UpdateTopMemory.</summary>
+    private const int ProcessRescanTicks = 5;
+
     private DispatcherQueueTimer? _timer;
+
+    // The three RAM-eater cells, paired so the render loop can index them.
+    private readonly (TextBlock Name, TextBlock Size)[] _eaterCells;
+
+    private int _ticksSinceProcessScan = ProcessRescanTicks;
 
     // CPU: previous GetSystemTimes reading, in 100ns units.
     private long _prevIdle;
@@ -74,6 +83,13 @@ public sealed partial class SystemMeters : UserControl
     public SystemMeters()
     {
         InitializeComponent();
+
+        _eaterCells = new[]
+        {
+            (Eater1Name, Eater1Size),
+            (Eater2Name, Eater2Size),
+            (Eater3Name, Eater3Size),
+        };
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
@@ -102,6 +118,7 @@ public sealed partial class SystemMeters : UserControl
     {
         UpdateCpu();
         UpdateMemory();
+        UpdateTopMemory();
         UpdateNetwork();
     }
 
@@ -169,6 +186,87 @@ public sealed partial class SystemMeters : UserControl
             (status.ullTotalPhys / BytesPerGB).ToString("F0", CultureInfo.InvariantCulture) + " GB";
 
         SetBar(RamBarFill, RamBarRest, fraction);
+    }
+
+    private void UpdateTopMemory()
+    {
+        // ponytail: scanned every fifth tick, not every tick. Process.GetProcesses
+        // is a full process-table snapshot - measured on this machine (~330
+        // processes) at 25-40ms, against 0.05ms for the three OS calls the rest
+        // of this control makes. Spending that every second on the UI thread to
+        // watch a list that reorders every few minutes is not a trade worth
+        // making. The ceiling: a process that balloons and exits inside five
+        // seconds is never seen. If that matters, move the scan to a background
+        // thread and marshal the result back rather than shortening the interval.
+        if (_ticksSinceProcessScan++ < ProcessRescanTicks)
+        {
+            return;
+        }
+
+        _ticksSinceProcessScan = 0;
+
+        // GROUPED BY IMAGE NAME, because the honest answer to "what is eating
+        // the RAM" is "Chrome", not the largest one of Chrome's forty renderer
+        // processes. Windows' own Task Manager groups the same way.
+        //
+        // Working set, matching Task Manager's Memory column and the RAM meter
+        // below, which is also physical pages. It over-counts a grouped app
+        // slightly - pages shared between those forty renderers are counted
+        // once per process - so a group total is an upper bound, not a sum of
+        // disjoint memory. Private bytes would trade that for under-counting
+        // the shared pages the app genuinely caused to be resident. Neither is
+        // "correct"; this one at least agrees with the tool the viewer would
+        // reach for to check it.
+        var processes = Array.Empty<Process>();
+        try
+        {
+            processes = Process.GetProcesses();
+
+            var top = processes
+                .GroupBy(process => process.ProcessName, StringComparer.OrdinalIgnoreCase)
+                .Select(group => (Name: group.Key, Bytes: group.Sum(process => process.WorkingSet64)))
+                .OrderByDescending(entry => entry.Bytes)
+                .Take(_eaterCells.Length)
+                .ToArray();
+
+            for (var i = 0; i < _eaterCells.Length; i++)
+            {
+                var (name, size) = _eaterCells[i];
+
+                // Fewer distinct images than cells cannot happen on a running
+                // Windows box, but an empty cell is still cheaper than an
+                // IndexOutOfRangeException on a display that runs for days.
+                if (i >= top.Length)
+                {
+                    name.Text = string.Empty;
+                    size.Text = string.Empty;
+                    continue;
+                }
+
+                // Upper-cased to sit in the same register as CPU / RAM / NET
+                // below, which share this style - these read as labels on a
+                // figure, not as sentence text.
+                name.Text = top[i].Name.ToUpperInvariant();
+                size.Text = Fixed(top[i].Bytes / BytesPerGB, "F1", 4) + " GB";
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // A process exited between the snapshot and the read of its
+            // counters. The cells keep their last values and the next scan
+            // picks the table up again - the same self-healing the roster's
+            // file reads rely on.
+        }
+        finally
+        {
+            // Each Process carries a handle. Enumerating 330 of these every
+            // five seconds and leaving them to the finaliser is a handle leak
+            // measured in thousands per hour.
+            foreach (var process in processes)
+            {
+                process.Dispose();
+            }
+        }
     }
 
     private void UpdateNetwork()

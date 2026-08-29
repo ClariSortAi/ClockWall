@@ -54,7 +54,7 @@
                   rest       hero zone (clock + date), which takes the SLACK
                              and centres in it
                   40         gap
-                  ~37        system meters (CPU / RAM / NET)
+                  ~90        system meters (top RAM eaters, then CPU / RAM / NET)
                   40         gap
                   44         activity ticker, or 0 when it has nothing to say
                   40         gap
@@ -91,10 +91,11 @@
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center" />
 
-                <!-- METERS: the machine's own CPU, RAM and network, on one
-                     line under the date. Ambient - a permanent readout that is
-                     always there and never asks for attention. Self-driving:
-                     no wiring in the shell, it polls the OS itself. -->
+                <!-- METERS: the machine's top three RAM eaters and, on the
+                     line under them, its CPU, RAM and network. Ambient - a
+                     permanent readout that is always there and never asks for
+                     attention. Self-driving: no wiring in the shell, it polls
+                     the OS itself. -->
                 <local:SystemMeters x:Name="Meters"
                                     Grid.Row="1"
                                     Margin="0,40,0,0"
