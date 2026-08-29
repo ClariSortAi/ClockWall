@@ -107,6 +107,7 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         SubscribeAll();
+        _watcher.Refreshed += OnWatcherRefreshed;
         _watcher.Start();
         Relayout();
     }
@@ -114,9 +115,14 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         _watcher.Stop();
+        _watcher.Refreshed -= OnWatcherRefreshed;
         foreach (var session in Sessions)
             session.PropertyChanged -= OnSessionPropertyChanged;
     }
+
+    /// <summary>The day totals in the header move without any card moving, so
+    /// the summary is refreshed on every scan, not just collection changes.</summary>
+    private void OnWatcherRefreshed() => UpdateSummary();
 
     /// <summary>Releases the watcher we own. Unloaded only stops it - the host
     /// disposes on the way down, by sweeping its children for IDisposable.</summary>
@@ -324,12 +330,15 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     /// Sessions and subagents are counted separately and named separately: one
     /// number covering both would be a count of nothing in particular, and the
     /// subagent figure is the LIVE one, including the children that did not fit.
-    /// With nothing spawned this is the line it has always been.
+    /// A session blocked on the user leads the line, and the machine's day
+    /// totals close it - the one part that survives an empty roster, because
+    /// money spent this morning is still spent after the last session exits.
     /// </summary>
     private void UpdateSummary()
     {
         var parents = 0;
         var busy = 0;
+        var waiting = 0;
         var live = 0;
 
         foreach (var session in Sessions)
@@ -337,20 +346,30 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
             if (session.IsChild) continue;
             parents++;
             if (session.IsBusy) busy++;
+            if (session.NeedsAttention) waiting++;
             live += session.SubagentLiveCount;
         }
 
-        if (parents == 0)
+        var parts = new List<string>(4);
+        if (waiting > 0) parts.Add($"{waiting} NEEDS YOU");
+        if (parents > 0)
         {
-            SummaryText.Text = string.Empty;
-            return;
+            parts.Add($"{parents} RUNNING");
+            if (busy > 0) parts.Add($"{busy} BUSY");
+            if (live > 0) parts.Add($"{live} {(live == 1 ? "SUBAGENT" : "SUBAGENTS")}");
         }
 
-        var line = busy > 0 ? $"{parents} RUNNING  ·  {busy} BUSY" : $"{parents} RUNNING";
-        if (live > 0) line += $"  ·  {live} {(live == 1 ? "SUBAGENT" : "SUBAGENTS")}";
+        SummaryText.Text = string.Join("  ·  ", parts);
 
-        SummaryText.Text = line;
+        BurnText.Text = _watcher.TodayOutputTokens > 0
+            ? $"TODAY  {TokenCount(_watcher.TodayOutputTokens)}  ·  {Dollars(_watcher.TodayDollars)}"
+            : string.Empty;
     }
+
+    /// <summary>"~$3.40" under ten dollars, "~$27" over - and always "~",
+    /// because the figure is priced from a hand-copied rate table.</summary>
+    public static string Dollars(double value) =>
+        "~$" + value.ToString(value < 10 ? "0.00" : "0", CultureInfo.InvariantCulture);
 
     // ------------------------------------------------------------------
     // Busy pulse
@@ -402,6 +421,32 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         return storyboard;
     }
 
+    /// <summary>
+    /// The needs-you flash: the same composition-thread opacity trick as the
+    /// busy breath, but faster and deeper - 700ms down to 0.15 - because this
+    /// one is an alarm and the breath is furniture. Cached on the glow element
+    /// itself, so the container's Tag stays the busy pulse's.
+    /// </summary>
+    private static Storyboard CreateFlash(DependencyObject target)
+    {
+        var fade = new DoubleAnimation
+        {
+            From = 1.0,
+            To = 0.15,
+            Duration = new Duration(TimeSpan.FromMilliseconds(700)),
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+
+        Storyboard.SetTarget(fade, target);
+        Storyboard.SetTargetProperty(fade, "Opacity");
+
+        var storyboard = new Storyboard();
+        storyboard.Children.Add(fade);
+        return storyboard;
+    }
+
     private static void ApplyPulse(SelectorItem container, AgentSession session)
     {
         // A subagent row has no status pill - the dot in the collapsed half of
@@ -427,6 +472,28 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
             pulse.Stop();
             dot.Opacity = 1.0;
         }
+
+        // The waiting flash rides the same recycle-safe path. When the session
+        // is fresh-idle instead, the glow is visible but STILL - the visibility
+        // is x:Bind's job, only the motion is decided here.
+        if (root.FindName("AttentionGlow") is FrameworkElement glow)
+        {
+            if (glow.Tag is not Storyboard flash)
+            {
+                flash = CreateFlash(glow);
+                glow.Tag = flash;
+            }
+
+            if (session.NeedsAttention)
+            {
+                if (flash.GetCurrentState() == ClockState.Stopped) flash.Begin();
+            }
+            else
+            {
+                flash.Stop();
+                glow.Opacity = 1.0;
+            }
+        }
     }
 
     private static void StopPulse(SelectorItem container)
@@ -434,10 +501,17 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         if (container.Tag is not Storyboard pulse) return;
         pulse.Stop();
 
-        if (container.ContentTemplateRoot is FrameworkElement root &&
-            root.FindName("BusyDot") is UIElement dot)
+        if (container.ContentTemplateRoot is not FrameworkElement root) return;
+
+        if (root.FindName("BusyDot") is UIElement dot)
         {
             dot.Opacity = 1.0;
+        }
+
+        if (root.FindName("AttentionGlow") is FrameworkElement glow)
+        {
+            if (glow.Tag is Storyboard flash) flash.Stop();
+            glow.Opacity = 1.0;
         }
     }
 
@@ -492,6 +566,13 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
     public static string ContextShare(int contextTokens)
     {
         if (contextTokens <= 0) return "--";
+        return Math.Round(ContextFraction(contextTokens) * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+    }
+
+    /// <summary>Context held as a fraction of the window, 0 when unknown.</summary>
+    private static double ContextFraction(int contextTokens)
+    {
+        if (contextTokens <= 0) return 0;
 
         // ponytail: the transcript never records the context WINDOW, and
         // message.model reads "claude-opus-5" for the 200k and the 1M build
@@ -501,8 +582,35 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         // a percentage that is too high. Upgrade path: take the window from
         // the session file, the day it starts recording one.
         var window = contextTokens > 200_000 ? 1_000_000d : 200_000d;
-        return Math.Round(contextTokens / window * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+        return contextTokens / window;
     }
+
+    // The CONTEXT figure's three registers - calm, caution from 75%, critical
+    // from 90%, where auto-compact lives. Exactly one is visible at a time.
+    public static Visibility WhenContextCalm(int contextTokens) => Vis(ContextFraction(contextTokens) < 0.75);
+
+    public static Visibility WhenContextCaution(int contextTokens)
+    {
+        var fraction = ContextFraction(contextTokens);
+        return Vis(fraction >= 0.75 && fraction < 0.9);
+    }
+
+    public static Visibility WhenContextCritical(int contextTokens) => Vis(ContextFraction(contextTokens) >= 0.9);
+
+    /// <summary>How long a finished session keeps its steady glow: long enough
+    /// to survive a walk back to the room, short enough that "recently" is
+    /// still true.</summary>
+    private static readonly TimeSpan FreshFinishWindow = TimeSpan.FromMinutes(3);
+
+    /// <summary>The attention overlay: a waiting session (blocked on the user)
+    /// or one that went quiet in the last few minutes. Never a subagent row.
+    /// Re-evaluated every second by the SinceStatusChange tick, which is what
+    /// ages the finished-glow out with no timer of its own.</summary>
+    public static Visibility WhenAttention(bool isChild, string status, TimeSpan sinceStatusChange) =>
+        Vis(!isChild && (IsWaiting(status)
+            || (IsIdle(status) && sinceStatusChange < FreshFinishWindow)));
+
+    private static bool IsWaiting(string status) => string.Equals(status, "waiting", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Tokens produced, abbreviated for a glance: "318k", "1.2M".</summary>
     public static string TokenCount(long tokens)

@@ -57,6 +57,10 @@ public sealed class SessionWatcher : IDisposable
     /// what was appended. Touched only from the single in-flight scan.</summary>
     private readonly TranscriptTokens _transcripts = new();
 
+    /// <summary>Machine-wide totals for today, dead sessions included. Also
+    /// touched only from the single in-flight scan; internally throttled.</summary>
+    private readonly DailyBurn _burn = new();
+
     private FileSystemWatcher? _fileWatcher;
     private bool _started;
     private bool _disposed;
@@ -66,6 +70,19 @@ public sealed class SessionWatcher : IDisposable
     /// mutated on the UI thread that owns <see cref="DispatcherQueue"/>, so
     /// it is safe to bind directly from XAML.</summary>
     public ObservableCollection<AgentSession> Sessions { get; } = new();
+
+    /// <summary>Output tokens produced today by every session on this machine,
+    /// running or not. Written on the UI thread after each scan.</summary>
+    public long TodayOutputTokens { get; private set; }
+
+    /// <summary>Estimated dollars spent today, same coverage. An estimate -
+    /// see <see cref="DailyBurn"/> for what it rounds over.</summary>
+    public double TodayDollars { get; private set; }
+
+    /// <summary>Raised on the UI thread after every scan has merged, whether
+    /// or not the collection changed - the hook for chrome (header totals)
+    /// that must track values a CollectionChanged cannot see.</summary>
+    public event Action? Refreshed;
 
     /// <summary>The directory being watched.</summary>
     public string SessionsDirectory => _sessionsDirectory;
@@ -263,11 +280,16 @@ public sealed class SessionWatcher : IDisposable
                 discovered = new List<AgentSession>();
             }
 
+            var burn = _burn.Read(); // throttles itself; usually a no-op
+
             _dispatcherQueue.TryEnqueue(() =>
             {
                 try
                 {
+                    TodayOutputTokens = burn.OutputTokens;
+                    TodayDollars = burn.Dollars;
                     Merge(discovered);
+                    Refreshed?.Invoke();
                 }
                 finally
                 {
@@ -556,7 +578,10 @@ public sealed class SessionWatcher : IDisposable
     {
         var target = Sessions
             .Where(s => !s.IsChild)
-            .OrderByDescending(s => s.IsBusy)
+            // A session blocked on the user outranks even a busy one: its
+            // flash is the panel's one alarm, and an alarm below the fold
+            // is silence.
+            .OrderByDescending(s => s.NeedsAttention ? 2 : s.IsBusy ? 1 : 0)
             .ThenByDescending(s => s.UpdatedAt)
             .SelectMany(parent => Sessions
                 .Where(c => c.IsChild && c.ParentSessionId == parent.SessionId)

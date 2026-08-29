@@ -75,13 +75,20 @@ public sealed class AgentSession : INotifyPropertyChanged
         private set
         {
             if (SetField(ref _status, value ?? string.Empty))
+            {
                 OnPropertyChanged(nameof(IsBusy));
+                OnPropertyChanged(nameof(NeedsAttention));
+            }
         }
     }
 
     /// <summary>True when Status is "busy" (case-insensitive). Anything else
     /// (notably "idle") is treated as not-busy.</summary>
     public bool IsBusy => string.Equals(Status, "busy", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when Status is "waiting" - blocked on the user (a
+    /// permission prompt or a question), as opposed to resting at "idle".</summary>
+    public bool NeedsAttention => string.Equals(Status, "waiting", StringComparison.OrdinalIgnoreCase);
 
     private string _version = string.Empty;
     public string Version { get => _version; private set => SetField(ref _version, value ?? string.Empty); }

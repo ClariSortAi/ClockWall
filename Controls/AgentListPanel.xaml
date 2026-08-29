@@ -168,15 +168,36 @@
                             </StackPanel>
 
                             <!-- Both figures come from the session TRANSCRIPT, not
-                                 the session file, which carries no token data. -->
+                                 the session file, which carries no token data.
+
+                                 The context value tints as the window fills -
+                                 caution from 75%, critical from 90% (the
+                                 auto-compact neighbourhood): three overlapped
+                                 TextBlocks, exactly one visible, same pattern
+                                 as the status pills so every brush stays a
+                                 ThemeResource at its usage site. The number is
+                                 always the same; only its urgency changes. -->
                             <StackPanel HorizontalAlignment="Right" MinWidth="76">
                                 <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                            CharacterSpacing="120"
                                            TextAlignment="Right"
                                            Text="CONTEXT" />
-                                <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
-                                           TextAlignment="Right"
-                                           Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                <Grid HorizontalAlignment="Right">
+                                    <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
+                                               TextAlignment="Right"
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCalm(ContextTokens), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                    <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
+                                               TextAlignment="Right"
+                                               Foreground="{ThemeResource ContextCautionTextBrush}"
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCaution(ContextTokens), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                    <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
+                                               TextAlignment="Right"
+                                               Foreground="{ThemeResource ContextCriticalTextBrush}"
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCritical(ContextTokens), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                </Grid>
                             </StackPanel>
 
                             <StackPanel HorizontalAlignment="Right" MinWidth="76">
@@ -243,6 +264,20 @@
                            TextAlignment="Right"
                            Text="{x:Bind local:AgentListPanel.ChildStats(ContextTokens, OutputTokens, Model), Mode=OneWay}" />
             </Grid>
+
+            <!-- ==================== ATTENTION GLOW ====================
+                 An accent outline over the whole card, in two registers:
+                 FLASHING (code-behind storyboard) while the session is
+                 "waiting" - blocked on the user, burning wall-clock - and
+                 STEADY for the first minutes after a session stops being
+                 busy, so "did it finish while I was away?" is answered from
+                 the doorway. Never on a subagent row, which has no card. -->
+            <Border x:Name="AttentionGlow"
+                    IsHitTestVisible="False"
+                    BorderBrush="{ThemeResource WallAccentBrush}"
+                    BorderThickness="3"
+                    CornerRadius="{StaticResource AgentCardCornerRadius}"
+                    Visibility="{x:Bind local:AgentListPanel.WhenAttention(IsChild, Status, SinceStatusChange), Mode=OneWay}" />
           </Grid>
         </DataTemplate>
 
@@ -262,17 +297,27 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- ==================== SECTION HEADER ==================== -->
+        <!-- ==================== SECTION HEADER ====================
+             Two right-aligned lines, not one: the day totals ride a small
+             line of their own above the roster counts, because the two
+             together grew long enough to run into the AGENTS label. -->
         <Grid Grid.Row="0">
             <TextBlock Style="{StaticResource SectionHeaderTextStyle}"
                        VerticalAlignment="Bottom"
                        Text="AGENTS" />
-            <TextBlock x:Name="SummaryText"
-                       Style="{StaticResource SectionHeaderTextStyle}"
-                       FontSize="{StaticResource AgentStatusLabelFontSize}"
-                       Foreground="{ThemeResource AgentMetaTextBrush}"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Bottom" />
+            <StackPanel HorizontalAlignment="Right"
+                        VerticalAlignment="Bottom"
+                        Spacing="{StaticResource SpacingXSmall}">
+                <TextBlock x:Name="BurnText"
+                           Style="{StaticResource AgentMetaTextStyle}"
+                           CharacterSpacing="120"
+                           HorizontalAlignment="Right" />
+                <TextBlock x:Name="SummaryText"
+                           Style="{StaticResource SectionHeaderTextStyle}"
+                           FontSize="{StaticResource AgentStatusLabelFontSize}"
+                           Foreground="{ThemeResource AgentMetaTextBrush}"
+                           HorizontalAlignment="Right" />
+            </StackPanel>
         </Grid>
 
         <!-- ==================== LIST / EMPTY STATE ==================== -->

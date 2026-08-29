@@ -53,6 +53,12 @@
             <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemFillColorSuccessBackgroundBrush" />
             <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemFillColorNeutralBackgroundBrush" />
 
+            <!-- Context-pressure tint on the card's CONTEXT figure. The number
+                 itself always carries the meaning; the hue only raises its
+                 voice as auto-compact approaches. -->
+            <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemFillColorCriticalBrush" />
+
         </ResourceDictionary>
 
         <!-- ============================= DARK ============================= -->
@@ -92,6 +98,10 @@
             <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemFillColorSuccessBackgroundBrush" />
             <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemFillColorNeutralBackgroundBrush" />
 
+            <!-- Context-pressure tint -->
+            <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemFillColorCautionBrush" />
+            <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemFillColorCriticalBrush" />
+
         </ResourceDictionary>
 
         <!-- ========================= HIGH CONTRAST ========================= -->
@@ -127,6 +137,11 @@
             <StaticResource x:Key="AgentStatusBusyBackgroundBrush"    ResourceKey="SystemColorWindowColorBrush" />
             <StaticResource x:Key="AgentStatusIdleBackgroundBrush"    ResourceKey="SystemColorWindowColorBrush" />
             <StaticResource x:Key="AgentStatusUnknownBackgroundBrush" ResourceKey="SystemColorWindowColorBrush" />
+
+            <!-- Contrast themes carry no caution/critical hue; the percentage
+                 figure carries the state on its own. -->
+            <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemColorHighlightColorBrush" />
 
         </ResourceDictionary>
 
