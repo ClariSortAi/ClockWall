@@ -338,7 +338,46 @@
                       VerticalAlignment="Top"
                       ScrollViewer.VerticalScrollBarVisibility="Hidden"
                       ScrollViewer.HorizontalScrollMode="Disabled"
-                      ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                <!-- The roster REORDERS - a session that starts waiting is
+                     Moved to the top, which is this panel's signature state
+                     change - and rows are added and removed as sessions start
+                     and end. A row that teleports into its new slot is a row
+                     the viewer has to find and identify again from across the
+                     room; a row that glides is visibly the SAME row, still
+                     being followed. That spatial continuity is not decoration,
+                     it IS the information, which is what buys the reposition
+                     its ~300ms on the system curve. AddDeleteThemeTransition
+                     covers the other half, so a session arriving or leaving is
+                     a movement rather than a blink.
+
+                     Staggering is off: the roster settling is not a reveal
+                     moment, and a cascade down a column of cards would dress up
+                     what is really one simultaneous fact - the order changed.
+
+                     Declaring the collection REPLACES the platform default set,
+                     which is the point. These two are the whole chosen set, so
+                     what the wall does on a reorder stops being whatever the
+                     default happened to be in that release. Unlike the busy
+                     breath and the needs-you flash, which the code-behind gates
+                     on the OS animation-effects setting, both of these are brief
+                     one-shots that never loop, so they are left to the platform.
+
+                     Worth confirming on the wall rather than assuming: the docs
+                     say RepositionThemeTransition is not DESIGNED for a
+                     virtualising panel, and a ListView's default ItemsStackPanel
+                     is one - though this list never scrolls (it is sized to a
+                     whole number of rows) so it recycles only when the roster
+                     itself changes. -->
+                <ListView.ItemContainerTransitions>
+                    <TransitionCollection>
+                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                        <AddDeleteThemeTransition />
+                    </TransitionCollection>
+                </ListView.ItemContainerTransitions>
+
+            </ListView>
 
             <!-- Nothing running is a normal, restful state for a wall panel -
                  it gets a considered composition, not an empty rectangle. -->
