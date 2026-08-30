@@ -645,6 +645,44 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         return tokens.ToString(CultureInfo.InvariantCulture);
     }
 
+    /// <summary>Output pace: "12 tok/s", "1.2k tok/s". EMPTY under half a
+    /// token a second - the smoothing leaves a decaying tail behind a session
+    /// that stopped, and the caller drops the whole segment rather than
+    /// publish "0 tok/s" for the hours a parked session sits there.</summary>
+    public static string TokenRate(double perSecond)
+    {
+        if (perSecond < 0.5) return string.Empty;
+        var figure = perSecond >= 1_000
+            ? (perSecond / 1_000d).ToString("0.0", CultureInfo.InvariantCulture) + "k"
+            : perSecond.ToString("0", CultureInfo.InvariantCulture);
+        return figure + " tok/s";
+    }
+
+    /// <summary>Tool-call pace: "0.4 tools/m", "6 tools/m". Keeps a decimal
+    /// below 10 because the interesting range is small - the gap between one
+    /// call a minute and four is most of what this figure has to say, and
+    /// rounding both to "0" and "4" throws half of it away. Empty rule as
+    /// <see cref="TokenRate"/>.</summary>
+    public static string ToolRate(double perMinute)
+    {
+        if (perMinute < 0.1) return string.Empty;
+        var figure = perMinute < 10
+            ? perMinute.ToString("0.0", CultureInfo.InvariantCulture)
+            : perMinute.ToString("0", CultureInfo.InvariantCulture);
+        return figure + " tools/m";
+    }
+
+    /// <summary>The two pace figures joined, either half dropping out on its
+    /// own, empty when the session is doing neither.</summary>
+    private static string Pace(double tokensPerSecond, double toolsPerMinute)
+    {
+        var tokens = TokenRate(tokensPerSecond);
+        var tools = ToolRate(toolsPerMinute);
+
+        if (tokens.Length == 0) return tools;
+        return tools.Length == 0 ? tokens : tokens + "  ·  " + tools;
+    }
+
     /// <summary>Secondary identity line: "Clock · interactive". Kind rides here
     /// rather than in the meta line because it is what separates a session you
     /// are driving from one an agent spawned.</summary>
@@ -666,15 +704,25 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
 
     public static Visibility WhenPositive(int value) => Vis(value > 0);
 
-    /// <summary>The quiet provenance line: "opus-5 · v2.1.247 · pid 1364".
-    /// Each piece drops out cleanly when it is missing.</summary>
-    public static string MetaLine(string model, string version, int pid)
+    /// <summary>The quiet provenance line, with pace on the end while there is
+    /// any: "opus-5 · v2.1.247 · pid 1364 · 175 tok/s · 6 tools/m". Each piece
+    /// drops out cleanly when it is missing.
+    ///
+    /// Pace rides HERE rather than in the stat row above because the row is
+    /// full: a fifth and sixth column there cost the agent name its width, and
+    /// "graniteai-website-98" trimmed to "granite..." is not a name - two
+    /// different sessions render identically. The name is the one thing on this
+    /// card that has to survive being read from across the room.</summary>
+    public static string MetaLine(string model, string version, int pid, double tokensPerSecond, double toolsPerMinute)
     {
         var line = "pid " + pid.ToString(CultureInfo.InvariantCulture);
         if (!string.IsNullOrWhiteSpace(version)) line = "v" + version.Trim() + "  ·  " + line;
 
         var shortModel = ShortModel(model);
-        return shortModel.Length == 0 ? line : shortModel + "  ·  " + line;
+        if (shortModel.Length > 0) line = shortModel + "  ·  " + line;
+
+        var pace = Pace(tokensPerSecond, toolsPerMinute);
+        return pace.Length == 0 ? line : line + "  ·  " + pace;
     }
 
     /// <summary>"claude-opus-5" -&gt; "opus-5", "claude-haiku-4-5-20251001" -&gt;

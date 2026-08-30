@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace ClockWall;
@@ -78,6 +78,7 @@ public sealed class AgentSession : INotifyPropertyChanged
             {
                 OnPropertyChanged(nameof(IsBusy));
                 OnPropertyChanged(nameof(NeedsAttention));
+                OnPropertyChanged(nameof(IsIdle));
             }
         }
     }
@@ -89,6 +90,12 @@ public sealed class AgentSession : INotifyPropertyChanged
     /// <summary>True when Status is "waiting" - blocked on the user (a
     /// permission prompt or a question), as opposed to resting at "idle".</summary>
     public bool NeedsAttention => string.Equals(Status, "waiting", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>True when Status is "idle" - parked between turns, running
+    /// nothing. The only status that sinks a session BELOW the fold, so it is
+    /// asked for explicitly rather than inferred from "not busy": "shell" is
+    /// also not busy, and a session running a shell command is working.</summary>
+    public bool IsIdle => string.Equals(Status, "idle", StringComparison.OrdinalIgnoreCase);
 
     private string _version = string.Empty;
     public string Version { get => _version; private set => SetField(ref _version, value ?? string.Empty); }
@@ -108,6 +115,38 @@ public sealed class AgentSession : INotifyPropertyChanged
     private long _outputTokens;
     /// <summary>Output tokens this session has produced since it started.</summary>
     public long OutputTokens { get => _outputTokens; private set => SetField(ref _outputTokens, value); }
+
+    private long _toolCalls;
+    /// <summary>Tool calls this session has made since it started, counted off
+    /// the transcript by <see cref="TranscriptTokens"/>.</summary>
+    public long ToolCalls { get => _toolCalls; private set => SetField(ref _toolCalls, value); }
+
+    private double _tokensPerSecond;
+    /// <summary>Output tokens per second, smoothed - see <see cref="SamplePace"/>.</summary>
+    public double TokensPerSecond { get => _tokensPerSecond; private set => SetField(ref _tokensPerSecond, value); }
+
+    private double _toolsPerMinute;
+    /// <summary>Tool calls per minute, smoothed - see <see cref="SamplePace"/>.</summary>
+    public double ToolsPerMinute { get => _toolsPerMinute; private set => SetField(ref _toolsPerMinute, value); }
+
+    // Pace is measured on the LONG-LIVED instance: UpdateFrom hands us a
+    // throwaway object built from this scan, so the previous reading has to
+    // live here or there is nothing to subtract.
+    private DateTime _paceSampledAt;
+    private long _paceOutput;
+    private long _paceTools;
+
+    /// <summary>Shortest gap between two pace samples. A refresh can land 300ms
+    /// after the last one (the watcher debounces file events), and a transcript
+    /// is written in bursts - so a short window routinely divides one whole
+    /// turn's tokens by a third of a second and reports a rate no session could
+    /// sustain.</summary>
+    private static readonly TimeSpan PaceWindow = TimeSpan.FromSeconds(2);
+
+    /// <summary>EMA weight on the newest sample. High enough that a session
+    /// waking up shows it within a couple of samples, low enough that the
+    /// gap between two turns does not read as a stop.</summary>
+    private const double PaceSmoothing = 0.4;
 
     private string _model = string.Empty;
     /// <summary>Raw model id of this session's most recent assistant turn, e.g.
@@ -189,6 +228,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         string model,
         string activity,
         bool isRunning,
+        long toolCalls = 0,
         int subagentCount = 0,
         int subagentLiveCount = 0,
         bool isChild = false,
@@ -215,6 +255,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         _model = model ?? string.Empty;
         _activity = activity ?? string.Empty;
         _isRunning = isRunning;
+        _toolCalls = toolCalls;
     }
 
     /// <summary>
@@ -237,6 +278,8 @@ public sealed class AgentSession : INotifyPropertyChanged
         StatusUpdatedAt = fresh.StatusUpdatedAt;
         ContextTokens = fresh.ContextTokens;
         OutputTokens = fresh.OutputTokens;
+        ToolCalls = fresh.ToolCalls;
+        SamplePace(fresh.OutputTokens, fresh.ToolCalls);
         Model = fresh.Model;
         Activity = fresh.Activity;
         IsRunning = fresh.IsRunning;
@@ -251,6 +294,55 @@ public sealed class AgentSession : INotifyPropertyChanged
 
         RaiseTimeChanged();
     }
+
+    /// <summary>
+    /// Folds one (output, tools) reading into the two pace figures.
+    ///
+    /// Both are deltas over ELAPSED time, not lifetime averages. A session that
+    /// produced 200k tokens an hour ago and has been parked since is not going
+    /// fast, and dividing its total by its uptime would put it near the top of
+    /// the wall for work it finished before lunch.
+    /// </summary>
+    private void SamplePace(long output, long tools)
+    {
+        var now = DateTime.Now;
+
+        if (_paceSampledAt == default)
+        {
+            // First sight of this session: take the baseline, claim no rate.
+            // ClockWall starting up beside a session that has been running for
+            // three hours would otherwise divide those three hours of tokens
+            // by the two seconds it has been watching.
+            _paceSampledAt = now;
+            _paceOutput = output;
+            _paceTools = tools;
+            return;
+        }
+
+        var elapsed = now - _paceSampledAt;
+        if (elapsed < PaceWindow) return;
+
+        var seconds = elapsed.TotalSeconds;
+
+        // A transcript that was rotated or compacted restarts its counters, and
+        // TranscriptTokens zeroes its tally to match. That is a reset, not
+        // negative work, so it contributes nothing rather than a negative rate.
+        var tokens = Math.Max(0, output - _paceOutput);
+        var calls = Math.Max(0, tools - _paceTools);
+
+        TokensPerSecond = Smooth(_tokensPerSecond, tokens / seconds);
+        ToolsPerMinute = Smooth(_toolsPerMinute, calls / seconds * 60.0);
+
+        _paceSampledAt = now;
+        _paceOutput = output;
+        _paceTools = tools;
+    }
+
+    /// <summary>Exponential moving average, except that the first non-zero
+    /// reading is taken whole: a session that just started working should show
+    /// its rate now, not ramp up to it over four scans.</summary>
+    private static double Smooth(double previous, double sample) =>
+        previous <= 0 ? sample : previous + PaceSmoothing * (sample - previous);
 
     /// <summary>
     /// Re-raises PropertyChanged for the time-derived properties (Uptime,

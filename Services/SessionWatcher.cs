@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Threading;
@@ -402,7 +402,7 @@ public sealed class SessionWatcher : IDisposable
             // subagent we can see is running.
         }
 
-        var (contextTokens, outputTokens, model, activity) = _transcripts.ReadFile(id, transcript.FullName);
+        var (contextTokens, outputTokens, toolCalls, model, activity) = _transcripts.ReadFile(id, transcript.FullName);
 
         // The transcript's model id is the precise one ("claude-opus-5"); the
         // meta file's is the alias that was asked for ("opus"). Prefer the
@@ -430,6 +430,7 @@ public sealed class SessionWatcher : IDisposable
             model,
             activity,
             isRunning: true,
+            toolCalls: toolCalls,
             isChild: true,
             parentSessionId: parent.SessionId);
     }
@@ -475,7 +476,7 @@ public sealed class SessionWatcher : IDisposable
         if (!IsProcessAliveAndMatches(dto.Pid, startedAtLocal))
             return null; // stale file outliving its process, or pid reuse
 
-        var (contextTokens, outputTokens, model, activity) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
+        var (contextTokens, outputTokens, toolCalls, model, activity) = _transcripts.Read(dto.Cwd ?? string.Empty, dto.SessionId!);
 
         var isBusy = string.Equals(dto.Status, "busy", StringComparison.OrdinalIgnoreCase);
         var (subagentTotal, subagentLive) = SubagentFiles(dto.Cwd ?? string.Empty, dto.SessionId!, isBusy);
@@ -497,6 +498,7 @@ public sealed class SessionWatcher : IDisposable
             model,
             activity,
             isRunning: true,
+            toolCalls: toolCalls,
             subagentCount: subagentTotal,
             subagentLiveCount: subagentLive.Count);
 
@@ -580,8 +582,10 @@ public sealed class SessionWatcher : IDisposable
             .Where(s => !s.IsChild)
             // A session blocked on the user outranks even a busy one: its
             // flash is the panel's one alarm, and an alarm below the fold
-            // is silence.
-            .OrderByDescending(s => s.NeedsAttention ? 2 : s.IsBusy ? 1 : 0)
+            // is silence. Idle is the floor - anything still doing something,
+            // "shell" included, is worth more of the wall than a parked
+            // session, however recently that session happened to heartbeat.
+            .OrderByDescending(s => s.NeedsAttention ? 3 : s.IsBusy ? 2 : s.IsIdle ? 0 : 1)
             .ThenByDescending(s => s.UpdatedAt)
             .SelectMany(parent => Sessions
                 .Where(c => c.IsChild && c.ParentSessionId == parent.SessionId)

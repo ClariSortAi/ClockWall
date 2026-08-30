@@ -34,17 +34,18 @@ internal sealed class TranscriptTokens
 
     /// <summary>Context held by the most recent assistant turn, output tokens
     /// summed over the session so far, the model that turn ran on, and the last
-    /// tool call it made ("Edit MainWindow.xaml.cs").</summary>
-    public (int Context, long Output, string Model, string Activity) Read(string cwd, string sessionId)
+    /// tool call it made ("Edit MainWindow.xaml.cs"), plus how many tool calls
+    /// it has made in total.</summary>
+    public (int Context, long Output, long Tools, string Model, string Activity) Read(string cwd, string sessionId)
     {
-        if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, string.Empty, string.Empty);
+        if (string.IsNullOrWhiteSpace(sessionId)) return (0, 0, 0, string.Empty, string.Empty);
         return ReadFile(sessionId, Path.Combine(ProjectsRoot, Slug(cwd), sessionId + ".jsonl"));
     }
 
     /// <summary>The same follower pointed at an arbitrary transcript, keyed by
     /// an arbitrary id. A SUBAGENT's transcript is byte-for-byte the same shape
     /// as a session's, so it needs no parser of its own - only a path.</summary>
-    public (int Context, long Output, string Model, string Activity) ReadFile(string key, string path)
+    public (int Context, long Output, long Tools, string Model, string Activity) ReadFile(string key, string path)
     {
         if (!_bySession.TryGetValue(key, out var tally))
             _bySession[key] = tally = new Tally();
@@ -58,7 +59,7 @@ internal sealed class TranscriptTokens
             // Absent, locked, mid-write, unreadable: keep what we already have.
         }
 
-        return (tally.Context, tally.Output, tally.Model, tally.Activity);
+        return (tally.Context, tally.Output, tally.Tools, tally.Model, tally.Activity);
     }
 
     /// <summary>"...\projects\&lt;cwd-slug&gt;\&lt;sessionId&gt;\subagents" - the
@@ -82,6 +83,7 @@ internal sealed class TranscriptTokens
         {
             tally.Offset = 0;
             tally.Output = 0;
+            tally.Tools = 0;
         }
 
         var pending = stream.Length - tally.Offset;
@@ -151,6 +153,11 @@ internal sealed class TranscriptTokens
                     var tool = name.GetString();
                     if (string.IsNullOrEmpty(tool)) continue;
 
+                    // Every tool_use block already passes through here on its
+                    // way to Activity, so the count is a by-product of a walk
+                    // this loop was making anyway.
+                    tally.Tools++;
+
                     var hint = Hint(block);
                     tally.Activity = hint.Length == 0 ? tool : tool + " " + hint;
                 }
@@ -214,6 +221,7 @@ internal sealed class TranscriptTokens
     {
         public long Offset;
         public long Output;
+        public long Tools;
         public int Context;
         public string Model = string.Empty;
         public string Activity = string.Empty;

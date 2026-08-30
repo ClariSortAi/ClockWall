@@ -214,7 +214,7 @@
 
                         <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                    TextAlignment="Right"
-                                   Text="{x:Bind local:AgentListPanel.MetaLine(Model, Version, Pid), Mode=OneWay}" />
+                                   Text="{x:Bind local:AgentListPanel.MetaLine(Model, Version, Pid, TokensPerSecond, ToolsPerMinute), Mode=OneWay}" />
 
                     </StackPanel>
 
