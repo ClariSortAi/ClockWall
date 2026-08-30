@@ -558,9 +558,9 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
 
     /// <summary>The subagent row's own figures: "18%  ·  12k  ·  opus-5". Read
     /// from its transcript by the same follower the sessions use.</summary>
-    public static string ChildStats(int contextTokens, long outputTokens, string model)
+    public static string ChildStats(int contextTokens, bool windowKnown, long outputTokens, string model)
     {
-        var line = ContextShare(contextTokens) + "  ·  " + TokenCount(outputTokens);
+        var line = ContextShare(contextTokens, windowKnown) + "  ·  " + TokenCount(outputTokens);
         var shortModel = ShortModel(model);
         return shortModel.Length == 0 ? line : line + "  ·  " + shortModel;
     }
@@ -586,40 +586,56 @@ public sealed partial class AgentListPanel : UserControl, IDisposable
         return $"{value.Seconds}s";
     }
 
-    /// <summary>How full the context window is, as a percentage: "23%".</summary>
-    public static string ContextShare(int contextTokens)
+    /// <summary>
+    /// How full the context window is - "23%" when the window is known, the
+    /// raw figure ("198k") when it is not.
+    ///
+    /// The panel used to guess the denominator, and the guess was wrong for
+    /// the whole first half of a 1M session's life: everything under 200k read
+    /// against the small window, so a session holding 198k of its million
+    /// showed "99%" beside a status line reading 20%. A percentage nobody can
+    /// scale is worse than no percentage - it is the same glyph as a real one,
+    /// in the same column, and nothing tells the room which it is looking at.
+    /// See <see cref="AgentSession.ContextWindowKnown"/>.
+    /// </summary>
+    public static string ContextShare(int contextTokens, bool windowKnown)
     {
         if (contextTokens <= 0) return "--";
-        return Math.Round(ContextFraction(contextTokens) * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+        if (!windowKnown) return TokenCount(contextTokens);
+        return Math.Round(ContextFraction(contextTokens, windowKnown) * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
     }
 
-    /// <summary>Context held as a fraction of the window, 0 when unknown.</summary>
-    private static double ContextFraction(int contextTokens)
+    /// <summary>Context held as a fraction of the window; 0 when the window is
+    /// not known, which is the caller's cue that there is no fraction to
+    /// colour by rather than a claim that the session is empty.</summary>
+    private static double ContextFraction(int contextTokens, bool windowKnown)
     {
-        if (contextTokens <= 0) return 0;
-
-        // ponytail: the transcript never records the context WINDOW, and
-        // message.model reads "claude-opus-5" for the 200k and the 1M build
-        // alike, so the window is inferred from the traffic: a session holding
-        // more than 200k can only be on the 1M one. A session on the 1M build
-        // that has not passed 200k yet therefore reads against 200k and shows
-        // a percentage that is too high. Upgrade path: take the window from
-        // the session file, the day it starts recording one.
-        var window = contextTokens > 200_000 ? 1_000_000d : 200_000d;
-        return contextTokens / window;
+        if (contextTokens <= 0 || !windowKnown) return 0;
+        return contextTokens / (double)AgentSession.LargeContextWindow;
     }
 
     // The CONTEXT figure's three registers - calm, caution from 75%, critical
     // from 90%, where auto-compact lives. Exactly one is visible at a time.
-    public static Visibility WhenContextCalm(int contextTokens) => Vis(ContextFraction(contextTokens) < 0.75);
+    //
+    // An unknown window renders in the CALM register: it is the neutral brush,
+    // and the figure sitting in it is a token count, not a percentage. The
+    // cost is real and deliberate - a session on the SMALL window can never
+    // prove it, so it never earns the caution or critical tint, and one at
+    // 195k about to auto-compact shows "195k" in the calm brush. That number
+    // is the warning for anyone who knows the limit; inventing a colour for it
+    // would mean guessing the denominator again, which is the bug.
+    public static Visibility WhenContextCalm(int contextTokens, bool windowKnown) =>
+        Vis(!windowKnown || ContextFraction(contextTokens, windowKnown) < 0.75);
 
-    public static Visibility WhenContextCaution(int contextTokens)
+    public static Visibility WhenContextCaution(int contextTokens, bool windowKnown)
     {
-        var fraction = ContextFraction(contextTokens);
+        if (!windowKnown) return Visibility.Collapsed;
+        var fraction = ContextFraction(contextTokens, windowKnown);
         return Vis(fraction >= 0.75 && fraction < 0.9);
     }
 
-    public static Visibility WhenContextCritical(int contextTokens) => Vis(ContextFraction(contextTokens) >= 0.9);
+    public static Visibility WhenContextCritical(int contextTokens, bool windowKnown) =>
+        Vis(windowKnown && ContextFraction(contextTokens, windowKnown) >= 0.9);
 
     /// <summary>How long a finished session keeps its steady glow: long enough
     /// to survive a walk back to the room, short enough that "recently" is

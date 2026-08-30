@@ -175,8 +175,11 @@
                                  auto-compact neighbourhood): three overlapped
                                  TextBlocks, exactly one visible, same pattern
                                  as the status pills so every brush stays a
-                                 ThemeResource at its usage site. The number is
-                                 always the same; only its urgency changes. -->
+                                 ThemeResource at its usage site.
+
+                                 A session whose window we cannot establish
+                                 shows a raw token count in the calm register
+                                 instead of a percentage - see ContextShare. -->
                             <StackPanel HorizontalAlignment="Right" MinWidth="76">
                                 <TextBlock Style="{StaticResource AgentMetaTextStyle}"
                                            CharacterSpacing="120"
@@ -185,18 +188,18 @@
                                 <Grid HorizontalAlignment="Right">
                                     <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
                                                TextAlignment="Right"
-                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCalm(ContextTokens), Mode=OneWay}"
-                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCalm(ContextTokens, ContextWindowKnown), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens, ContextWindowKnown), Mode=OneWay}" />
                                     <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
                                                TextAlignment="Right"
                                                Foreground="{ThemeResource ContextCautionTextBrush}"
-                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCaution(ContextTokens), Mode=OneWay}"
-                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCaution(ContextTokens, ContextWindowKnown), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens, ContextWindowKnown), Mode=OneWay}" />
                                     <TextBlock Style="{StaticResource AgentStatusLabelTextStyle}"
                                                TextAlignment="Right"
                                                Foreground="{ThemeResource ContextCriticalTextBrush}"
-                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCritical(ContextTokens), Mode=OneWay}"
-                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens), Mode=OneWay}" />
+                                               Visibility="{x:Bind local:AgentListPanel.WhenContextCritical(ContextTokens, ContextWindowKnown), Mode=OneWay}"
+                                               Text="{x:Bind local:AgentListPanel.ContextShare(ContextTokens, ContextWindowKnown), Mode=OneWay}" />
                                 </Grid>
                             </StackPanel>
 
@@ -262,7 +265,7 @@
                            Style="{StaticResource AgentMetaTextStyle}"
                            VerticalAlignment="Center"
                            TextAlignment="Right"
-                           Text="{x:Bind local:AgentListPanel.ChildStats(ContextTokens, OutputTokens, Model), Mode=OneWay}" />
+                           Text="{x:Bind local:AgentListPanel.ChildStats(ContextTokens, ContextWindowKnown, OutputTokens, Model), Mode=OneWay}" />
             </Grid>
 
             <!-- ==================== ATTENTION GLOW ====================

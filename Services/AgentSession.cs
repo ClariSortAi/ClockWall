@@ -106,11 +106,46 @@ public sealed class AgentSession : INotifyPropertyChanged
     private string _entrypoint = string.Empty;
     public string Entrypoint { get => _entrypoint; private set => SetField(ref _entrypoint, value ?? string.Empty); }
 
+    /// <summary>The small context window - and the line that PROVES a session
+    /// is not on it, since a 200k session cannot hold more than 200k.</summary>
+    public const int SmallContextWindow = 200_000;
+
+    /// <summary>The large context window: the only one we can ever establish,
+    /// and only by watching a session exceed <see cref="SmallContextWindow"/>.</summary>
+    public const int LargeContextWindow = 1_000_000;
+
     private int _contextTokens;
     /// <summary>Tokens in the prompt the model saw on this session's most
     /// recent turn - fresh input plus cache reads and writes. Read from the
     /// transcript by <see cref="TranscriptTokens"/>; 0 when it has none.</summary>
-    public int ContextTokens { get => _contextTokens; private set => SetField(ref _contextTokens, value); }
+    public int ContextTokens
+    {
+        get => _contextTokens;
+        private set
+        {
+            if (SetField(ref _contextTokens, value) && value > SmallContextWindow)
+                ContextWindowKnown = true;
+        }
+    }
+
+    private bool _contextWindowKnown;
+    /// <summary>
+    /// True once this session has PROVEN which context window it holds, which
+    /// it can only do by exceeding <see cref="SmallContextWindow"/>.
+    ///
+    /// Nothing on disk records the window: the session file has no field for
+    /// it, and the transcript writes "claude-opus-5" for the 200k build and
+    /// the 1M build alike. So the answer is available in exactly one case - a
+    /// session holding more than 200k is on the 1M build - and unavailable in
+    /// every other, where the panel shows the raw figure rather than a
+    /// percentage it would have to invent a denominator for.
+    ///
+    /// Latched, never cleared. An auto-compact drops the figure back under the
+    /// line but does not move the session to a different build, and un-proving
+    /// it would flip the readout between "24%" and "150k" every time the
+    /// context breathed across 200k.
+    /// </summary>
+    public bool ContextWindowKnown { get => _contextWindowKnown; private set => SetField(ref _contextWindowKnown, value); }
 
     private long _outputTokens;
     /// <summary>Output tokens this session has produced since it started.</summary>
@@ -251,6 +286,7 @@ public sealed class AgentSession : INotifyPropertyChanged
         _updatedAt = updatedAt;
         _statusUpdatedAt = statusUpdatedAt;
         _contextTokens = contextTokens;
+        _contextWindowKnown = contextTokens > SmallContextWindow;
         _outputTokens = outputTokens;
         _model = model ?? string.Empty;
         _activity = activity ?? string.Empty;
