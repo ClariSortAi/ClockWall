@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clockwall motion audit — 2026-08-29</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        oklch(0.155 0.006 255);
+    --surface:    oklch(0.195 0.007 255);
+    --surface-2:  oklch(0.235 0.008 255);
+    --paper:      oklch(0.945 0.004 255);
+    --paper-dim:  oklch(0.800 0.006 255);
+    --muted:      oklch(0.680 0.008 255);
+    --faint:      oklch(0.505 0.008 255);
+    --line:       oklch(0.95 0.01 255 / 0.09);
+    --line-strong:oklch(0.95 0.01 255 / 0.16);
+
+    /* severity — FIXED hues */
+    --sev-crit: oklch(0.655 0.185 25);
+    --sev-imp:  oklch(0.805 0.125 78);
+    --sev-opp:  oklch(0.745 0.135 152);
+    /* timing ramp (section 02 only) */
+    --t-good: var(--sev-opp);
+    --t-mid:  var(--sev-imp);
+    --t-slow: var(--sev-crit);
+
+    /* neutral accent aliases — no chromatic primary in this report */
+    --accent: var(--paper);
+    --accent-soft: var(--paper-dim);
+    --accent-tint: oklch(0.95 0.01 255 / 0.06);
+
+    --display: "Familjen Grotesk", "Hanken Grotesk", system-ui, sans-serif;
+    --sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  :root:has(#theme-light:checked) {
+    --ink:        oklch(0.985 0.003 255);
+    --surface:    oklch(0.965 0.004 255);
+    --surface-2:  oklch(0.940 0.005 255);
+    --paper:      oklch(0.180 0.006 255);
+    --paper-dim:  oklch(0.330 0.008 255);
+    --muted:      oklch(0.475 0.010 255);
+    --faint:      oklch(0.640 0.009 255);
+    --line:       oklch(0.180 0.010 255 / 0.12);
+    --line-strong:oklch(0.180 0.010 255 / 0.22);
+    --sev-crit: oklch(0.560 0.190 25);
+    --sev-imp:  oklch(0.620 0.140 78);
+    --sev-opp:  oklch(0.560 0.140 152);
+    --accent-tint: oklch(0.18 0.01 255 / 0.05);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body {
+    background: var(--ink); color: var(--paper);
+    font-family: var(--sans); font-size: 15px; line-height: 1.6;
+    margin: 0; padding: 0;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 40px 28px 80px; }
+  a { color: inherit; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--accent-tint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+
+  .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  /* global theme switch */
+  .theme-switch { display: flex; justify-content: flex-end; margin-bottom: 28px; }
+  .theme-switch .seg label { font-size: 10px; }
+
+  .mono-label { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+
+  /* header */
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); margin-bottom: 14px; }
+  h1.title { font-family: var(--display); font-size: clamp(30px, 4.6vw, 44px); font-weight: 700; letter-spacing: -0.015em; line-height: 1.12; margin: 0 0 14px; }
+  p.lede { font-size: 16.5px; color: var(--paper-dim); max-width: 62ch; margin: 0 0 18px; }
+  .meta-row { font-family: var(--mono); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 22px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; }
+  .stats a { display: inline-flex; align-items: baseline; gap: 7px; text-decoration: none; border: 1px solid var(--line-strong); border-radius: 100px; padding: 7px 16px; transition: border-color 0.2s ease; }
+  .stats a:hover { border-color: var(--paper-dim); }
+  .stats .n { font-family: var(--display); font-size: 19px; font-weight: 700; }
+  .stats .lbl { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .stats .dot { width: 8px; height: 8px; border-radius: 50%; align-self: center; }
+  .dot--crit { background: var(--sev-crit); } .dot--imp { background: var(--sev-imp); } .dot--opp { background: var(--sev-opp); }
+
+  section { margin-top: 64px; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; border-bottom: 1px solid var(--line-strong); padding-bottom: 12px; margin-bottom: 26px; }
+  .sec-head .num { font-family: var(--mono); font-size: 13px; color: var(--faint); }
+  .sec-head h2 { font-family: var(--display); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+
+  /* overall assessment */
+  .assessment p.big { font-family: var(--display); font-size: clamp(19px, 2.6vw, 24px); font-weight: 500; line-height: 1.5; letter-spacing: -0.005em; max-width: 58ch; margin: 0; }
+
+  /* lens summary table */
+  .lens-table { width: 100%; border-collapse: collapse; }
+  .lens-table th { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); text-align: left; font-weight: 500; padding: 0 14px 10px 0; }
+  .lens-table td { border-top: 1px solid var(--line); padding: 15px 14px 15px 0; vertical-align: top; transition: border-color 0.2s ease; }
+  .lens-table tr:hover td { border-top-color: var(--line-strong); }
+  .lens-name { font-family: var(--display); font-size: 16px; font-weight: 600; white-space: nowrap; }
+  .weight-chip { display: inline-block; font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 100px; padding: 2px 9px; margin-left: 9px; vertical-align: 2px; }
+  .verdict { white-space: nowrap; font-weight: 600; font-size: 13.5px; }
+  .verdict .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; }
+  .lens-read { color: var(--paper-dim); font-size: 14px; }
+
+  /* timing diagram */
+  .timing-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 30px; align-items: start; }
+  .timing-fig svg { width: 100%; height: auto; display: block; }
+  .tz-good { fill: var(--t-good); opacity: 0.14; } .tz-mid { fill: var(--t-mid); opacity: 0.14; } .tz-slow { fill: var(--t-slow); opacity: 0.14; }
+  .tz-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; fill: var(--muted); text-transform: uppercase; }
+  .tx-lbl { font-family: var(--mono); font-size: 10px; fill: var(--faint); }
+  .t-dot { fill: var(--paper); } .t-dot-num { font-family: var(--mono); font-size: 10px; font-weight: 600; fill: var(--ink); }
+  .t-hollow { fill: none; stroke: var(--muted); stroke-dasharray: 3 3; stroke-width: 1.5; }
+  .t-hnum { font-family: var(--mono); font-size: 10px; font-weight: 600; fill: var(--muted); }
+  .t-note { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .t-axis { stroke: var(--line-strong); stroke-width: 1; }
+  .timing-key { margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+  .timing-key li { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); color: var(--paper-dim); }
+  .timing-key .k { font-family: var(--mono); font-size: 11px; color: var(--muted); min-width: 18px; text-align: right; }
+  .timing-key .t { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-left: auto; white-space: nowrap; }
+  .whats-off { margin-top: 22px; border: 1px solid var(--line-strong); border-radius: 10px; padding: 16px 20px; }
+  .whats-off p { margin: 6px 0 0; color: var(--paper-dim); font-size: 14px; }
+
+  /* lens sections */
+  .lens-sec__head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+  .lens-sec__head h3 { font-family: var(--display); font-size: 21px; font-weight: 600; margin: 0; }
+  .lens-sec__weight { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 100px; padding: 2px 9px; }
+  p.lens-sec__verdict { margin: 0 0 22px; font-weight: 600; font-size: 14px; }
+  .lens-block { margin-top: 26px; }
+  .lens-block > .mono-label { display: block; margin-bottom: 12px; }
+  ul.lens-list { list-style: none; margin: 0; padding: 0; }
+  ul.lens-list li { padding: 8px 0 8px 26px; position: relative; color: var(--paper-dim); font-size: 14.5px; border-bottom: 1px solid var(--line); }
+  ul.lens-list.good li::before { content: "✓"; position: absolute; left: 2px; color: var(--sev-opp); font-weight: 700; }
+  ul.lens-list.opp li::before { content: "💡"; position: absolute; left: 0; font-size: 12px; top: 11px; }
+  ul.lens-list code { white-space: nowrap; }
+  .lens-take { margin-top: 26px; background: var(--accent-tint); border: 1px solid var(--line); border-radius: 10px; padding: 14px 20px; font-size: 14.5px; color: var(--paper-dim); }
+  .lens-take strong { color: var(--paper); }
+  .lens-empty { color: var(--faint); font-style: italic; }
+
+  /* finding rows */
+  .finding-row { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; margin-bottom: 18px; transition: border-color 0.2s ease; }
+  .finding-row:hover { border-color: var(--line-strong); }
+  .find-tags { display: flex; gap: 8px; margin-bottom: 10px; }
+  .sev-chip { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; border-radius: 100px; padding: 3px 10px; font-weight: 600; }
+  .finding-row[data-sev="crit"] .sev-chip { color: var(--sev-crit); border: 1px solid color-mix(in oklch, var(--sev-crit) 55%, transparent); }
+  .finding-row[data-sev="imp"]  .sev-chip { color: var(--sev-imp);  border: 1px solid color-mix(in oklch, var(--sev-imp) 55%, transparent); }
+  .lens-chip { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 100px; padding: 3px 10px; }
+  h4.find-title { font-family: var(--display); font-size: 17.5px; font-weight: 600; margin: 0 0 10px; letter-spacing: -0.005em; }
+  .find-body p { margin: 0 0 12px; font-size: 14px; color: var(--paper-dim); }
+  .find-body .label { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); margin-bottom: 3px; }
+  .fix { background: var(--accent-tint); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  .fix p { margin: 0; }
+  p.find-loc { margin: 0; }
+  p.find-loc code { font-size: 12px; }
+
+  /* ── demo card (from demo-shell) ── */
+  .demo { position: relative; width: 380px; max-width: 100%; align-self: start; }
+  .demo__bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .demo__meta { min-width: 0; }
+  .demo__title { display: block; font-size: 13.5px; font-weight: 600; color: var(--paper); line-height: 1.3; }
+  .demo__timing { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .demo__controls { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .demo__loop { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+  .seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 100px; overflow: hidden; }
+  .seg label { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 4px 9px; cursor: pointer; user-select: none; transition: background 0.15s ease, color 0.15s ease; }
+  .demo input[id$="-a"]:checked ~ .demo__bar .seg label[for$="-a"],
+  .demo input[id$="-l"]:checked ~ .demo__bar .seg label[for$="-l"],
+  .demo input[id$="-d"]:checked ~ .demo__bar .seg label[for$="-d"] {
+    background: color-mix(in oklch, var(--paper) 12%, transparent);
+    color: var(--paper);
+  }
+  .theme-switch .seg input:checked + label,
+  .theme-switch .seg label:has(input:checked) { background: color-mix(in oklch, var(--paper) 12%, transparent); color: var(--paper); }
+  .demo__stage {
+    --st-bg: var(--surface-2);
+    --st-fg: var(--paper);
+    --st-line: var(--line-strong);
+    --st-dim: color-mix(in oklch, var(--paper) 55%, transparent);
+    background: var(--st-bg); color: var(--st-fg);
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 32px 24px; min-height: 190px;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .demo input[id$="-l"]:checked ~ .demo__stage {
+    --st-bg: oklch(0.985 0.003 255); --st-fg: oklch(0.180 0.006 255);
+    --st-line: oklch(0.180 0.010 255 / 0.18); --st-dim: oklch(0.180 0.010 255 / 0.45);
+  }
+  .demo input[id$="-d"]:checked ~ .demo__stage {
+    --st-bg: oklch(0.180 0.006 255); --st-fg: oklch(0.985 0.003 255);
+    --st-line: oklch(0.985 0.010 255 / 0.18); --st-dim: oklch(0.985 0.010 255 / 0.50);
+  }
+  .ui-card { background: var(--st-bg); border: 1px solid var(--st-line); border-radius: 10px; padding: 14px 16px; min-width: 200px; box-shadow: 0 8px 24px oklch(0 0 0 / 0.12); }
+  .ui-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--st-fg); }
+  .ui-num { font-family: var(--display); font-size: 34px; font-weight: 700; color: var(--st-fg); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .ui-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--st-dim); }
+
+  /* recommendations tables */
+  .tier-label { display: flex; align-items: baseline; gap: 12px; margin: 34px 0 10px; }
+  .tier-label .mono-label { letter-spacing: 0.14em; }
+  #rec-crit .tier-label .mono-label, .tl-crit { color: var(--sev-crit); }
+  .tl-imp { color: var(--sev-imp); } .tl-opp { color: var(--sev-opp); }
+  .tier-label .count { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .tier-label hr { flex: 1; border: 0; border-top: 1px solid var(--line-strong); margin: 0; align-self: center; }
+  table.rec { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.rec th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); text-align: left; font-weight: 500; padding: 8px 14px 8px 0; }
+  table.rec td { border-top: 1px solid var(--line); padding: 11px 14px 11px 0; color: var(--paper-dim); vertical-align: top; }
+  table.rec td:first-child { color: var(--paper); font-weight: 500; }
+
+  /* ref summary */
+  .ref-summary { border: 1px solid var(--line-strong); border-radius: 12px; padding: 24px 28px; }
+  .ref-summary p { margin: 0 0 12px; color: var(--paper-dim); font-size: 14.5px; }
+  .ref-lean { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; margin-top: 14px; }
+  .ref-lean div { font-size: 13.5px; color: var(--paper-dim); padding: 6px 0; border-top: 1px solid var(--line); }
+  .ref-lean strong { color: var(--paper); font-weight: 600; }
+
+  footer { margin-top: 70px; border-top: 1px solid var(--line); padding-top: 16px; font-family: var(--mono); font-size: 11px; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+
+  @media (max-width: 860px) {
+    .finding-row { grid-template-columns: 1fr; }
+    .timing-grid { grid-template-columns: 1fr; }
+    .demo { width: 100%; }
+  }
+  @media (max-width: 600px) {
+    .ref-lean { grid-template-columns: 1fr; }
+    .lens-table thead { display: none; }
+    .lens-table tr { display: block; border-top: 1px solid var(--line); padding: 10px 0; }
+    .lens-table td { display: block; border: 0; padding: 4px 0; }
+  }
+
+  /* reduced motion — collapses every demo; 100% keyframe = static default */
+  @media (prefers-reduced-motion: reduce) {
+    .demo__loop { display: none; }
+    [class*="__mt"], [class*="__mt"] * { animation: none !important; transition: none !important; }
+  }
+
+  /* ───────── per-finding motion ───────── */
+  @media (prefers-reduced-motion: no-preference) {
+    /* 1 · attention that survives animations-off: static signal enters once */
+    @keyframes m1ring { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 1; } }
+    @keyframes m1chip { 0% { opacity: 0; transform: translateY(3px); } 8% { opacity: 0; transform: translateY(3px); } 26% { opacity: 1; transform: translateY(0); } 100% { opacity: 1; transform: translateY(0); } }
+    .demo-1__mt .demo-1__ring { animation: m1ring 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+    .demo-1__mt .demo-1__chip { animation: m1chip 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+    /* 2 · roster reorder glide */
+    @keyframes m2c { 0%, 12% { transform: translateY(96px); } 48% { transform: translateY(0); } 100% { transform: translateY(0); } }
+    @keyframes m2ab { 0%, 12% { transform: translateY(-48px); } 48% { transform: translateY(0); } 100% { transform: translateY(0); } }
+    .demo-2__mt .demo-2__c { animation: m2c 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+    .demo-2__mt .demo-2__a, .demo-2__mt .demo-2__b { animation: m2ab 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+    /* 3 · session row enter */
+    @keyframes m3 { 0% { opacity: 0; transform: translateY(10px); filter: blur(4px); } 38% { opacity: 1; transform: translateY(0); filter: blur(0); } 100% { opacity: 1; transform: translateY(0); filter: blur(0); } }
+    .demo-3__mt { animation: m3 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+    /* 4 · face crossfade */
+    @keyframes m4d { 0%, 25% { opacity: 1; transform: scale(1); } 46% { opacity: 0; transform: scale(0.985); } 100% { opacity: 0; transform: scale(0.985); } }
+    @keyframes m4f { 0%, 27% { opacity: 0; transform: scale(0.97); } 52% { opacity: 1; transform: scale(1); } 100% { opacity: 1; transform: scale(1); } }
+    .demo-4__mt .demo-4__digits { animation: m4d 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+    .demo-4__mt .demo-4__face { animation: m4f 3s cubic-bezier(0.22, 1, 0.36, 1) infinite; }
+
+    /* 5 · quartz tick with a settle (overshoot encoded in keyframes) */
+    @keyframes m5 {
+      0%, 13%  { transform: rotate(-12deg); }
+      16%      { transform: rotate(-4.6deg); }
+      19%      { transform: rotate(-6.5deg); }
+      21%, 45% { transform: rotate(-6deg); }
+      48%      { transform: rotate(1.4deg); }
+      51%      { transform: rotate(-0.5deg); }
+      53%, 100%{ transform: rotate(0deg); }
+    }
+    .demo-5__mt .demo-5__hand { animation: m5 3s linear infinite; }
+  }
+
+  /* demo-local statics (base state = each keyframe's 100%) */
+  .demo-1__row { position: relative; }
+  .demo-1__ring { position: absolute; inset: -2px; border: 2px solid var(--st-fg); border-radius: 12px; pointer-events: none; }
+  .demo-1__chip { display: inline-block; font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; border: 1px solid var(--st-fg); color: var(--st-fg); border-radius: 100px; padding: 2px 8px; margin-left: 10px; }
+  .demo-2__mt { position: relative; width: 240px; height: 136px; }
+  .demo-2__mt .drow { position: absolute; left: 0; right: 0; height: 40px; border: 1px solid var(--st-line); border-radius: 8px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12px; color: var(--st-fg); background: var(--st-bg); }
+  .demo-2__c { top: 0; border-width: 2px !important; border-color: var(--st-fg) !important; }
+  .demo-2__a { top: 48px; } .demo-2__b { top: 96px; }
+  .drow .pill { font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.1em; border: 1px solid var(--st-dim); color: var(--st-dim); border-radius: 100px; padding: 1px 7px; }
+  .demo-2__c .pill { border-color: var(--st-fg); color: var(--st-fg); }
+  .demo-4__mt { position: relative; width: 130px; height: 130px; display: flex; align-items: center; justify-content: center; }
+  .demo-4__digits { position: absolute; opacity: 0; }
+  .demo-4__face, .demo-5__face { position: relative; width: 110px; height: 110px; border: 2px solid var(--st-fg); border-radius: 50%; }
+  .hand { position: absolute; left: 50%; bottom: 50%; transform-origin: 50% 100%; background: var(--st-fg); border-radius: 2px; }
+  .demo-4__face .h-hour { width: 5px; height: 28px; margin-left: -2.5px; transform: rotate(-60deg); }
+  .demo-4__face .h-min  { width: 3px; height: 42px; margin-left: -1.5px; transform: rotate(120deg); }
+  .demo-5__mt { width: 110px; height: 110px; }
+  .demo-5__face .h-min { width: 3px; height: 40px; margin-left: -1.5px; transform: rotate(-90deg); background: var(--st-dim); }
+  .demo-5__hand { width: 2px; height: 48px; margin-left: -1px; }
+  .cap { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--st-fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="theme-switch">
+    <div class="seg">
+      <label><input class="vh" type="radio" name="theme" id="theme-dark" checked>Dark</label>
+      <label><input class="vh" type="radio" name="theme" id="theme-light">Light</label>
+    </div>
+  </div>
+
+  <header>
+    <div class="eyebrow">Motion audit · design-motion-principles</div>
+    <h1 class="title">ClockWall — the states are polished, the transitions don't exist</h1>
+    <p class="lede">An always-on 1080×1920 portrait wall display: analogue clock, machine meters, and the Claude Code sessions running on the machine. Read from across a room, touched almost never.</p>
+    <div class="meta-row"><span>WinUI 3 · C# + XAML · .NET 10</span><span>Ambient display, unattended for days</span><span>Weighting: Jakub primary · Jhey secondary · Emil selective</span></div>
+    <div class="stats">
+      <a href="#rec-crit"><span class="dot dot--crit"></span><span class="n">1</span><span class="lbl">Critical</span></a>
+      <a href="#rec-imp"><span class="dot dot--imp"></span><span class="n">4</span><span class="lbl">Important</span></a>
+      <a href="#rec-opp"><span class="dot dot--opp"></span><span class="n">4</span><span class="lbl">Opportunities</span></a>
+    </div>
+  </header>
+
+  <section class="assessment">
+    <span class="mono-label">Overall</span>
+    <p class="big" style="margin-top:14px;">This codebase has unusually good motion discipline for a v1: exactly two animations exist, both looped attention signals with written rationale, tuned to read from across a room. What's missing is everything in between — every discrete state change on the wall is a hard cut. Rows appear, vanish, and change order with no continuity; the centerpiece analogue face moves with less personality than a microwave clock. Under the chosen delight weighting, the work is not restraint — it's adding the connective tissue, then spending one or two flourishes where a wall clock has earned them.</p>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">01</span><h2>Lens summary</h2></div>
+    <table class="lens-table">
+      <thead><tr><th>Lens</th><th>Verdict</th><th>One-line read</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="lens-name">Jakub Krehel</span><span class="weight-chip">Primary</span></td>
+          <td class="verdict"><span class="dot dot--imp"></span>Concern</td>
+          <td class="lens-read">The two signals are production-grade; the transitions between states are absent, so the wall communicates <em>being</em> beautifully and <em>becoming</em> not at all.</td>
+        </tr>
+        <tr>
+          <td><span class="lens-name">Jhey Tompkins</span><span class="weight-chip">Secondary</span></td>
+          <td class="verdict"><span class="dot dot--imp"></span>Mixed</td>
+          <td class="lens-read">A hand-built analogue face is pure "make the thing" spirit — and then its second hand snaps 6° a second with zero personality. The stage is built; no performance is booked.</td>
+        </tr>
+        <tr>
+          <td><span class="lens-name">Emil Kowalski</span><span class="weight-chip">Selective</span></td>
+          <td class="verdict"><span class="dot dot--opp"></span>Strong</td>
+          <td class="lens-read">Keyboard actions are instant, readouts don't dance, and only two loops run — restraint is already in the bones. Keep it while the other two lenses do their work.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <div class="sec-head"><span class="num">02</span><h2>Where the timings land</h2></div>
+    <div class="timing-grid">
+      <div class="timing-fig">
+        <svg viewBox="0 0 660 300" role="img" aria-label="Duration budget diagram: two loop animations clamp past 600 milliseconds; six discrete state changes sit at zero.">
+          <rect class="tz-good" x="40" y="70" width="100" height="160"/>
+          <rect class="tz-good" x="140" y="70" width="200" height="160"/>
+          <rect class="tz-mid"  x="340" y="70" width="200" height="160"/>
+          <rect class="tz-slow" x="540" y="70" width="100" height="160"/>
+          <text class="tz-lbl" x="45"  y="60">Instant</text>
+          <text class="tz-lbl" x="145" y="60">Responsive</text>
+          <text class="tz-lbl" x="345" y="60">Deliberate</text>
+          <text class="tz-lbl" x="545" y="60">Sluggish</text>
+          <line class="t-axis" x1="40" y1="230" x2="640" y2="230"/>
+          <text class="tx-lbl" x="36" y="248">0</text>
+          <text class="tx-lbl" x="128" y="248">100</text>
+          <text class="tx-lbl" x="328" y="248">300</text>
+          <text class="tx-lbl" x="528" y="248">500</text>
+          <text class="tx-lbl" x="614" y="248">600ms</text>
+          <!-- loops, clamped off-scale right -->
+          <circle class="t-dot" cx="628" cy="105" r="11"/><text class="t-dot-num" x="628" y="109" text-anchor="middle">1</text>
+          <text class="t-note" x="596" y="90">700 →</text>
+          <circle class="t-dot" cx="628" cy="150" r="11"/><text class="t-dot-num" x="628" y="154" text-anchor="middle">2</text>
+          <text class="t-note" x="586" y="170">1800 →</text>
+          <!-- discrete changes, all at 0ms -->
+          <circle class="t-hollow" cx="52" cy="92"  r="10"/><text class="t-hnum" x="52" y="96"  text-anchor="middle">3</text>
+          <circle class="t-hollow" cx="52" cy="119" r="10"/><text class="t-hnum" x="52" y="123" text-anchor="middle">4</text>
+          <circle class="t-hollow" cx="52" cy="146" r="10"/><text class="t-hnum" x="52" y="150" text-anchor="middle">5</text>
+          <circle class="t-hollow" cx="52" cy="173" r="10"/><text class="t-hnum" x="52" y="177" text-anchor="middle">6</text>
+          <circle class="t-hollow" cx="52" cy="200" r="10"/><text class="t-hnum" x="52" y="204" text-anchor="middle">7</text>
+          <circle class="t-hollow" cx="80" cy="200" r="10"/><text class="t-hnum" x="80" y="204" text-anchor="middle">8</text>
+        </svg>
+      </div>
+      <ul class="timing-key">
+        <li><span class="k">1</span> Needs-you flash (loop leg) <span class="t">700ms · sine</span></li>
+        <li><span class="k">2</span> Busy-dot breath (loop leg) <span class="t">1800ms · sine</span></li>
+        <li><span class="k">3</span> Roster reorder <span class="t">none declared</span></li>
+        <li><span class="k">4</span> Session row enter / exit <span class="t">none declared</span></li>
+        <li><span class="k">5</span> Analogue ⇄ digital face swap <span class="t">0ms</span></li>
+        <li><span class="k">6</span> Second-hand step <span class="t">0ms</span></li>
+        <li><span class="k">7</span> Context register swap (75% / 90%) <span class="t">0ms</span></li>
+        <li><span class="k">8</span> Ticker line change <span class="t">0ms</span></li>
+      </ul>
+    </div>
+    <div class="whats-off">
+      <span class="mono-label">What's off</span>
+      <p>The distribution is inverted. The only nonzero durations on the wall belong to two infinite loops, while every one-time transition sits at zero. A healthy profile is the mirror image: state changes living in the 150–350ms responsive band, loops rare and earned. The two dots on the right are fine — they are signals, not transitions, and their slowness is the point. The six hollow dots on the left are the audit.</p>
+    </div>
+  </section>
+
+  <!-- ═════════ JAKUB ═════════ -->
+  <section>
+    <div class="sec-head"><span class="num">03</span><h2>Per-lens findings</h2></div>
+
+    <div class="lens-sec__head"><h3>Jakub Krehel — Production Polish</h3><span class="lens-sec__weight">Primary</span></div>
+    <p class="lens-sec__verdict"><span class="dot dot--imp" style="display:inline-block;margin-right:7px;"></span>Concern — states polished, transitions missing</p>
+
+    <div class="lens-block">
+      <span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li>Two-tier signal language: the 3.6s breath is "furniture," the 700ms flash is "an alarm" — context-driven timing, exactly his rule, with the rationale written down — <code>Controls/AgentListPanel.xaml.cs:397–428</code></li>
+        <li>SineEase chosen over default easing on both loops, and both animate opacity on the composition thread — tuned <em>and</em> cheap</li>
+        <li>Anti-jitter craft: figure-space padding plus tabular numerals so readouts never reflow on a tick — optical-alignment-grade discipline — <code>Controls/ClockPanel.xaml:22–25</code></li>
+        <li>All colour, type, and size in <code>Themes/Theme.xaml</code> with Light/Dark/HighContrast defined explicitly — the theming discipline production motion depends on</li>
+      </ul>
+    </div>
+
+    <div class="lens-block">
+      <span class="mono-label">Issues to address</span>
+
+      <div class="finding-row" data-sev="crit">
+        <div class="finding-row__prose">
+          <div class="find-tags"><span class="sev-chip">Critical</span><span class="lens-chip">All lenses</span></div>
+          <h4 class="find-title">Two infinite loops ignore the OS animation-effects setting</h4>
+          <div class="find-body">
+            <p><span class="label">What</span>The busy-dot breath and the needs-you flash run forever, and nothing in the codebase consults the user's reduced-motion choice. Windows exposes it as <code>UISettings.AnimationsEnabled</code> (Settings → Accessibility → Visual effects → Animation effects); a panel that is lit all day in someone's field of vision is precisely where that setting must be honored.</p>
+            <p><span class="label">Why it matters</span>Looping motion that cannot be paused is the checklist's hardest accessibility line. And the app already has a perfect non-motion fallback: the accent border, the sort-to-top, and the "N NEEDS YOU" header line convey attention with zero movement, so honoring the setting costs nothing in function.</p>
+            <div class="fix"><p><span class="label">Recommended motion</span>Gate <code>storyboard.Begin()</code> in <code>ApplyPulse</code> on <code>new UISettings().AnimationsEnabled</code>. Checked per call, it self-heals through the same periodic poll the rest of the app already trusts — house style. When false, leave the glow and dot at full, steady opacity: signal without motion, as the demo shows.</p></div>
+            <p class="find-loc"><code>Controls/AgentListPanel.xaml.cs:404–448, 450–497</code></p>
+          </div>
+        </div>
+        <div class="demo">
+          <input class="vh" type="radio" name="st1" id="st1-a" checked>
+          <input class="vh" type="radio" name="st1" id="st1-l">
+          <input class="vh" type="radio" name="st1" id="st1-d">
+          <div class="demo__bar">
+            <div class="demo__meta">
+              <span class="demo__title">Attention that survives animations-off</span>
+              <span class="demo__timing">static signal · one subtle enter, then still</span>
+            </div>
+            <div class="demo__controls">
+              <div class="seg"><label for="st1-a">Auto</label><label for="st1-l">Light</label><label for="st1-d">Dark</label></div>
+              <span class="demo__loop">↻</span>
+            </div>
+          </div>
+          <div class="demo__stage">
+            <div class="demo-1__mt">
+              <div class="demo-1__row ui-card">
+                <div class="demo-1__ring"></div>
+                <div class="ui-label" style="margin-bottom:6px;">session</div>
+                <div class="ui-row"><span>fix-login-redirect</span><span class="demo-1__chip">NEEDS YOU</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finding-row" data-sev="imp">
+        <div class="finding-row__prose">
+          <div class="find-tags"><span class="sev-chip">Important</span><span class="lens-chip">Jakub</span></div>
+          <h4 class="find-title">The roster's signature state change has no chosen motion</h4>
+          <div class="find-body">
+            <p><span class="label">What</span>When a session flips to waiting it is <code>Move</code>d to the top of the list, and when priorities shift, rows change order — but <code>AgentListView</code> declares no <code>ItemContainerTransitions</code>, so whether rows glide or teleport is left to platform defaults nobody chose.</p>
+            <p><span class="label">Why it matters</span>This is the one state change the wall exists to broadcast. A viewer across the room who sees a different row on top has to re-scan the list; a viewer who sees the row <em>travel</em> keeps its identity for free. Spatial continuity is not decoration here — it is the information.</p>
+            <div class="fix"><p><span class="label">Recommended motion</span>Declare the intent: a <code>TransitionCollection</code> on the ListView with <code>RepositionThemeTransition</code> (staggering off) so displaced rows slide to their new slots on the system curve (~300ms). Verify on the wall; if defaults were already animating this, the declaration still turns an accident into a decision.</p></div>
+            <p class="find-loc"><code>Controls/AgentListPanel.xaml:326 · Services/SessionWatcher.cs:577–596</code></p>
+          </div>
+        </div>
+        <div class="demo">
+          <input class="vh" type="radio" name="st2" id="st2-a" checked>
+          <input class="vh" type="radio" name="st2" id="st2-l">
+          <input class="vh" type="radio" name="st2" id="st2-d">
+          <div class="demo__bar">
+            <div class="demo__meta">
+              <span class="demo__title">Rows glide to their new order</span>
+              <span class="demo__timing">~300ms · ease-out (system curve)</span>
+            </div>
+            <div class="demo__controls">
+              <div class="seg"><label for="st2-a">Auto</label><label for="st2-l">Light</label><label for="st2-d">Dark</label></div>
+              <span class="demo__loop">↻</span>
+            </div>
+          </div>
+          <div class="demo__stage">
+            <div class="demo-2__mt">
+              <div class="drow demo-2__c"><span>fix-login-redirect</span><span class="pill" style="margin-left:auto;">WAITING</span></div>
+              <div class="drow demo-2__a"><span>refactor-billing</span><span class="pill" style="margin-left:auto;">BUSY</span></div>
+              <div class="drow demo-2__b"><span>write-e2e-suite</span><span class="pill" style="margin-left:auto;">BUSY</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finding-row" data-sev="imp">
+        <div class="finding-row__prose">
+          <div class="find-tags"><span class="sev-chip">Important</span><span class="lens-chip">Jakub</span></div>
+          <h4 class="find-title">Session rows materialize and vanish with no enter or exit</h4>
+          <div class="find-body">
+            <p><span class="label">What</span>A new session's card pops in fully formed; an ended session's card is simply gone on the next poll. Nothing marks arrival or departure.</p>
+            <p><span class="label">Why it matters</span>On an ambient display, an instant appearance is indistinguishable from "was that always there?" A brief materialize tells the room something <em>started</em>; a subtler, faster exit says something finished without demanding a look. His rule: exits always quieter than enters.</p>
+            <div class="fix"><p><span class="label">Recommended motion</span><code>AddDeleteThemeTransition</code> in the same <code>TransitionCollection</code> as the reposition fix — one XAML block buys both findings. If its stock feel reads heavy on the wall, a custom enter of opacity 0→1 with an 8px rise (~250ms) is the XAML translation of his web recipe; the blur layer of that recipe doesn't translate cheaply to XAML and should be skipped, not faked.</p></div>
+            <p class="find-loc"><code>Controls/AgentListPanel.xaml:326</code></p>
+          </div>
+        </div>
+        <div class="demo">
+          <input class="vh" type="radio" name="st3" id="st3-a" checked>
+          <input class="vh" type="radio" name="st3" id="st3-l">
+          <input class="vh" type="radio" name="st3" id="st3-d">
+          <div class="demo__bar">
+            <div class="demo__meta">
+              <span class="demo__title">Session card enter (mirror faster for exit)</span>
+              <span class="demo__timing">250ms · ease-out-quint</span>
+            </div>
+            <div class="demo__controls">
+              <div class="seg"><label for="st3-a">Auto</label><label for="st3-l">Light</label><label for="st3-d">Dark</label></div>
+              <span class="demo__loop">↻</span>
+            </div>
+          </div>
+          <div class="demo__stage">
+            <div class="demo-3__mt">
+              <div class="ui-card">
+                <div class="ui-label" style="margin-bottom:6px;">new session</div>
+                <div class="ui-row"><span>audit-cleanup-debris</span><span class="pill" style="margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:0.1em;border:1px solid var(--st-dim);color:var(--st-dim);border-radius:100px;padding:1px 7px;">BUSY</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finding-row" data-sev="imp">
+        <div class="finding-row__prose">
+          <div class="find-tags"><span class="sev-chip">Important</span><span class="lens-chip">Jakub</span><span class="lens-chip">Emil dissents</span></div>
+          <h4 class="find-title">The analogue ⇄ digital swap hard-cuts between two hero layouts</h4>
+          <div class="find-body">
+            <p><span class="label">What</span><code>ApplyMode</code> flips two <code>Visibility</code> flags: the 640px face and the 400px digits trade places between one frame and the next.</p>
+            <p><span class="label">Why it matters</span>This is the largest visual change the wall can make, on its most-looked-at zone, at monthly frequency — the exact case where the frequency gate <em>welcomes</em> a considered transition. Emil's keyboard rule says never animate a key press, and that dissent is recorded; his rule guards flows people run hundreds of times a day, not a ceremony performed twice a season on a display whose whole job is being looked at.</p>
+            <div class="fix"><p><span class="label">Recommended motion</span>A ~250ms crossfade: outgoing element fades to 0 at scale 0.985, incoming fades in from scale 0.97 — opacity and scale only, both composition-friendly. Flip <code>Visibility</code> when the fade lands. Gate it on the same <code>AnimationsEnabled</code> check as the loops; the instant swap is the correct reduced-motion form and already exists.</p></div>
+            <p class="find-loc"><code>Controls/ClockPanel.xaml.cs:69–73 · MainWindow.xaml:46</code></p>
+          </div>
+        </div>
+        <div class="demo">
+          <input class="vh" type="radio" name="st4" id="st4-a" checked>
+          <input class="vh" type="radio" name="st4" id="st4-l">
+          <input class="vh" type="radio" name="st4" id="st4-d">
+          <div class="demo__bar">
+            <div class="demo__meta">
+              <span class="demo__title">Hero crossfade, digital → analogue</span>
+              <span class="demo__timing">250ms · ease-out · opacity + scale</span>
+            </div>
+            <div class="demo__controls">
+              <div class="seg"><label for="st4-a">Auto</label><label for="st4-l">Light</label><label for="st4-d">Dark</label></div>
+              <span class="demo__loop">↻</span>
+            </div>
+          </div>
+          <div class="demo__stage">
+            <div class="demo-4__mt">
+              <div class="demo-4__digits ui-num">05:40</div>
+              <div class="demo-4__face">
+                <div class="hand h-hour"></div>
+                <div class="hand h-min"></div>
+                <div class="cap"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lens-block">
+      <span class="mono-label">Opportunities</span>
+      <ul class="lens-list opp">
+        <li>Context register swaps (calm → caution at 75%, caution → critical at 90%) are instant visibility flips between three stacked TextBlocks; a 200ms cross-fade on the incoming figure would let the escalation land as an event rather than a glitch — <code>Controls/AgentListPanel.xaml.cs:588–596</code></li>
+        <li>The ticker sets <code>Line.Text</code> directly; a 180ms fade-through (old line out, new line in) softens the change without reviving the scrolling ticker that was deliberately killed — <code>Controls/ActivityTicker.xaml.cs:104</code></li>
+      </ul>
+    </div>
+
+    <div class="lens-take"><strong>Through Jakub's lens:</strong> the two signals would pass a production review today; the app around them wouldn't, because nothing in it ever <em>becomes</em> — it only <em>is</em>, one frame at a time. Declare the list transitions, soften the two swaps, and the wall reads as one continuous machine instead of a slideshow.</div>
+  </section>
+
+  <!-- ═════════ JHEY ═════════ -->
+  <section>
+    <div class="lens-sec__head"><h3>Jhey Tompkins — Experimentation &amp; Delight</h3><span class="lens-sec__weight">Secondary</span></div>
+    <p class="lens-sec__verdict"><span class="dot dot--imp" style="display:inline-block;margin-right:7px;"></span>Mixed — the stage is built, no performance is booked</p>
+
+    <div class="lens-block">
+      <span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li>The analogue face is hand-built from primitives — ring, sixty code-generated ticks, hands as rounded rectangles with transform pivots at the crossing point. That is "make the thing" energy, and it means every part of it is animatable — <code>Controls/ClockPanel.xaml:9–75</code></li>
+        <li>The empty roster already gets "a considered composition, not an empty rectangle" — the instinct that restful states deserve design is here — <code>Controls/AgentListPanel.xaml:343</code></li>
+      </ul>
+    </div>
+
+    <div class="lens-block">
+      <span class="mono-label">Issues to address</span>
+
+      <div class="finding-row" data-sev="imp">
+        <div class="finding-row__prose">
+          <div class="find-tags"><span class="sev-chip">Important</span><span class="lens-chip">Jhey</span></div>
+          <h4 class="find-title">The second hand has the least personality of anything on the wall</h4>
+          <div class="find-body">
+            <p><span class="label">What</span><code>SecondAngle.Angle = now.Second * 6</code> — once a second, the hand teleports 6°. No sweep, no tick, no settle. The centerpiece of a display that exists to be looked at moves like a property assignment.</p>
+            <p><span class="label">Why it matters</span>Easing has personality, and a clock is the one UI element with a century of motion vocabulary to borrow from. A quartz tick with a tiny overshoot settle reads as <em>mechanical</em> from across the room — alive, precise, and worth the wall it hangs on. This is the flagship of the chosen delight weighting.</p>
+            <div class="fix"><p><span class="label">Recommended motion</span>Each tick, animate <code>Angle</code> from the previous position to the new one over ~140ms with a slight overshoot ease (BackEase, small amplitude, or keyframes). It's a dependent animation on the UI thread, but 140ms once per second is negligible — and when <code>AnimationsEnabled</code> is false, the current instant snap is already the correct fallback. The continuous 60s sweep is the alternative personality; the tick suits a wall that already speaks in discrete seconds.</p></div>
+            <p class="find-loc"><code>Controls/ClockPanel.xaml.cs:202</code></p>
+          </div>
+        </div>
+        <div class="demo">
+          <input class="vh" type="radio" name="st5" id="st5-a" checked>
+          <input class="vh" type="radio" name="st5" id="st5-l">
+          <input class="vh" type="radio" name="st5" id="st5-d">
+          <div class="demo__bar">
+            <div class="demo__meta">
+              <span class="demo__title">Quartz tick with a settle</span>
+              <span class="demo__timing">~140ms per tick · overshoot ease</span>
+            </div>
+            <div class="demo__controls">
+              <div class="seg"><label for="st5-a">Auto</label><label for="st5-l">Light</label><label for="st5-d">Dark</label></div>
+              <span class="demo__loop">↻</span>
+            </div>
+          </div>
+          <div class="demo__stage">
+            <div class="demo-5__mt">
+              <div class="demo-5__face">
+                <div class="hand h-min"></div>
+                <div class="hand demo-5__hand"></div>
+                <div class="cap"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lens-block">
+      <span class="mono-label">Opportunities</span>
+      <ul class="lens-list opp">
+        <li>The top of the hour is a free ceremony: one 2s luminance swell of the face ring at :00 — a visual chime, once an hour, gated on <code>AnimationsEnabled</code>. Rare enough that the frequency gate welcomes it — <code>Controls/ClockPanel.xaml.cs:158</code></li>
+        <li>When the last session ends, the wall becomes a pure clock — animate that handoff. Let the roster band collapse and the hero recentre as one deliberate layout transition instead of a reflow, and the empty state stops being an absence and becomes an arrival — <code>Controls/AgentListPanel.xaml:343</code></li>
+      </ul>
+    </div>
+
+    <div class="lens-take"><strong>Through Jhey's lens:</strong> someone built a real clock out of rectangles and rotate transforms and then forgot to wind it. Give the second hand its tick, spend the hourly swell, and the wall earns the word "piece" in showpiece — everything else can stay exactly as calm as it is.</div>
+  </section>
+
+  <!-- ═════════ EMIL ═════════ -->
+  <section>
+    <div class="lens-sec__head"><h3>Emil Kowalski — Restraint &amp; Speed</h3><span class="lens-sec__weight">Selective</span></div>
+    <p class="lens-sec__verdict"><span class="dot dot--opp" style="display:inline-block;margin-right:7px;"></span>Strong — restraint is already in the bones</p>
+
+    <div class="lens-block">
+      <span class="mono-label">What's working well</span>
+      <ul class="lens-list good">
+        <li>Every keyboard action — Esc, F11, C — is instant. His hardest rule, already kept (the crossfade recommended above is this audit's weighted exception, and his dissent is recorded on the finding) — <code>MainWindow.xaml:43–47</code></li>
+        <li>Meters, token counts, and the RAM-eater trio update as instant text swaps. On an ambient display peripheral vision amplifies motion, so instant here <em>is</em> the calm choice — leave the RAM reshuffle exactly as it is — <code>Controls/SystemMeters.xaml.cs</code></li>
+        <li>Only two animations exist in the entire codebase and both are purposeful signals with documented intent — most codebases fail this audit in the opposite direction</li>
+        <li>Both loops animate opacity on the composition thread: the performance chapter's rules, followed before an audit asked</li>
+      </ul>
+    </div>
+
+    <div class="lens-block">
+      <span class="mono-label">Issues to address</span>
+      <p class="lens-empty">No issues found at this severity level.</p>
+    </div>
+
+    <div class="lens-take"><strong>Through Emil's lens:</strong> this app already knows that most things should not move. Hold that line while adding the continuity fixes — transitions under 300ms, nothing on key presses beyond the one weighted exception, and no new loops. The moment a third thing pulses on this wall, it stops being a signal and starts being noise.</div>
+  </section>
+
+  <!-- ═════════ RECOMMENDATIONS ═════════ -->
+  <section>
+    <div class="sec-head"><span class="num">04</span><h2>Combined recommendations</h2></div>
+
+    <div id="rec-crit">
+      <div class="tier-label"><span class="mono-label tl-crit">Critical · must fix</span><hr><span class="count">1</span></div>
+      <table class="rec">
+        <thead><tr><th style="width:42%;">Issue</th><th style="width:28%;">File</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Infinite loops ignore the OS animation-effects setting</td><td><code>AgentListPanel.xaml.cs:450</code></td><td>Gate <code>Begin()</code> on <code>UISettings.AnimationsEnabled</code>; fall back to the steady glow and dot</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="rec-imp">
+      <div class="tier-label"><span class="mono-label tl-imp">Important · should fix</span><hr><span class="count">4</span></div>
+      <table class="rec">
+        <thead><tr><th style="width:42%;">Issue</th><th style="width:28%;">File</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>Roster reorder has no declared motion</td><td><code>AgentListPanel.xaml:326</code></td><td><code>RepositionThemeTransition</code> in an explicit <code>TransitionCollection</code></td></tr>
+          <tr><td>Rows enter and exit with no transition</td><td><code>AgentListPanel.xaml:326</code></td><td><code>AddDeleteThemeTransition</code> in the same collection; custom 250ms fade-rise if stock feels heavy</td></tr>
+          <tr><td>Analogue ⇄ digital swap hard-cuts</td><td><code>ClockPanel.xaml.cs:69</code></td><td>250ms opacity + scale crossfade, gated on <code>AnimationsEnabled</code></td></tr>
+          <tr><td>Second hand teleports 6° per second</td><td><code>ClockPanel.xaml.cs:202</code></td><td>~140ms tick animation with small overshoot settle each second</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="rec-opp">
+      <div class="tier-label"><span class="mono-label tl-opp">Opportunities · could enhance</span><hr><span class="count">4</span></div>
+      <table class="rec">
+        <thead><tr><th style="width:42%;">Enhancement</th><th style="width:28%;">Where</th><th>Impact</th></tr></thead>
+        <tbody>
+          <tr><td>Cross-fade the context register escalation</td><td><code>AgentListPanel.xaml.cs:588</code></td><td>75% / 90% crossings land as events, not glitches</td></tr>
+          <tr><td>Fade-through on ticker line changes</td><td><code>ActivityTicker.xaml.cs:104</code></td><td>Softens the one line that changes most often</td></tr>
+          <tr><td>Hourly luminance swell on the face ring</td><td><code>ClockPanel.xaml.cs:158</code></td><td>A visual chime — one earned flourish an hour</td></tr>
+          <tr><td>Animate the roster-empty handoff to a pure clock</td><td><code>AgentListPanel.xaml:343</code></td><td>The restful state becomes an arrival, not an absence</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═════════ LENS REFERENCE SUMMARY ═════════ -->
+  <section>
+    <div class="sec-head"><span class="num">05</span><h2>Lens reference summary</h2></div>
+    <div class="ref-summary">
+      <p><strong>Lens referenced most: Jakub Krehel — Production Polish.</strong> The chosen weighting asked for delight, but nearly every finding turned out to be connective tissue: the app's states are finished and its transitions are absent, which is polish work before it is play. Jhey supplies the two flourishes that make it a showpiece; Emil's restraint is the reason this audit is short, and his keyboard-rule dissent on the face swap is recorded rather than overruled quietly.</p>
+      <div class="ref-lean">
+        <div><strong>To follow Emil more strictly:</strong> skip the face-swap crossfade, keep every discrete change instant, and ship only the reduced-motion gate and the list transitions.</div>
+        <div><strong>To follow Jakub more strictly:</strong> add the two opportunity cross-fades (context registers, ticker) so no text on the wall ever changes without a 150–200ms acknowledgment.</div>
+        <div><strong>To follow Jhey more strictly:</strong> prototype the continuous sweep second hand next to the quartz tick and pick by feel; then take the hourly swell further — minute-hand shimmer at noon, a midnight moment.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>clockwall · motion audit · 2026-08-29</span>
+    <span>1 critical · 4 important · 4 opportunities</span>
+  </footer>
+
+</div>
+</body>
+</html>
