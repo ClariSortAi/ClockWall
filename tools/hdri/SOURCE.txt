@@ -1,0 +1,17 @@
+Studio HDRIs from Poly Haven (https://polyhaven.com), licensed CC0.
+
+  studio_small_09_2k.hdr      https://polyhaven.com/a/studio_small_09
+  brown_photostudio_02_2k.hdr https://polyhaven.com/a/brown_photostudio_02
+
+WHY THESE ARE VENDORED. Every part of this watch is metallic, and a metal has
+no diffuse component - it can only show you what it reflects. The environment
+is therefore not lighting, it IS the material, and the hand-built four-node sky
+that used to stand in for it was the direct cause of the plate rendering black,
+the steel rendering white, the bezel rendering dark and every chamfer facet
+coming back unlit. It also concealed an outright bug for several passes: it fed
+a SPHERICAL gradient from a normalized direction vector, so it evaluated to a
+single flat grey and produced no sky at all.
+
+A measured studio environment has real softboxes in real positions with real
+falloff. Polished metal put in front of one looks right immediately and needs
+no tuning, which is the whole point of using one.

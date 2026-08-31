@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "cad": {
+      "source": "earthtojake/text-to-cad",
+      "sourceType": "github",
+      "skillPath": "skills/cad/SKILL.md",
+      "computedHash": "1742d4333f1352db9be0f46579d2df44624ec405c17317c07389c78bd71ac895"
+    },
+    "dxf": {
+      "source": "earthtojake/text-to-cad",
+      "sourceType": "github",
+      "skillPath": "skills/dxf/SKILL.md",
+      "computedHash": "77386d29e4ebb694a88000430a030390434985a8e8dd85cdf9b20c45c669a79f"
+    },
+    "mechanical-engineer": {
+      "source": "selfdriven-octo/skillzeb",
+      "sourceType": "github",
+      "skillPath": "skills/intelligence/organic-human/human/mechanical-engineer/SKILL.md",
+      "computedHash": "5870a2c34c314a6b4ddd1977e599593b926999c5d4eb259403127a2b9c2275ff"
+    },
+    "openscad": {
+      "source": "mitsuhiko/agent-stuff",
+      "sourceType": "github",
+      "skillPath": "skills/openscad/SKILL.md",
+      "computedHash": "f215caa02db01b8d5abfc64bb547713e0eeb0bb55ce8fb7a042b7c5195617230"
+    }
+  }
+}

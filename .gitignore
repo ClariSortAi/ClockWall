@@ -8,3 +8,9 @@ obj/
 Generated Files/
 *.binlog
 captures/
+__pycache__/
+
+# Installed skill payloads. skills-lock.json pins them; the trees themselves are
+# fetched, not authored, and one of them is 6MB.
+.agents/
+.claude/skills/
