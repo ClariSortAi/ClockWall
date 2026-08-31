@@ -93,6 +93,28 @@ U = _AR / 90.0
 
 ESCAPE_TEETH = 15
 
+# HOW FAR APART THE TWO PALLET STONES SIT, and it is not a free parameter.
+#
+# The wheel advances exactly HALF a tooth-space per beat - that is what two
+# beats per tooth means. So for the second stone to meet a tooth after the
+# first one lets go, the separation between them has to be an ODD number of
+# half-spaces: 12, 36, 60, 84 degrees on a fifteen-tooth wheel and nothing in
+# between. At anything else the wheel arrives with a tooth tip pointing at the
+# gap between the stones and the escapement simply cannot alternate.
+#
+# It was 42 degrees - three and a half half-spaces, so a tooth landed halfway
+# every time. Nothing about that is visible in a still frame, because a still
+# frame of a lever mid-beat looks like a lever mid-beat. It is only visible in
+# MOTION, as a fork that keeps missing a wheel it is supposedly driven by.
+#
+# Five half-spaces - two and a half tooth-spaces - is the ordinary Swiss lever
+# figure, and the one that leaves room for the fork to pass under the wheel.
+PALLET_HALF_SPACES = 5
+_TOOTH_PITCH = 360.0 / ESCAPE_TEETH
+PALLET_SPREAD = PALLET_HALF_SPACES * _TOOTH_PITCH / 4.0
+assert PALLET_HALF_SPACES % 2 == 1, "an even count cannot alternate"
+
+
 
 def polar(cx, cy, deg, r):
     """A point `deg` clockwise from twelve at radius `r`. Screen coordinates,
@@ -229,7 +251,7 @@ def hairspring(cx, cy, R, r0=0.17, r1=0.56, coils=6.5, steps=560):
 
 # ---------------------------------------------------------------- pallet fork
 
-def pallet_fork(sx, sy, to_escape, to_balance, length=40.0):
+def pallet_fork(sx, sy, to_escape, to_balance, length=40.0, reach=None, half=None):
     """
     The lever. Built along the +x axis in its own frame and then swung into
     place, because a lever is a straight thing and reasoning about it in face
@@ -261,6 +283,14 @@ def pallet_fork(sx, sy, to_escape, to_balance, length=40.0):
                     (-20, 6.0), (-18, 9.2), (-4, 4.0)])
     vee = Polygon([(-7, 0.0), (-23, -5.0), (-23, 5.0)])
 
+    # ...and it has to REACH the stones, which are placed off the WHEEL and know
+    # nothing about this drawing. Scaling the head to them keeps one number in
+    # charge: widen PALLET_SPREAD and the arms follow instead of leaving two
+    # jewels floating off the ends of a lever that no longer gets to them.
+    if reach is not None:
+        head = affinity.scale(head, reach / (18.0 * U), half / (9.2 * U), origin=(0, 0))
+        vee = affinity.scale(vee, reach / (18.0 * U), half / (9.2 * U), origin=(0, 0))
+
     # The slot between the horns, cut in rather than drawn around. The balance's
     # impulse jewel passes through here once a beat; it is the one detail that
     # separates a lever from a stick.
@@ -284,12 +314,13 @@ def pallet_fork(sx, sy, to_escape, to_balance, length=40.0):
     return affinity.translate(lever, sx, sy)
 
 
-def pallet_stones(ex, ey, eR, sx, sy, spread=21.0, w=3.2 * U, h=7.6 * U):
+def pallet_stones(ex, ey, eR, sx, sy, spread=PALLET_SPREAD, w=3.2 * U, h=7.6 * U):
     """
-    The two jewels, entry and exit, straddling the escape wheel a couple of
+    The two jewels, entry and exit, straddling the escape wheel two and a half
     tooth-spaces apart. Positioned off the WHEEL rather than off the fork,
     because that is what fixes them in a real movement - they have to sit where
-    the teeth arrive.
+    the teeth arrive, and where the teeth arrive is set by PALLET_SPREAD, which
+    is arithmetic rather than taste.
     """
     mid = heading((ex, ey), (sx, sy))
     out = []
@@ -303,6 +334,14 @@ def pallet_stones(ex, ey, eR, sx, sy, spread=21.0, w=3.2 * U, h=7.6 * U):
                         cy + dx * math.sin(t) + dy * math.cos(t)))
         out.append(Polygon(pts))
     return unary_union(out)
+
+
+def _pallet_reach(ex, ey, eR, sx, sy):
+    """How far from the staff a stone sits - the triangle staff/wheel/stone,
+    solved rather than measured off the drawing."""
+    d = math.hypot(ex - sx, ey - sy)
+    r = eR * 0.99
+    return math.sqrt(d * d + r * r - 2 * d * r * math.cos(math.radians(PALLET_SPREAD)))
 
 
 # ------------------------------------------------------------------- assembly
@@ -337,7 +376,12 @@ def build():
         "balance": balance(bx, by, bR),
         "bscrews": balance_screws(bx, by, bR),
         "spring": hairspring(bx, by, bR),
-        "fork": pallet_fork(sx, sy, heading((sx, sy), (ex, ey)), heading((sx, sy), (bx, by))),
+        # The stones are placed off the WHEEL; the lever's arms are then sized
+        # to reach them, rather than both being drawn to a remembered number.
+        "fork": pallet_fork(sx, sy, heading((sx, sy), (ex, ey)),
+                            heading((sx, sy), (bx, by)),
+                            reach=_pallet_reach(ex, ey, eR, sx, sy),
+                            half=eR * 0.99 * math.sin(math.radians(PALLET_SPREAD))),
         "stones": pallet_stones(ex, ey, eR, sx, sy),
         "cock": balance_cock(bx, by, *APERTURE),
     }
