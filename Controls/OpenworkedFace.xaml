@@ -94,12 +94,33 @@
             <Image.RenderTransform><RotateTransform x:Name="SpringAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
         </Image>
 
-        <!-- The balance and its timing screws, which are part of the same image
-             so they cannot stay put while the wheel they are threaded into
-             turns underneath them. -->
-        <Image Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
-        </Image>
+        <!--
+            The balance and its timing screws, in one image so the screws cannot
+            stay put while the wheel they are threaded into turns underneath
+            them - and then the SAME wheel again, smeared.
+
+            TWO COPIES, CROSS-FADED, because of the display and not the watch.
+            This is the fastest thing in a watch: 285 degrees either side of
+            centre, four times a second, which at 60fps is up to 119 degrees
+            between consecutive frames. A two-armed wheel stepping 119 degrees
+            is indistinguishable from one stepping 61 the other way, so a
+            perfectly correct balance reads as a disc spinning at some huge
+            random speed. That is the wagon-wheel effect and it is a sampling
+            limit - there is no rate to correct, because the rate is right.
+
+            A real balance answers it for us: it does not resolve into arms
+            either. It smears into a translucent ring through the middle of the
+            swing and snaps into focus at the two turning points, where it is
+            momentarily stopped. So the sharp render and the smear trade places
+            on the balance's own angular speed, and at the speeds that alias
+            there is no detail left to alias. One RotateTransform over both,
+            because they are the same wheel.
+        -->
+        <Canvas Width="640" Height="640">
+            <Canvas.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Canvas.RenderTransform>
+            <Image x:Name="BalanceSharp" Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640" />
+            <Image x:Name="BalanceBlur" Source="ms-appx:///Assets/movement-balance-blur.png" Width="640" Height="640" Opacity="0" />
+        </Canvas>
 
         <!-- The cock, and the shadow it throws across the balance turning under
              it. Static, but it has to be painted here rather than into the

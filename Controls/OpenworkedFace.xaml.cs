@@ -248,6 +248,10 @@ public sealed partial class OpenworkedFace : UserControl
         BalanceAngle.Angle = 0;
         SpringAngle.Angle = 0;
         ForkAngle.Angle = 0;
+
+        // A stopped balance is a stopped balance: in focus, not smeared.
+        BalanceBlur.Opacity = 0.0;
+        BalanceSharp.Opacity = 1.0;
     }
 
     /// <summary>
@@ -324,6 +328,11 @@ public sealed partial class OpenworkedFace : UserControl
         // slot. That is where the beat comes from.
         BalanceAngle.Angle = reading.Balance;
         ForkAngle.Angle = reading.Fork * ForkBankDegrees;
+
+        // ...and the wheel fades into its own smear as it picks up speed. See
+        // the note in the .xaml: this is answering the DISPLAY, not the watch.
+        BalanceBlur.Opacity = reading.BalanceSpeed;
+        BalanceSharp.Opacity = 1.0 - reading.BalanceSpeed;
 
         // The hairspring travels a fraction of the wheel's arc, because only the
         // inner coil goes with the staff - the outer end is pinned to the cock,

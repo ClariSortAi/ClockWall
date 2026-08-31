@@ -170,7 +170,16 @@ public sealed record Caliber(
         // than zero AT THE EXACT INSTANT THE LEVER UNLOCKS, and the whole
         // phase relationship this method exists to establish would be
         // approximate at precisely the moment it has to be exact.
-        var balance = BalanceAmplitudeDegrees * Math.Sin(Math.PI * (beats % 2.0));
+        var phase = beats % 2.0;
+        var balance = BalanceAmplitudeDegrees * Math.Sin(Math.PI * phase);
+
+        // HOW FAST it is going, normalised, which the face needs for a reason
+        // that is about the display rather than the movement: at peak speed the
+        // balance covers 119 degrees between two frames at 60fps, so a wheel
+        // with two arms aliases into a spinning blur going whichever way it
+        // likes. A real one smears and the face imitates that, cross-faded on
+        // this number. Derivative of sin is cos; that is the whole of it.
+        var speed = Math.Abs(Math.Cos(Math.PI * phase));
 
         // THE LEVER, which is not a state that alternates - it is a part being
         // pushed by another part. The impulse pin is only inside the fork slot
@@ -214,6 +223,7 @@ public sealed record Caliber(
             Train: Wrap(advanced * TrainStepDegrees),
 
             Balance: balance,
+            BalanceSpeed: speed,
             Fork: fork,
             Beat: (long)Math.Floor(beats));
     }
@@ -268,11 +278,16 @@ public sealed record Caliber(
         Debug.Assert(Math.Abs(crossing.Fork) < 1e-9,
             "The lever has to be crossing on the beat.");
 
+        Debug.Assert(Math.Abs(crossing.BalanceSpeed - 1.0) < 1e-9,
+            "The balance is at its fastest as it crosses centre.");
+
         var extreme = c.Read(new DateTime(2026, 1, 1, 12, 0, 30, 500).AddMilliseconds(c.BeatMilliseconds / 2));
         Debug.Assert(Math.Abs(Math.Abs(extreme.Balance) - c.BalanceAmplitudeDegrees) < 1e-6,
             "Half a beat from the crossing is the top of the swing.");
         Debug.Assert(Math.Abs(Math.Abs(extreme.Fork) - 1.0) < 1e-12,
             "...and there the lever must be locked against a banking pin.");
+        Debug.Assert(extreme.BalanceSpeed < 1e-6,
+            "...and momentarily stopped, which is the only moment it is in focus.");
 
         // Locked for the overwhelming majority of the beat. If this ever fails
         // the lever is drifting rather than snapping, which reads as an
@@ -298,6 +313,10 @@ public sealed record Caliber(
 /// one, +1 at the other, and strictly in between only during the few
 /// milliseconds the balance is inside the fork slot. Normalised because the
 /// real angle is a few degrees and any face showing it has to exaggerate.</param>
+/// <param name="BalanceSpeed">The balance's angular speed as a fraction of its
+/// peak: 1 as it crosses centre, 0 at the ends of the swing. Not a mechanical
+/// quantity anyone quotes - it is here because the face has to fade the wheel
+/// into a smear at the speeds a 60Hz display cannot resolve.</param>
 public readonly record struct Reading(
     double Hour, double Minute, double Second, double Escape, double Train,
-    double Balance, double Fork, long Beat);
+    double Balance, double BalanceSpeed, double Fork, long Beat);
