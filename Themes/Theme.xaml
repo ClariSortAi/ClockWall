@@ -59,6 +59,26 @@
             <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemFillColorCautionBrush" />
             <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemFillColorCriticalBrush" />
 
+            <!-- The watch face used to keep a block of MATERIAL brushes here -
+                 case, dial, index, hand, jewel - each in two tones so a shape
+                 could be painted with a lit half and a half in shadow. They are
+                 gone, and what removed them is worth recording: that technique
+                 has a ceiling, and the face hit it. Metal reads as metal through
+                 what it REFLECTS and through the polished chamfer on every
+                 machined edge, and a SolidColorBrush can express neither, so a
+                 painted-on highlight always came out looking like a drawing of a
+                 watch. The face is now modelled as solids and rendered under a
+                 measured photographic studio, and the only colours left in it
+                 are in the renderer.
+
+                 That is a deliberate exception to this file's rule, not an
+                 oversight. tools/render_lib.py holds the material definitions
+                 and tools/dial_render.py the dial's colours, because they are
+                 inputs to an offline render rather than runtime design tokens -
+                 nothing in the app resolves them, and no theme can. The face
+                 does not answer to Light, Dark or HighContrast for the same
+                 reason a photograph on a wall does not. -->
+
         </ResourceDictionary>
 
         <!-- ============================= DARK ============================= -->
@@ -102,6 +122,7 @@
             <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemFillColorCautionBrush" />
             <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemFillColorCriticalBrush" />
 
+
         </ResourceDictionary>
 
         <!-- ========================= HIGH CONTRAST ========================= -->
@@ -143,6 +164,12 @@
             <StaticResource x:Key="ContextCautionTextBrush"  ResourceKey="SystemColorWindowTextColorBrush" />
             <StaticResource x:Key="ContextCriticalTextBrush" ResourceKey="SystemColorHighlightColorBrush" />
 
+            <!-- The watch as line art. The body/facet pairs deliberately
+                 collapse to one tone: the pair exists to imply a raking light,
+                 and a Contrast theme does not have one - it has foreground and
+                 background, and every part of the watch that matters is
+                 foreground. -->
+
         </ResourceDictionary>
 
     </ResourceDictionary.ThemeDictionaries>
@@ -173,6 +200,9 @@
     <x:Double x:Key="AgentStatusLabelFontSize">22</x:Double>
     <x:Double x:Key="AgentDetailFontSize">20</x:Double>
     <x:Double x:Key="AgentMetaFontSize">18</x:Double>
+
+    <!-- Printed dial text ("4 Hz · 28,800 vph"). Small on purpose: on a real
+         dial this is the line you only read when you go looking for it. -->
     <x:Double x:Key="EmptyStateFontSize">26</x:Double>
 
     <!-- ==================== SPACING SCALE (px) ==================== -->

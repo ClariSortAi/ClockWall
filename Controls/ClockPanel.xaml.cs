@@ -12,21 +12,30 @@ using Windows.UI.ViewManagement;
 namespace ClockWall;
 
 /// <summary>
-/// The hero clock: an analogue face, a compact HH:MM:SS/AM-PM line, and the
-/// date beneath it. Self-contained - starts its own wall-clock-aligned
-/// timer on Loaded and tears it down on Unloaded.
+/// The hero clock: one of three faces, a compact HH:MM:SS/AM-PM line, and the
+/// date beneath it. Self-contained - starts its own wall-clock-aligned timer on
+/// Loaded and tears it down on Unloaded.
 ///
-/// Exactly two things here move: the second hand's step is eased with a small
-/// overshoot, and the analogue/digital swap fades through instead of cutting.
-/// Both are gated on <see cref="MotionAllowed"/> and both fall back to the
-/// instant form this panel had before them - which is the correct
-/// reduced-motion behaviour, not a degraded one.
+/// The faces are an analogue dial drawn here, the openworked mechanical one in
+/// <see cref="OpenworkedFace"/>, and the 400px digital hero. C cycles them.
+/// Only the first is this panel's own work; the other two are a control and a
+/// TextBlock it turns on and off, which is the whole reason a third face cost
+/// this file a switch statement and not a rewrite.
+///
+/// Two things move in this file: the second hand's step is eased with a small
+/// overshoot, and the face swap fades through instead of cutting. Both are
+/// gated on <see cref="MotionAllowed"/> and both fall back to the instant form
+/// this panel had before them - which is the correct reduced-motion behaviour,
+/// not a degraded one. What the mechanical face does about motion is its own
+/// business and rather more involved.
 /// </summary>
 public sealed partial class ClockPanel : UserControl
 {
-    /// <summary>Where the analogue/digital choice is remembered: one word, one
-    /// line - the same shape as the shell's window-position file, and the same
-    /// warning applies: the day a THIRD setting appears, reach for a store.</summary>
+    /// <summary>Where the chosen face is remembered: one word, one line - the
+    /// same shape as the shell's window-position file. The warning that used to
+    /// sit here, about reaching for a store the day a third setting appeared,
+    /// still stands; a third FACE is not a third setting, which is why the file
+    /// did not have to change when one arrived.</summary>
     private static string ModeFile => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "ClockWall",
@@ -65,8 +74,26 @@ public sealed partial class ClockPanel : UserControl
         }
     }
 
+    // The faces the C key cycles, in the order it cycles them. Analogue first
+    // because it is what the panel opens on and what it falls back to.
+    private const int Analogue = 0;
+    private const int Mechanical = 1;
+    private const int Digital = 2;
+
+    /// <summary>What each face is called in <see cref="ModeFile"/>, indexed by
+    /// the constants above. The name is what gets written, never the index: a
+    /// face inserted in the middle later must not silently reinterpret
+    /// somebody's saved choice as whichever face took over its number.</summary>
+    private static readonly string[] FaceNames = { "analogue", "mechanical", "digital" };
+
     private DispatcherQueueTimer? _timer;
-    private bool _analogue = true;
+    private int _face = Analogue;
+
+    /// <summary>True between Loaded and Unloaded. Gates the mechanical face's
+    /// escapement, so that restoring "mechanical" from disk in the constructor
+    /// cannot try to start a timer on a control that is not in a tree
+    /// yet.</summary>
+    private bool _loaded;
 
     /// <summary>The second the hand is currently drawn at, or -1 before the
     /// first paint. The step is only ever eased from here to here+1; every
@@ -89,12 +116,21 @@ public sealed partial class ClockPanel : UserControl
 
         try
         {
-            _analogue = !string.Equals(File.ReadAllText(ModeFile).Trim(), "digital", StringComparison.OrdinalIgnoreCase);
+            var saved = File.ReadAllText(ModeFile).Trim();
+            var index = Array.FindIndex(FaceNames, name => string.Equals(name, saved, StringComparison.OrdinalIgnoreCase));
+
+            // A name nobody recognises - an older build's, or a truncated write
+            // - leaves the default standing rather than throwing. On a display
+            // that runs unattended, a corrupt preference file is a shrug.
+            if (index >= 0)
+            {
+                _face = index;
+            }
         }
         catch (Exception ex)
         {
             // Missing on first run - analogue stands as the default.
-            Debug.WriteLine($"[ClockWall] no clock mode restored: {ex.Message}");
+            Debug.WriteLine($"[ClockWall] no clock face restored: {ex.Message}");
         }
 
         ApplyMode();
@@ -102,18 +138,19 @@ public sealed partial class ClockPanel : UserControl
         Unloaded += OnUnloaded;
     }
 
-    /// <summary>Flips between the analogue face and the digital hero, and
-    /// remembers the choice. Wired to the C accelerator in the shell.</summary>
+    /// <summary>Advances to the next face and remembers the choice. Wired to
+    /// the C accelerator in the shell - still called Toggle because two faces
+    /// became three and the gesture did not change.</summary>
     public void ToggleFace()
     {
-        _analogue = !_analogue;
+        _face = (_face + 1) % FaceNames.Length;
         ApplyModeAnimated();
         UpdateClock();
 
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(ModeFile)!);
-            File.WriteAllText(ModeFile, _analogue ? "analogue" : "digital");
+            File.WriteAllText(ModeFile, FaceNames[_face]);
         }
         catch (Exception ex)
         {
@@ -123,9 +160,28 @@ public sealed partial class ClockPanel : UserControl
 
     private void ApplyMode()
     {
-        FaceCanvas.Visibility = _analogue ? Visibility.Visible : Visibility.Collapsed;
-        DigitalText.Visibility = _analogue ? Visibility.Collapsed : Visibility.Visible;
+        for (var i = 0; i < FaceNames.Length; i++)
+        {
+            Hero(i).Visibility = i == _face ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        // Collapsed is not enough for the mechanical face. It is the one hero
+        // whose cost is in what it DOES rather than in what it draws - an 8 Hz
+        // timer and a storyboard that never ends - and none of that stops just
+        // because nobody can see it. So it gets told, here, in the one method
+        // that always knows which face won.
+        MechanicalFace.SetRunning(_loaded && _face == Mechanical);
     }
+
+    /// <summary>The element for a face index. A switch rather than an array
+    /// because the three heroes are three unrelated types that happen to share
+    /// one slot in a StackPanel, not a collection of anything.</summary>
+    private UIElement Hero(int face) => face switch
+    {
+        Analogue => FaceCanvas,
+        Mechanical => MechanicalFace,
+        _ => DigitalText,
+    };
 
     /// <summary>
     /// ToggleFace's form of <see cref="ApplyMode"/>: the same two Visibility
@@ -157,7 +213,7 @@ public sealed partial class ClockPanel : UserControl
         }
 
         // Whatever is actually on screen is what fades out - asked of the tree
-        // rather than derived from _analogue, because a press that lands
+        // rather than derived from _face, because a press that lands
         // mid-swap has already flipped the flag while the Visibility it
         // implies has not happened yet. In the ordinary single press the two
         // answers are the same one.
@@ -167,7 +223,15 @@ public sealed partial class ClockPanel : UserControl
         // costs one branch. Reversing properly means reading the live opacity
         // and shortening the return ramp to match - worth it only if somebody
         // is sitting there drumming on the C key.
-        UIElement outgoing = FaceCanvas.Visibility == Visibility.Visible ? FaceCanvas : (UIElement)DigitalText;
+        var outgoing = Hero(_face);
+        for (var i = 0; i < FaceNames.Length; i++)
+        {
+            if (Hero(i).Visibility == Visibility.Visible)
+            {
+                outgoing = Hero(i);
+                break;
+            }
+        }
 
         var swap = FadeOpacity(outgoing, 1.0, 0.0, 120);
         _faceSwap = swap;
@@ -181,7 +245,7 @@ public sealed partial class ClockPanel : UserControl
 
     /// <summary>
     /// Half two of the swap: flip, then bring the new hero up. Every decision
-    /// reads <see cref="_analogue"/> instead of anything captured 120ms ago,
+    /// reads <see cref="_face"/> instead of anything captured 120ms ago,
     /// so the sequence is idempotent - it always drives toward the mode that is
     /// current NOW, whatever the user did to the C key in the meantime.
     /// </summary>
@@ -209,7 +273,7 @@ public sealed partial class ClockPanel : UserControl
         // full opacity before the ramp's first frame lands. Begin applies From
         // before the next composition pass, so it has not been seen - and the
         // alternative trades an invisible glitch for a permanent visible one.
-        UIElement incoming = _analogue ? FaceCanvas : (UIElement)DigitalText;
+        var incoming = Hero(_face);
 
         // No Completed of its own: it ends on 1.0, which is already the local
         // value StopFaceSwap wrote, so there is nothing to restore. The next
@@ -229,8 +293,10 @@ public sealed partial class ClockPanel : UserControl
         _faceSwap = null;
         swap?.Stop();
 
-        FaceCanvas.Opacity = 1.0;
-        DigitalText.Opacity = 1.0;
+        for (var i = 0; i < FaceNames.Length; i++)
+        {
+            Hero(i).Opacity = 1.0;
+        }
     }
 
     /// <summary>One eased opacity ramp on one element, built but not started.
@@ -290,6 +356,11 @@ public sealed partial class ClockPanel : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // Before ApplyMode, which reads it to decide whether the escapement is
+        // allowed to start.
+        _loaded = true;
+        ApplyMode();
+
         if (_timer is null)
         {
             _timer = DispatcherQueue.CreateTimer();
@@ -312,7 +383,7 @@ public sealed partial class ClockPanel : UserControl
 
         // Motion goes with the timer. ApplyMode is the part that matters:
         // unloading BETWEEN the two halves of a swap leaves the outgoing hero
-        // on screen while _analogue already names the other one, and a control
+        // on screen while _face already names a different one, and a control
         // that is re-loaded rather than torn down would come back wrong. The
         // second reset makes the first paint after such a reload snap, not
         // ease, on the same "one step only" rule as everything else here.
@@ -320,6 +391,11 @@ public sealed partial class ClockPanel : UserControl
         _secondSweep = null;
         _lastSecond = -1;
         StopFaceSwap();
+
+        // Cleared before ApplyMode so the same call that settles the Visibility
+        // also stops the escapement. A control that is re-loaded rather than
+        // torn down comes back through OnLoaded and starts it again.
+        _loaded = false;
         ApplyMode();
     }
 
@@ -385,7 +461,7 @@ public sealed partial class ClockPanel : UserControl
         // under the analogue face, or up in the 400px hero when digital - the
         // compact line then reverts to the ":SS AM" it originally was.
         var time = string.Create(CultureInfo.InvariantCulture, $"{hour:D2}:{now.Minute:D2}");
-        HeroRun.Text = _analogue ? time : string.Empty;
+        HeroRun.Text = _face == Digital ? string.Empty : time;
         DigitalText.Text = time;
         SecondsRun.Text = string.Create(CultureInfo.InvariantCulture, $":{now.Second:D2}");
 

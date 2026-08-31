@@ -1,0 +1,152 @@
+<UserControl
+    x:Class="ClockWall.OpenworkedFace"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        An openworked mechanical face: a 640px watch with the escapement running
+        in an opening at six.
+
+        WHY THIS IS ALL IMAGES. It was shapes, twice, and looked like a patent
+        drawing both times. Metal does not read as metal because of its colour -
+        it reads as metal because of what it REFLECTS, and because every
+        machined edge carries a polished chamfer that catches a line of light.
+        Neither is expressible as a SolidColorBrush, so no amount of correcting
+        the geometry was ever going to fix it. The parts are modelled as solids,
+        lit by a measured photographic studio, and rendered offline.
+
+        THE FRAME IS THE POINT. Every asset is a render from an orthographic
+        camera framed exactly to this control's coordinate space. So each one is
+        placed at (0,0) at native size and rotated about its own centre
+        expressed in the SAME coordinates the Python that generated it used.
+        There is no fitting, no offset table, and moving a part in the geometry
+        needs no change here.
+
+        PAINT ORDER IS Z ORDER. A stack of Images can only express a painter's
+        algorithm, so the order below is the order the parts sit in: plate,
+        train, escapement, fork, spring, balance, the cock bridging over the
+        lot, then the dial and case above all of it, then the hands. The cock
+        has to be its own layer rather than part of the plate, or the balance is
+        drawn over its own bridge.
+
+        EACH MOVING PART CARRIES ITS OWN SHADOW. The renders put the rotating
+        groups over an invisible shadow catcher, so a wheel's shadow is inside
+        the wheel's own image and turns with it. Baking those shadows into the
+        static plate instead left them pointing the same way all day while the
+        wheels spun.
+
+        ONE CLOCK DRIVES ALL OF IT. Every RotateTransform below is written from
+        a single Caliber.Read on a single frame. Nothing here is a Storyboard,
+        and that is deliberate: an animation on its own clock cannot stay in
+        phase with an escapement on the wall clock, and the phase is the entire
+        mechanical content of a lever.
+
+        To regenerate: run tools/export_profiles.py, then tools/dial_render.py,
+        then tools/blender_face.py under Blender in background mode. Materials
+        are settled first on tools/blender_swatch.py, which renders crops of the
+        same scene in seconds. Each file documents its own invocation - an XML
+        comment cannot carry a double hyphen, so command lines cannot live here.
+    -->
+    <Canvas x:Name="Face" Width="640" Height="640" HorizontalAlignment="Center">
+
+        <!-- ============================= MOVEMENT ============================= -->
+        <!-- Painted first, because the dial goes OVER it: case.png has the
+             opening punched clear through its alpha, so the movement shows
+             through the hole rather than being pasted into a circle. -->
+
+        <!-- Mainplate, jewels in their countersunk bores, and the floor beneath
+             them. Everything that neither turns nor bridges. -->
+        <Image Source="ms-appx:///Assets/movement-base.png" Width="640" Height="640" />
+
+        <!-- The going-train wheel and the pinion under it, turning about 34
+             seconds to the revolution. It is drawn IN MESH with the escape
+             pinion, so it also turns the opposite way - see Caliber. Like the
+             escape wheel it is LOCKED for 94% of every beat and runs only while
+             the lever is crossing, because that is what the lever is for. -->
+        <Image Source="ms-appx:///Assets/movement-train.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="333.8" CenterY="360.4" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The escape wheel with its collet and its seven-leaf pinion. One
+             image, because they are one assembly on one arbor. -->
+        <Image Source="ms-appx:///Assets/movement-escape.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="387.2" CenterY="391.2" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The lever and its two ruby pallet stones. It does not bank on a
+             schedule of its own: it is DRIVEN by the impulse pin, and can only
+             move during the seven milliseconds a beat that the balance is close
+             enough to centre to be inside the fork slot. Which is why it and
+             the balance below share one number - see Caliber.Read. -->
+        <Image Source="ms-appx:///Assets/movement-fork.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="356.4" CenterY="430.3" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The hairspring. It turns with the balance staff it is pinned to,
+             but only a FRACTION as far: the outer end is fixed to the cock, so
+             the coils breathe rather than sweep. Turning it rigidly with the
+             wheel would whip the stud round 570 degrees, which is the one thing
+             about a hairspring everybody can see is wrong. -->
+        <Image Source="ms-appx:///Assets/movement-spring.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="SpringAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The balance and its timing screws, which are part of the same image
+             so they cannot stay put while the wheel they are threaded into
+             turns underneath them. -->
+        <Image Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The cock, and the shadow it throws across the balance turning under
+             it. Static, but it has to be painted here rather than into the
+             plate: it is ABOVE the balance. -->
+        <Image Source="ms-appx:///Assets/movement-cock.png" Width="640" Height="640" />
+
+        <!-- =========================== DIAL AND CASE ========================== -->
+        <!-- Bezel, dial, applied indices and the ring framing the opening, with
+             the opening itself punched out of the alpha. The soleil finish and
+             the printing are a texture from tools/dial_render.py; everything
+             else here is modelled and lit. -->
+        <Image Source="ms-appx:///Assets/case.png" Width="640" Height="640" />
+
+        <!-- ============================== HANDS ============================== -->
+        <!--
+            Dauphine, faceted, and rendered rather than drawn - which needed one
+            deliberate exception to this face's single-light-direction rule.
+
+            A rendered hand is baked pointing at twelve and then TURNED. Under
+            the face's key light in the upper left, the lit facet would turn
+            with it, so at six o'clock the hand would appear lit from the lower
+            right while every shadow on the dial still pointed the other way.
+            Instead the hands are lit by a source centred on their own pivot
+            axis, which is rotationally symmetric about it: turning the hand is
+            then a SYMMETRY of the lighting, and one baked image is correct at
+            every hour rather than only at the one it was rendered at.
+
+            All of them pivot on (320,320), the centre of the face.
+        -->
+        <Image Source="ms-appx:///Assets/hand-hour.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="HourAngle" CenterX="320" CenterY="320" /></Image.RenderTransform>
+        </Image>
+        <Image Source="ms-appx:///Assets/hand-minute.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="MinuteAngle" CenterX="320" CenterY="320" /></Image.RenderTransform>
+        </Image>
+
+        <!-- Seconds: a gold needle with a pierced counterweight. It is the hand
+             that carries the beat, so it is the one the eye should find first,
+             and the only thing on the dial in a different metal. -->
+        <Image Source="ms-appx:///Assets/hand-second.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="SecondAngle" CenterX="320" CenterY="320" /></Image.RenderTransform>
+        </Image>
+
+        <!-- The boss over the three stacked arbors. Painted last of everything,
+             because that is what it is for. -->
+        <Image Source="ms-appx:///Assets/hand-cap.png" Width="640" Height="640" />
+
+    </Canvas>
+
+</UserControl>
