@@ -48,13 +48,13 @@ STACK = [
     # The going train. tpinion is driven from behind the plate; the train wheel
     # drives epinion, and epinion carries the escape wheel.
     ("tpinion", 6.8, 2.6, "steel"),
-    ("epinion", 9.4, 2.4, "steel"),        # spans 9.4-11.8
+    ("epinion", 9.4, 2.4, "escapement"),        # spans 9.4-11.8
     ("train", 9.6, 2.0, "brass"),          # spans 9.6-11.6, so they mesh
     ("tcollet", 11.6, 1.8, "steel"),
-    ("escape", 12.2, 1.8, "steel"),
-    ("ecollet", 14.0, 1.6, "steel"),
+    ("escape", 12.2, 1.8, "escapement"),
+    ("ecollet", 14.0, 1.6, "escapement"),
 
-    ("fork", 16.0, 2.2, "steel"),
+    ("fork", 16.0, 2.2, "escapement"),
     ("stones", 16.2, 2.0, "ruby"),
 
     # The spring belongs UNDER the wheel. Above the arms it read as rings laid

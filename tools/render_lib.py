@@ -328,6 +328,23 @@ SURFACES = {
     "brass":    ((0.740, 0.560, 0.260), 1.0, 0.22),
     "blued":    ((0.035, 0.075, 0.300), 1.0, 0.11),
     "steel":    ((0.680, 0.700, 0.740), 1.0, 0.16),
+
+    # The escapement, and it is DELIBERATELY the dimmest metal in the aperture.
+    #
+    # Real movement finishing is a two-tier system: almost everything is matte
+    # and quiet - perlage, brushed stripes, flat rhodium - and only a few chosen
+    # elements get the bright treatment, because the point of finishing is to
+    # decide how many things compete for the eye at once. This face had it
+    # exactly backwards. The escape wheel and the lever are the fastest-jumping
+    # things in the opening and they were wearing the brightest metal on it,
+    # against a plate half their luminance. Attention capture scales with
+    # contrast, so the two parts that most needed to recede were shouting.
+    #
+    # Rhodium-grey, still brighter than the plate so it reads as a part rather
+    # than a hole, but no longer the loudest thing in the window. The bright
+    # finish belongs on the cock, which is where a watchmaker puts it and which
+    # has the considerable advantage of not moving.
+    "escapement": ((0.395, 0.405, 0.430), 1.0, 0.30),
     "case":     ((0.760, 0.775, 0.810), 1.0, 0.150),
     "index":    ((0.840, 0.850, 0.880), 1.0, 0.055),
     "gold":     ((0.860, 0.660, 0.290), 1.0, 0.12),
@@ -369,7 +386,7 @@ def material(kind):
         _perlage(m, b)
     elif kind == "brass":
         _graining(m, b, 90.0, 0.26)
-    elif kind == "steel":
+    elif kind in ("steel", "escapement"):
         _graining(m, b, 130.0, 0.16)
     return m
 
