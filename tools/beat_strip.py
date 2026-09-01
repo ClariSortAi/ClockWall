@@ -1,5 +1,15 @@
 """Frames of the movement across one beat, so the MOTION can be looked at.
 
+DEPRECATED FOR ESCAPEMENT CORRECTNESS. The strip this draws comes from
+escapement_geometry's own outlines, which no longer match what actually
+renders now that the movement is real OM10 geometry. The question this tool
+existed to answer - does a pallet stone meet a tooth - is now answered by
+measurement, on the placed geometry itself, in
+tools/placement_invariants.py (check_pallet_stones). Go there for that
+question. `read()` below is still live: motion_audit.py imports it for the
+beat's physics (angles per moment), which did not change with the geometry
+swap - only the STATIC OUTLINES this module draws did.
+
     python tools/beat_strip.py               # 60fps sampling, two beats
     python tools/beat_strip.py --sub         # inside the transit, 40x slower
     python tools/beat_strip.py --fork-sign -1

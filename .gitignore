@@ -19,3 +19,9 @@ __pycache__/
 # hundred MB of binary wheels. Recreate with:
 #   uv venv .venv-cad --python 3.12 && uv pip install --python .venv-cad cadquery trimesh
 .venv-cad/
+
+# Per-source-file CAD generation state: lock files, progress JSON and cached
+# component glbs the cad skill's generator writes beside each *.step.py while
+# it works. Transient and regenerated on the next run of that file. (Its own
+# __pycache__/ is already caught by the rule above.)
+models/step/__cadgen__/
