@@ -70,10 +70,28 @@
             <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="333.8" CenterY="360.4" /></Image.RenderTransform>
         </Image>
 
-        <!-- The escape wheel with its collet and its seven-leaf pinion. One
-             image, because they are one assembly on one arbor. -->
-        <Image Source="ms-appx:///Assets/movement-escape.png" Width="640" Height="640">
+        <!--
+            The escape wheel with its collet and its seven-leaf pinion. One
+            image, because they are one assembly on one arbor - and then the
+            same assembly again, smeared across the half tooth-space it covers
+            when it fires.
+
+            A SHUTTER, NOT AN EFFECT. This wheel is motionless for 94% of the
+            beat and then jumps, eight times a second. An abrupt onset is the
+            strongest involuntary attention cue the visual system has, and 8 Hz
+            is squarely in the band that reads as jerky rather than as movement
+            - which is why a dripping tap is maddening and running water is
+            restful. A real escape wheel makes the identical jump, but it takes
+            seven milliseconds and the eye, which integrates over about
+            twenty-five, sees a streak. The smear is placed at the MIDPOINT of
+            the travel, because that is what a shutter open across the move
+            would have caught.
+        -->
+        <Image x:Name="EscapeSharp" Source="ms-appx:///Assets/movement-escape.png" Width="640" Height="640">
             <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="387.2" CenterY="391.2" /></Image.RenderTransform>
+        </Image>
+        <Image x:Name="EscapeBlur" Source="ms-appx:///Assets/movement-escape-blur.png" Width="640" Height="640" Opacity="0">
+            <Image.RenderTransform><RotateTransform x:Name="EscapeBlurAngle" CenterX="387.2" CenterY="391.2" /></Image.RenderTransform>
         </Image>
 
         <!-- The lever and its two ruby pallet stones. It does not bank on a
@@ -81,8 +99,11 @@
              move during the seven milliseconds a beat that the balance is close
              enough to centre to be inside the fork slot. Which is why it and
              the balance below share one number - see Caliber.Read. -->
-        <Image Source="ms-appx:///Assets/movement-fork.png" Width="640" Height="640">
+        <Image x:Name="ForkSharp" Source="ms-appx:///Assets/movement-fork.png" Width="640" Height="640">
             <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="356.4" CenterY="430.3" /></Image.RenderTransform>
+        </Image>
+        <Image x:Name="ForkBlur" Source="ms-appx:///Assets/movement-fork-blur.png" Width="640" Height="640" Opacity="0">
+            <Image.RenderTransform><RotateTransform x:Name="ForkBlurAngle" CenterX="356.4" CenterY="430.3" /></Image.RenderTransform>
         </Image>
 
         <!-- The hairspring. It turns with the balance staff it is pinned to,
@@ -90,9 +111,16 @@
              the coils breathe rather than sweep. Turning it rigidly with the
              wheel would whip the stud round 570 degrees, which is the one thing
              about a hairspring everybody can see is wrong. -->
-        <Image Source="ms-appx:///Assets/movement-spring.png" Width="640" Height="640">
+        <Image x:Name="SpringSharp" Source="ms-appx:///Assets/movement-spring.png" Width="640" Height="640">
             <Image.RenderTransform><RotateTransform x:Name="SpringAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
         </Image>
+
+        <!-- ...and its smear, held still like the balance's. Rotating a
+             many-turned spiral by d returns very nearly the same spiral,
+             starting a hair further in, so there is nothing to gain by turning
+             it and resampling noise to lose. A real hairspring breathes
+             concentrically; it does not sweep. -->
+        <Image x:Name="SpringBlur" Source="ms-appx:///Assets/movement-spring-blur.png" Width="640" Height="640" Opacity="0" />
 
         <!--
             The balance and its timing screws, in one image so the screws cannot

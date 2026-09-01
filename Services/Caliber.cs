@@ -232,6 +232,7 @@ public sealed record Caliber(
             // lever is crossing and is then held for the other hundred and
             // eighteen, which is what a mechanical seconds hand actually does
             // and why it does not look like a teleport.
+            Advanced: advanced,
             Second: Wrap(advanced * SecondStepDegrees),
             Escape: Wrap(advanced * EscapeStepDegrees),
             Train: Wrap(advanced * TrainStepDegrees),
@@ -331,6 +332,11 @@ public sealed record Caliber(
 /// peak: 1 as it crosses centre, 0 at the ends of the swing. Not a mechanical
 /// quantity anyone quotes - it is here because the face has to fade the wheel
 /// into a smear at the speeds a 60Hz display cannot resolve.</param>
+/// <param name="Advanced">How far the gated train has got, in beats, and
+/// UNWRAPPED. Escape, Train and Second are all this number times a constant, so
+/// they wrap and it does not - which is what lets a caller difference two
+/// readings to find how far a wheel moved between two frames without a 360
+/// degree step landing in the middle of the subtraction.</param>
 public readonly record struct Reading(
     double Hour, double Minute, double Second, double Escape, double Train,
-    double Balance, double BalanceSpeed, double Fork, long Beat);
+    double Advanced, double Balance, double BalanceSpeed, double Fork, long Beat);

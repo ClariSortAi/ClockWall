@@ -83,6 +83,25 @@ public sealed partial class OpenworkedFace : UserControl
     /// </summary>
     private const double BalanceBarDegrees = 7.0;
 
+    /// <summary>
+    /// How far each stepping part must travel in one frame before its jump
+    /// stops being a movement and becomes a jolt. Half a tooth-space for the
+    /// escape wheel, half the bank travel for the lever, and about a coil for
+    /// the hairspring.
+    ///
+    /// THIS IS THE OPPOSITE PROBLEM TO THE BALANCE. The balance was moving too
+    /// far to resolve; these are STILL for 94% of the beat and then jump, eight
+    /// times a second. An abrupt onset is the strongest involuntary attention
+    /// cue in vision - it is the difference between a dripping tap and running
+    /// water - and eight times a second sits in the band that reads as jerky
+    /// rather than as motion. A real escapement makes exactly the same jump,
+    /// but it takes seven milliseconds over it and an eye integrating over
+    /// twenty-five sees a blur. So does this, now.
+    /// </summary>
+    private const double EscapeFeatureDegrees = 6.0;
+    private const double ForkFeatureDegrees = 7.0;
+    private const double SpringFeatureDegrees = 6.0;
+
     /// <summary>Taken as one frame for the smear calculation. Nominal on
     /// purpose: the real interval varies, and the eye integrates over more like
     /// two or three frames anyway, so a measured value would make the wheel
@@ -270,9 +289,16 @@ public sealed partial class OpenworkedFace : UserControl
         SpringAngle.Angle = 0;
         ForkAngle.Angle = 0;
 
-        // A stopped balance is a stopped balance: in focus, not smeared.
-        BalanceBlur.Opacity = 0.0;
-        BalanceSharp.Opacity = 1.0;
+        // A stopped movement is a stopped movement: every part in focus.
+        foreach (var blur in new[] { BalanceBlur, EscapeBlur, ForkBlur, SpringBlur })
+        {
+            blur.Opacity = 0.0;
+        }
+
+        foreach (var sharp in new[] { BalanceSharp, EscapeSharp, ForkSharp, SpringSharp })
+        {
+            sharp.Opacity = 1.0;
+        }
     }
 
     /// <summary>
@@ -313,6 +339,12 @@ public sealed partial class OpenworkedFace : UserControl
     // price of the fix, and it is worth paying.
     private void OnFrame(object? sender, object e) => Draw(DateTime.Now);
 
+    /// <summary>How much of a part's smear to show: none while it is slow
+    /// enough to follow, all of it once it covers more than the width of the
+    /// smallest thing on it within a frame.</summary>
+    private static double Smear(double sweptDegrees, double featureDegrees) =>
+        Math.Clamp(Math.Abs(sweptDegrees) / featureDegrees, 0.0, 1.0);
+
     /// <summary>Writes every hand and every wheel for one instant. No state of
     /// its own - hand it a time and it produces the face, which is what makes
     /// a late or a skipped frame a non-event rather than something to recover
@@ -332,8 +364,22 @@ public sealed partial class OpenworkedFace : UserControl
             return;
         }
 
+        // The frame before this one. Every smear below is driven by how far a
+        // part actually travelled between the two, which is what a camera
+        // shutter integrates - and it needs no state, because Read is a pure
+        // function of the clock.
+        var prev = Movement.Read(now - TimeSpan.FromSeconds(NominalFrameSeconds));
+
         SecondAngle.Angle = reading.Second;
+
         EscapeAngle.Angle = reading.Escape;
+        var escapeSmear = Smear(
+            (reading.Advanced - prev.Advanced) * Movement.EscapeStepDegrees,
+            EscapeFeatureDegrees);
+        EscapeBlur.Opacity = escapeSmear;
+        EscapeSharp.Opacity = 1.0 - escapeSmear;
+        EscapeBlurAngle.Angle =
+            (reading.Advanced + prev.Advanced) / 2.0 * Movement.EscapeStepDegrees % 360.0;
 
         // The wheel that drives the escape pinion, turning the other way and
         // 9.14 times slower. Two speeds of rotation in one opening is most of
@@ -348,7 +394,13 @@ public sealed partial class OpenworkedFace : UserControl
         // while the balance is close enough to centre to be inside the fork
         // slot. That is where the beat comes from.
         BalanceAngle.Angle = reading.Balance;
+
         ForkAngle.Angle = reading.Fork * ForkBankDegrees;
+        var forkSmear = Smear((reading.Fork - prev.Fork) * ForkBankDegrees,
+                              ForkFeatureDegrees);
+        ForkBlur.Opacity = forkSmear;
+        ForkSharp.Opacity = 1.0 - forkSmear;
+        ForkBlurAngle.Angle = (reading.Fork + prev.Fork) / 2.0 * ForkBankDegrees;
 
         // ...and the wheel fades into its own smear once the bar is moving too
         // fast to be resolved - which, at 4 Hz, is nearly all the time. See the
@@ -365,5 +417,15 @@ public sealed partial class OpenworkedFace : UserControl
         // whip the stud through 570 degrees, which is the one thing about a
         // hairspring anybody can see is wrong.
         SpringAngle.Angle = reading.Balance * SpringTravel;
+
+        // The hairspring's smear is held still, like the balance's and for the
+        // same reason: rotating a many-turned spiral by d gives back very
+        // nearly the same spiral starting a hair further in, so it is
+        // rotationally invariant to within a coil. Which is also what a real
+        // hairspring does - it breathes concentrically rather than sweeping.
+        var springSmear = Smear((reading.Balance - prev.Balance) * SpringTravel,
+                                SpringFeatureDegrees);
+        SpringBlur.Opacity = springSmear;
+        SpringSharp.Opacity = 1.0 - springSmear;
     }
 }

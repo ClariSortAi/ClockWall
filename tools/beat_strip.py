@@ -28,6 +28,13 @@ THE ANGLES HERE MIRROR Services/Caliber.cs and the tooth counts come from
 escapement_geometry, which is also where the drawing gets them. Kept in step by
 _check() below rather than by hope.
 
+IT DRAWS THE STEPPING PARTS SHARP, DELIBERATELY. The face puts a shutter on the
+escape wheel, the lever and the hairspring, so what ships is smeared on the frame
+each of them fires. That is the wrong thing to look at when the question is
+whether a pallet stone meets a tooth, which is what this tool is for. When the
+question is how the movement READS in motion, motion_audit.py is the one that
+models the shipping composite - and measures it rather than showing it.
+
 Writes captures/beat/strip.png.
 """
 

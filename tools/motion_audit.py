@@ -60,6 +60,27 @@ FPS = 60.0
 LAYERS = ("base", "train", "escape", "fork", "spring", "balance", "cock")
 MOVING = ("train", "escape", "fork", "spring", "balance")
 
+# WHAT THE FACE ACTUALLY DOES. Every measurement below is taken against this,
+# because a row measured against some other configuration is not a measurement
+# of anything that ships. The smear threshold is the balance bar's own angular
+# width and the smear does not turn; see OpenworkedFace.
+SHIP = {"threshold": 7.0, "spin_blur": False}
+
+# The parts that jump rather than glide, and the angular width below which their
+# jump stops being resolvable as a movement of a thing. A shutter, in other
+# words: on the one frame in seven and a half where the escapement fires, these
+# show their smear instead of teleporting. None is a taste value - the escape
+# wheel's is half its tooth spacing and the lever's is half its total travel.
+STEPPED = {"escape": 6.0, "fork": 7.0, "spring": 6.0}
+
+# Parts whose smear is HELD STILL rather than turned with them, because the
+# smear is rotationally invariant and turning it would only add resampling
+# noise. The balance rim is an annulus. A multi-turn spiral is very nearly the
+# same: rotating r = a + b*theta by delta gives (a - b*delta) + b*theta, the
+# same spiral starting a hair further in - which is also what a hairspring
+# actually does. It breathes concentrically; it does not sweep.
+STATIC_SMEAR = {"balance", "spring"}
+
 
 def _load():
     scale = WORK / bs.FACE
@@ -67,8 +88,11 @@ def _load():
     for n in LAYERS:
         im = Image.open(os.path.join(ASSETS, "movement-%s.png" % n)).convert("RGBA")
         ims[n] = im.resize((WORK, WORK), Image.LANCZOS)
-    blur = Image.open(os.path.join(ASSETS, "movement-balance-blur.png")).convert("RGBA")
-    ims["balance_blur"] = blur.resize((WORK, WORK), Image.LANCZOS)
+    for n in ("balance",) + tuple(STEPPED):
+        path = os.path.join(ASSETS, "movement-%s-blur.png" % n)
+        if os.path.exists(path):
+            ims[n + "_blur"] = Image.open(path).convert("RGBA").resize(
+                (WORK, WORK), Image.LANCZOS)
     return ims, scale
 
 
@@ -92,10 +116,18 @@ def smear_of(speed, threshold):
     return min(1.0, speed * PEAK_SWEEP / threshold)
 
 
+def _spun(im, scale, name, ang):
+    if not ang:
+        return im
+    px, py = bs.PIVOTS[name]
+    return im.rotate(-ang, resample=Image.BICUBIC, center=(px * scale, py * scale))
+
+
 def compose(ims, scale, beats, freeze=(), use_blur=True, threshold=None,
-            spin_blur=True):
+            spin_blur=True, shutter=True):
     """One frame of the aperture, at wall scale, as a float luminance array."""
     a = bs.read(beats)
+    prev = bs.read(beats - bs.BEATS_PER_SECOND / FPS)
     out = Image.new("RGBA", (WORK, WORK), (10, 10, 13, 255))
     for n in LAYERS:
         im = ims[n]
@@ -104,6 +136,23 @@ def compose(ims, scale, beats, freeze=(), use_blur=True, threshold=None,
             px, py = bs.PIVOTS[n]
             im = im.rotate(-ang, resample=Image.BICUBIC,
                            center=(px * scale, py * scale))
+
+        # A shutter on the parts that jump: cross-fade to the smear by how far
+        # this part actually travelled since the previous frame, and place that
+        # smear at the MIDPOINT of the travel, which is what a shutter open
+        # across the move would have integrated.
+        if (shutter and use_blur and n in STEPPED and n not in freeze
+                and (n + "_blur") in ims):
+            was = prev.get(n, 0.0)
+            swept = abs(ang - was)
+            k = min(1.0, swept / STEPPED[n])
+            if k > 0.0:
+                mid = ims[n + "_blur"]
+                if n not in STATIC_SMEAR:
+                    mid = _spun(mid, scale, n, (ang + was) / 2.0)
+                out = Image.alpha_composite(out, _fade(im, 1.0 - k))
+                im = _fade(mid, k)
+
         if n == "balance" and use_blur:
             speed = 0.0 if "balance" in freeze else smear_of(a["speed"], threshold)
             blur = ims["balance_blur"]
@@ -147,10 +196,11 @@ def apparent_shift(p0, p1):
     return k - 360 if k > 180 else k
 
 
-def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=None,
-          spin_blur=True):
+def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=7.0,
+          spin_blur=False, shutter=True):
     step = bs.BEATS_PER_SECOND / FPS
-    seq = [compose(ims, scale, 4.0 + i * step, freeze, use_blur, threshold, spin_blur)
+    seq = [compose(ims, scale, 4.0 + i * step, freeze, use_blur, threshold,
+                   spin_blur, shutter)
            for i in range(frames)]
 
     lum = np.array([f.mean() for f in seq])
@@ -161,6 +211,14 @@ def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=None,
 
     diff = np.array([np.sqrt(((seq[i] - seq[i - 1]) ** 2).mean())
                      for i in range(1, frames)])
+
+    # JOLT. The ratio of the worst frame to the typical one. Mean change says
+    # how much is moving; this says whether it arrives as motion or as a shock.
+    # An abrupt onset is the strongest involuntary attention cue vision has, so
+    # a face can be almost still on average and still be exhausting if all of
+    # its change lands in one frame out of eight.
+    jolt = diff.max() / max(np.median(diff), 1e-9)
+    peak = diff.max()
 
     # Apparent vs true rotation of the balance rim.
     n = seq[0].shape[0]
@@ -189,38 +247,26 @@ def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=None,
         "flicker_hz": peak_hz,
         "diff_mean": diff.mean(),
         "diff_cv": diff.std() / diff.mean() if diff.mean() else 0.0,
+        "jolt": jolt,
+        "peak": peak,
         "dir_wrong": wrong,
         "dir_total": agree + wrong,
     }
 
 
 def show(label, m):
-    print("%-26s flicker %5.1f%% @ %4.1f Hz | frame diff %6.2f cv %4.2f | "
-          "apparent direction wrong %d/%d"
-          % (label, m["flicker_pct"], m["flicker_hz"], m["diff_mean"],
-             m["diff_cv"], m["dir_wrong"], m["dir_total"]))
+    print("%-26s flicker %4.1f%% | motion %5.2f | worst frame %5.2f (%4.1fx)"
+          % (label, m["flicker_pct"], m["diff_mean"], m["peak"], m["jolt"]))
 
 
 def main():
     ims, scale = _load()
-    print("aperture at wall scale, 60fps sampling, two beats\n")
-    base = audit(ims, scale)
-    show("as shipped", base)
-    show("without the blur", audit(ims, scale, use_blur=False))
-
-    print()
-    print("smear threshold sweep - the angular width taken as unresolvable")
-    for t in (None, 90.0, 60.0, 40.0, 25.0, 14.0, 7.0):
-        show("threshold %s" % ("speed" if t is None else "%.0f deg" % t),
-             audit(ims, scale, threshold=t))
-
-    print()
-    print("with the smear held still (it is rotationally invariant, so this")
-    print("should be identical apart from resampling noise):")
-    for t in (7.0, 14.0):
-        show("  static smear, %.0f deg" % t,
-             audit(ims, scale, threshold=t, spin_blur=False))
-    show("  balance frozen entirely", audit(ims, scale, freeze=("balance",)))
+    print("aperture at wall scale, 60fps sampling, two beats")
+    print("lower is calmer, except that zero motion is a stopped watch\n")
+    show("deployed now", audit(ims, scale, shutter=False))
+    show("+ shutter on steppers", audit(ims, scale, shutter=True))
+    show("(before the balance fix)",
+         audit(ims, scale, threshold=None, spin_blur=True, shutter=False))
 
     if "--ablate" in sys.argv:
         print()

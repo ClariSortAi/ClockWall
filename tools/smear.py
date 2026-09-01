@@ -1,31 +1,40 @@
-"""Makes the smeared companion to the balance render.
+"""Makes the smeared companion render for every part that moves too fast to see.
 
-    python tools/balance_blur.py
+    python tools/smear.py
 
-WHY A BLURRED COPY EXISTS AT ALL. The balance is the largest wheel in the
-aperture and the fastest thing in the watch: 285 degrees either side of centre,
-four times a second. At 60fps that is up to 119 degrees BETWEEN CONSECUTIVE
-FRAMES, and the wheel has two arms and a ring of timing screws - so 119 degrees
-is indistinguishable from 61 the other way, the apparent direction reverses at
-random, and a correctly running balance reads as a wheel spinning at some
-enormous and varying speed. It is the wagon-wheel effect, and no amount of
-correcting the physics touches it, because the physics is not what is wrong.
-The display cannot sample it. Nothing at 4 Hz can be sampled at 60.
+WHY SMEARS EXIST AT ALL. A display samples motion at discrete frames, and any
+part that turns far enough between two of them stops being a moving object and
+becomes either a strobe or a jump. Motion blur is not decoration here, it is the
+standard remedy for a real artefact - the same reason a camera has a shutter
+angle and the reason CG renderers simulate blur rather than just rendering
+faster. Each part below gets one companion image, and the face cross-fades to it
+on how far that part actually travelled since the previous frame.
 
-WHAT A REAL ONE LOOKS LIKE, WHICH IS THE ANSWER. A balance photographed or
-watched does not resolve into arms. It smears into a translucent disc through
-the middle of its swing and comes back into focus at the two turning points,
-where it is momentarily stationary - that flutter is the whole visual signature
-of a running watch. So the face cross-fades between this smear and the sharp
-render by the balance's own angular speed, and the aliasing has nothing left to
-bite on: at the speeds that alias there is no longer any detail to alias.
+WHY EACH SPAN IS WHAT IT IS. The span is never a taste value:
 
-The smear spans one FRAME of travel at peak speed, because that is the exposure
-being imitated. Accumulating the real asset rather than blurring it in a paint
-program keeps the screws, the shadow and the rim highlight all smearing the way
-they actually would.
+  balance - 180 degrees, which is the bar's exact rotational symmetry and twice
+    the inertia blocks'. Smeared over exactly that, the wheel averages into a
+    uniform annulus, so it becomes rotationally INVARIANT and turning it changes
+    nothing at all. That is what a real balance is: a rim is a smooth ring, and
+    a ring looks identical however far you rotate it. It is also why watching a
+    running movement is restful, and why this one was not - measured at wall
+    scale the balance had been producing 84% of every pixel that changed.
 
-Output: Assets/movement-balance-blur.png, same 640-unit frame as its source.
+  escape and fork - one beat's travel: half a tooth-space for the wheel, bank to
+    bank for the lever. These do not have the balance's problem. They have the
+    opposite one: they are STILL for 94% of the beat and then jump, eight times
+    a second. An abrupt onset is the strongest involuntary attention cue in
+    vision - it is why a dripping tap is maddening and running water is not -
+    and 8 Hz sits in the band that reads as jerky rather than as motion. A real
+    escapement makes the same jump, but it makes it over seven milliseconds and
+    the eye integrates it into a blur. This is that blur.
+
+  spring - the hairspring is the only thing in the aperture moving continuously,
+    and it should stay that way: continuity at ONE place is what carries the
+    aliveness. It only needs enough smear to stop its coils strobing.
+
+Outputs Assets/movement-<name>-blur.png, in the same 640-unit frame as the
+source render.
 """
 
 import json
@@ -42,64 +51,58 @@ PROFILES = os.path.join(ROOT, "captures", "geom", "profiles.json")
 FACE = 640.0
 VPH = 28_800
 AMPLITUDE = 285.0
+ESCAPE_TEETH = 15
+FORK_BANK = 7.0
+SPRING_TRAVEL = 0.16
 FPS = 60.0
 
-# Peak angular speed of simple harmonic motion is amplitude * omega, and the
-# balance completes one oscillation every two beats. 119 degrees per frame at
-# 4 Hz on a 60Hz panel - which is the LOWER bound on how far it smears, since
-# the eye integrates over more like two or three frames, not one.
 BEATS_PER_SECOND = VPH / 3600.0
-PEAK_DEG_PER_SEC = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
-FRAME_SWEEP = PEAK_DEG_PER_SEC / FPS
+PEAK_BALANCE_DPS = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
 
-# ...but the span is taken from the wheel's SYMMETRY instead, and that choice is
-# the difference between a smear that helps and one that only half helps.
-#
-# This balance is one bar through the centre - 180 degree symmetry - and four
-# inertia blocks at 90. Smeared over exactly 180 degrees both features average
-# into a perfectly uniform annulus, so the blurred wheel becomes rotationally
-# INVARIANT and turning it changes nothing at all. That is not a trick; it is
-# what a real smeared balance is. A rim is a smooth ring, and a ring does not
-# look different when you rotate it - which is why a running balance is calm to
-# watch and why measuring one frame against the next found this face's balance
-# producing 84% of all the change in the aperture.
-#
-# 119 degrees left the bar smeared but still lumpy, so rotating the smear went
-# on churning pixels for no visible motion. 180 is both wider than the frame
-# sweep (so, honest) and the exact point where the churn goes to zero.
-SPAN = 180.0
+# (part, pivot key, span in degrees). See the header for why each span is what
+# it is - none of them is a dial to turn.
+PARTS = [
+    ("balance", "balance", 180.0),                       # the bar's symmetry
+    ("escape", "escape", 360.0 / (2.0 * ESCAPE_TEETH)),  # half a tooth-space
+    ("fork", "fork", 2.0 * FORK_BANK),                   # bank to bank
+    ("spring", "spring", PEAK_BALANCE_DPS * SPRING_TRAVEL / FPS),
+]
 
 SAMPLES = 49                           # odd, so the sharp position is included
 
 
-def main():
-    with open(PROFILES) as f:
-        pivot = json.load(f)["pivots"]["balance"]
-
-    src = Image.open(os.path.join(ASSETS, "movement-balance.png")).convert("RGBA")
-    scale = src.size[0] / FACE
-    centre = (pivot[0] * scale, pivot[1] * scale)
-
-    # Accumulate PREMULTIPLIED, or the transparent surround bleeds its colour
-    # into the smear and the wheel picks up a dark halo.
+def smear(src, centre, span, samples=SAMPLES):
+    """Accumulate rotations of one render. PREMULTIPLIED, or the transparent
+    surround bleeds its colour in and the part picks up a dark halo."""
     acc = np.zeros((src.size[1], src.size[0], 4), np.float64)
-    for i in range(SAMPLES):
-        t = (i / (SAMPLES - 1.0)) - 0.5           # -0.5 .. +0.5
+    for i in range(samples):
+        t = (i / (samples - 1.0)) - 0.5           # -0.5 .. +0.5
         a = np.asarray(
-            src.rotate(-t * SPAN, resample=Image.BICUBIC, center=centre),
+            src.rotate(-t * span, resample=Image.BICUBIC, center=centre),
             np.float64) / 255.0
         acc[..., :3] += a[..., :3] * a[..., 3:4]
         acc[..., 3] += a[..., 3]
-    acc /= SAMPLES
+    acc /= samples
 
     alpha = acc[..., 3:4]
     rgb = np.divide(acc[..., :3], alpha, out=np.zeros_like(acc[..., :3]),
                     where=alpha > 1e-6)
-    out = np.concatenate([rgb, alpha], axis=2)
+    return np.clip(np.concatenate([rgb, alpha], axis=2) * 255.0, 0, 255).astype(np.uint8)
 
-    path = os.path.join(ASSETS, "movement-balance-blur.png")
-    Image.fromarray(np.clip(out * 255.0, 0, 255).astype(np.uint8)).save(path)
-    print("wrote %s  span %.0f deg over %d samples" % (path, SPAN, SAMPLES))
+
+def main():
+    with open(PROFILES) as f:
+        pivots = json.load(f)["pivots"]
+
+    for name, pivot_key, span in PARTS:
+        path = os.path.join(ASSETS, "movement-%s.png" % name)
+        src = Image.open(path).convert("RGBA")
+        scale = src.size[0] / FACE
+        px, py = pivots[pivot_key]
+        out = smear(src, (px * scale, py * scale), span)
+        dest = os.path.join(ASSETS, "movement-%s-blur.png" % name)
+        Image.fromarray(out).save(dest)
+        print("wrote %-34s span %6.1f deg" % (os.path.basename(dest), span))
 
 
 if __name__ == "__main__":
