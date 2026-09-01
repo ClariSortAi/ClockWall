@@ -59,15 +59,22 @@ try {
     Write-Host "`n[4/5] smears" -ForegroundColor Cyan
     python tools/smear.py
 
-    # Everything must be newer than the profiles that produced it. This is what
-    # actually catches a half-finished or interleaved render, as opposed to
-    # trusting that the steps above ran to completion.
+    # Every RENDERED asset must be newer than the profiles that produced it.
+    # This is what actually catches a half-finished or interleaved render, as
+    # opposed to trusting that the steps above ran to completion.
+    #
+    # dial-texture.png is excluded because it is an INPUT, not an output: PIL
+    # draws the soleil albedo and Blender maps it onto the dial. Requiring it to
+    # be newer than the profiles failed a render that was in fact perfectly
+    # consistent, which is the classic way a good check gets switched off.
+    $inputs = @("dial-texture.png")
     $stamp = (Get-Item "captures\geom\profiles.json").LastWriteTime
-    $stale = Get-ChildItem "Assets\*.png" | Where-Object { $_.LastWriteTime -lt $stamp }
+    $stale = Get-ChildItem "Assets\*.png" |
+        Where-Object { $inputs -notcontains $_.Name -and $_.LastWriteTime -lt $stamp }
     if ($stale) {
         throw "Stale assets, so this render is not self-consistent: $($stale.Name -join ', ')"
     }
-    Write-Host "  all $((Get-ChildItem 'Assets\*.png').Count) assets newer than the profiles they came from"
+    Write-Host "  all $((Get-ChildItem 'Assets\*.png' | Where-Object { $inputs -notcontains $_.Name }).Count) rendered assets are newer than the profiles they came from"
 
     if (-not $SkipAudit) {
         Write-Host "`n[5/5] motion audit" -ForegroundColor Cyan
