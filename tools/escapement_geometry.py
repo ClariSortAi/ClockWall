@@ -25,6 +25,7 @@ screen y (down is positive, as in XAML).
 import math
 import sys
 
+import om10_layout as _om10
 from shapely import affinity
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
@@ -73,52 +74,84 @@ def _at(fx, fy, fr=None):
 
 
 BALANCE = _at(-0.222, 0.133, 0.600)   # cx, cy, rim outer radius
-ESCAPE = _at(0.533, -0.467, 0.256)    # cx, cy, tooth tip radius
-# THE LINE OF CENTRES, and it is not a stylistic choice.
-#
-# In a Swiss club-tooth lever escapement - the kind in essentially every modern
-# wristwatch - the escape arbor, the pallet arbor and the balance staff lie on
-# ONE STRAIGHT LINE. The BHI course text names it: "this line is known as the
-# line of centres." The angled layout, where the lever sits at right angles to
-# the pallets, is the older English ratchet-tooth pattern, and Grossmann's 1880
-# essay dismisses it as saving no space and being "a matter of taste".
-#
-# This was 22 degrees off straight, which is not a rounding error - it is the
-# wrong escapement. The pallet staff is now placed ON the segment, at the
-# fraction that leaves the pallet end exactly where it already meshed, so the
-# stones keep the engagement settled earlier and only the lever's pivot moves.
-#
-# It also lands where Grossmann says it should: with a balance 0.4 of the plate
-# and an escape wheel under 0.2, "the centre of the lever will lie within the
-# circumference of the balance". It does, by three units.
-PALLET_FRACTION = 0.591
-STAFF = (BALANCE[0] + (ESCAPE[0] - BALANCE[0]) * PALLET_FRACTION,
-         BALANCE[1] + (ESCAPE[1] - BALANCE[1]) * PALLET_FRACTION)
 
-# The escape wheel is riveted to a seven-leaf pinion, and that pinion is what
-# the going train actually drives.
+# EVERYTHING BELOW THE BALANCE IS NOW MEASURED, NOT CHOSEN.
+#
+# The escapement is openmovement.org's OM10 - a real Swiss movement - placed by
+# one similarity transform in om10_layout. So the escape wheel's radius, its
+# distance from the balance, where the pallet staff sits between them and where
+# the fourth wheel meshes are all the real movement's numbers, scaled. They are
+# no longer fractions somebody picked and then defended.
+#
+# Two things stay ours, because they are framing rather than mechanism: where
+# the balance sits in the window (above) and which way the movement runs from it
+# (ESCAPE_BEARING). That bearing is the one the old layout already had, so the
+# composition is preserved while the mechanics underneath it are replaced.
+ESCAPE_BEARING = 51.53                # degrees clockwise from twelve
+
+_PLACE = _om10.make((BALANCE[0], BALANCE[1]), BALANCE[2], ESCAPE_BEARING)
+SCALE = _PLACE.SCALE                  # face units per real millimetre
+
+ESCAPE = _PLACE.axis_face("escape") + (_om10.OM10_MM["escape_r"] * SCALE,)
+# THE LINE OF CENTRES, no longer argued for - just inherited.
+#
+# In a Swiss club-tooth lever escapement the escape arbor, the pallet arbor and
+# the balance staff lie on ONE STRAIGHT LINE; the BHI course text names it "the
+# line of centres". This drawing had it 22 degrees bent, which is not a rounding
+# error but a different escapement, and then had it straight with the staff at a
+# fraction of 0.591 reverse-engineered from where the stones happened to mesh.
+#
+# The OM10 answers it outright: 0.5006. The staff sits at the midpoint, and it
+# does so because the two arms of a pallet lever are the same length. Taking the
+# fraction from the real movement removes the last hand-fitted number from the
+# escapement's geometry.
+PALLET_FRACTION = _om10.PALLET_FRACTION
+STAFF = _PLACE.axis_face("pallet")
+
+# COUNTED OFF THE REAL WHEELS, not chosen to look busy. tools/om10_check.py
+# recovers each count from the outline's dominant angular period, which for a
+# toothed wheel is unambiguous. The previous figures - 15 teeth, 7 leaves, 64 -
+# were invented, and they set the beat and every rotation rate downstream.
+ESCAPE_TEETH = _om10.ESCAPE_TEETH                     # 20
+ESCAPE_PINION_LEAVES = _om10.ESCAPE_PINION_LEAVES     # 8
+TRAIN_TEETH = _om10.FOURTH_TEETH                      # 84
 EPINION_R = ESCAPE[2] * 0.40
-ESCAPE_PINION_LEAVES = 7
-TRAIN_TEETH = 64
 
-# THE TRAIN WHEEL IS PLACED IN MESH, not parked nearby. It used to sit off in a
-# corner at a distance no pair of gears could ever span, which is a thing you
-# cannot un-see once you have noticed it: two wheels turning in sympathy with a
-# visible gap between them. Deriving its centre from the two radii means the
-# teeth interleave, and the mesh is then the most convincing single detail in
-# the aperture - it is the one place the picture proves the parts drive
-# each other rather than merely sharing a timer.
-_TRAIN_R = 0.413 * _MR
-_MESH = _TRAIN_R * 0.93 + EPINION_R * 1.02      # root radius meets tip radius
-_TRAIN_BEARING = 300.0                          # up and to the left, clear of the balance
-TRAIN = (ESCAPE[0] + _MESH * math.sin(math.radians(_TRAIN_BEARING)),
-         ESCAPE[1] - _MESH * math.cos(math.radians(_TRAIN_BEARING)),
-         _TRAIN_R)
+# The fourth wheel, in mesh with the escape pinion because that is where the
+# OM10 has it - no longer a bearing and a derived centre distance, just the
+# real position carried through the same transform as everything else.
+TRAIN = _PLACE.axis_face("fourth") + (_om10.OM10_MM["fourth_r"] * SCALE,)
 
-# 64 teeth driving 7 leaves. The escape wheel therefore turns 9.14 times for
-# every turn of the train wheel, and OpenworkedFace reads that ratio straight
-# off this constant rather than being given a speed to hard-code.
+# 84 teeth driving 8 leaves: the escape wheel turns 10.5 times for every turn of
+# the fourth wheel, and OpenworkedFace reads that straight off this constant.
 TRAIN_RATIO = TRAIN_TEETH / ESCAPE_PINION_LEAVES
+
+# THE BEAT, and it must match Services/Caliber.cs - which is the authority for
+# the running app, while this is the authority for everything rendered offline.
+# Two languages cannot share a constant, so they share a derivation instead:
+# both compute the rate from the same measured tooth counts.
+#
+#     the fourth wheel carries the seconds, so it turns once a minute
+#     escape turns per hour = 60 * TRAIN_TEETH / ESCAPE_PINION_LEAVES = 630
+#     VPH = 2 * ESCAPE_TEETH * 630                                    = 25200
+#
+# smear.py used to restate VPH and ESCAPE_TEETH as its own literals, and when
+# the tooth counts became real it went on computing blur for a 15-tooth wheel
+# beating at 28,800. Nothing errored; the smears were simply for a different
+# watch. They are read from profiles.json now.
+VPH = int(2 * ESCAPE_TEETH * 60 * TRAIN_TEETH / ESCAPE_PINION_LEAVES)
+BALANCE_AMPLITUDE = 285.0
+
+# The hole the balance bridge is screwed down through, in the OM10's own plane.
+# Read out of the OM10 cock's projected outline, and it lands exactly on
+# OM00-00106 #9 in the assembly.
+#
+# There were two. The other, at (-10.09, -5.80), places at face (259.9, 570.4),
+# which is 134.6 units from the aperture centre against an aperture radius of
+# 126 - so it was always behind the dial and never once rendered. Keeping it
+# only forced the bridge over the balance to be wide enough to reach two feet.
+# See models/step/movement.step.py's _balance_bridge.
+COCK_SCREWS = [(-13.67, -0.98)]
 
 # The parts that are not circles - the lever, the cock, the jewel settings - are
 # drawn from absolute dimensions rather than fractions, because a lever is a
@@ -163,7 +196,6 @@ IMPULSE_R = 0.052           # the jewel itself
 _D_BALANCE = math.hypot(BALANCE[0] - STAFF[0], BALANCE[1] - STAFF[1])
 FORK_LENGTH = (_D_BALANCE - IMPULSE_ORBIT * BALANCE[2]) / U
 
-ESCAPE_TEETH = 15
 
 # HOW FAR APART THE TWO PALLET STONES SIT, and it is not a free parameter.
 #
@@ -209,7 +241,22 @@ ESCAPE_PHASE = 11.75
 # under the cock" costs nothing and fixes the part. 284 degrees puts it there.
 SPRING_PHASE = 284.0
 
-PALLET_HALF_SPACES = 5
+# MEASURED OFF THE OM10, and it settles an argument this file already had.
+#
+# The reasoning above is right: the separation has to be an ODD number of half
+# tooth-spaces or the wheel arrives with a tooth pointing at the gap between the
+# stones and the escapement cannot alternate. The number chosen to satisfy it
+# was 5. The real movement uses 7.
+#
+# Taken from the placed solids: the two stones bear 202.0 and 264.1 degrees from
+# the escape arbor, 62.08 degrees apart, which on a 20-tooth wheel (9 degree
+# half-spaces) is 6.90 of them. That is 7 within the tessellation error, and 7
+# is odd, so the rule holds and the count was simply low.
+#
+# Both stones reach 0.16 mm inside the tooth-tip circle, and the two agree to
+# two thousandths of a millimetre. Equal lock on entry and exit is what a
+# correctly set escapement has, and it is not something a drawing gets by luck.
+PALLET_HALF_SPACES = 7
 _TOOTH_PITCH = 360.0 / ESCAPE_TEETH
 PALLET_SPREAD = PALLET_HALF_SPACES * _TOOTH_PITCH / 4.0
 assert PALLET_HALF_SPACES % 2 == 1, "an even count cannot alternate"
@@ -841,14 +888,16 @@ def plate_openings():
                         (STAFF, 5.2), (TRAIN[:2], 6.4)):
         holes.append(disc(px, py, r, 48))
 
-    # The screws that hold the cock down. Their bores are countersunk, which is
-    # why a screw head sits flush and not proud.
-    ax, ay, ar = APERTURE
-    n = polar(0.0, 0.0, 116.0 + 90.0, 1.0)
-    anchor = polar(BALANCE[0], BALANCE[1], 116.0, ar * 0.86)
-    for s in (-1, 1):
-        holes.append(disc(anchor[0] + n[0] * 4.4 * s * 1.4,
-                          anchor[1] + n[1] * 4.4 * s * 1.4, 4.2, 32))
+    # The bores the cock screws thread into, at the cock's OWN screw holes.
+    #
+    # These used to come from a bearing-and-radius rule invented alongside the
+    # drawn cock. When the cock became the OM10's, the rule stayed put and left
+    # two countersunk holes in open plate on the far side of the aperture,
+    # threaded into nothing, with the actual screws forty units away. A hole
+    # that is not under a screw is a very quiet kind of wrong: it renders as a
+    # perfectly good bore.
+    for sx, sz in COCK_SCREWS:
+        holes.append(disc(*_PLACE.to_face(sx, sz), 4.2, 32))
 
     return unary_union(holes)
 

@@ -46,8 +46,8 @@ public sealed record Caliber(
     int Vph,
     int EscapeTeeth,
     double BalanceAmplitudeDegrees,
-    int TrainTeeth = 64,
-    int EscapePinionLeaves = 7,
+    int TrainTeeth = 84,
+    int EscapePinionLeaves = 8,
     double LiftAngleDegrees = 52.0)
 {
     /// <summary>Releases per second: vibrations per hour over the 3600 seconds
@@ -71,8 +71,8 @@ public sealed record Caliber(
     public double BalanceSwingMilliseconds => BeatMilliseconds;
 
     /// <summary>How far the seconds hand advances per beat. This one number is
-    /// the difference between a mechanical watch and a quartz one: 0.75 degrees
-    /// at 4 Hz, against a quartz movement's 6.</summary>
+    /// the difference between a mechanical watch and a quartz one: 6/7 of a
+    /// degree at seven beats a second, against a quartz movement's 6.</summary>
     public double SecondStepDegrees => 6.0 / BeatsPerSecond;
 
     /// <summary>
@@ -80,11 +80,13 @@ public sealed record Caliber(
     ///
     /// TWO beats per tooth, not one. That is the factor of two in every
     /// train-count formula in the literature, and the geometry behind it is
-    /// this: the entry and exit pallets straddle the wheel about two and a half
-    /// tooth-spaces apart, so a single release carries it half a space and it
-    /// takes a full oscillation to hand one whole tooth through. A 15-tooth
-    /// wheel therefore turns once every 30 beats - 3.75 seconds at 4 Hz, which
-    /// makes it comfortably the fastest thing anyone can see.
+    /// this: the entry and exit pallets straddle the wheel three and a half
+    /// tooth-spaces apart (measured off the OM10: 62.08 degrees, seven half
+    /// spaces of nine), so a single release carries it half a space and it
+    /// takes a full oscillation to hand one whole tooth through. A 20-tooth
+    /// wheel therefore turns once every 40 beats, which at seven beats a second
+    /// is 5.7 seconds a revolution, comfortably the fastest thing anyone can
+    /// see in the aperture.
     /// </summary>
     public double EscapeStepDegrees => 360.0 / (2.0 * EscapeTeeth);
 
@@ -98,9 +100,12 @@ public sealed record Caliber(
     /// visibly meshed wheels rotating the same way is something the eye rejects
     /// before it can say why.
     ///
-    /// 64 teeth driven by a 7-leaf pinion means the escape wheel turns 9.14
-    /// times for each turn of this one: about 34 seconds a revolution, slow
-    /// enough to read as a different motion from the escapement's jerking.
+    /// 84 teeth driving an 8-leaf pinion means the escape wheel turns 10.5
+    /// times for each turn of this one, and this one turns once a MINUTE. That
+    /// is not a coincidence and not a choice: it is the wheel that carries the
+    /// seconds, and requiring it to keep time is what fixes the beat rate. See
+    /// the note on Swiss4Hz. It also makes the aperture readable, because the
+    /// wheel in the window sweeps in step with the seconds hand on the dial.
     /// </summary>
     public double TrainStepDegrees => -EscapeStepDegrees * EscapePinionLeaves / TrainTeeth;
 
@@ -111,8 +116,8 @@ public sealed record Caliber(
     /// balance is only inside the fork slot while it is within half a lift
     /// angle of centre, and since it moves as sin, that is
     /// 2·asin(lift/2A)/pi of the beat - about 6% at 52 degrees of lift on a
-    /// 285 degree amplitude, so seven milliseconds of a hundred and twenty
-    /// five. For the other ninety-four percent the lever is dead still against
+    /// 285 degree amplitude, so about eight milliseconds of a hundred and
+    /// forty three. For the other ninety-four percent the lever is still against
     /// a banking pin and the wheel is locked. A lever that is in motion for any
     /// appreciable part of the beat is not an escapement, it is a windscreen
     /// wiper.
@@ -129,8 +134,8 @@ public sealed record Caliber(
     ///
     /// The number that explains why a running watch is restful to look at and
     /// a badly drawn one is not. Simple harmonic motion peaks at amplitude
-    /// times omega, which here is about 7,200 deg/s - so on a 60Hz panel the
-    /// wheel covers 119 degrees BETWEEN FRAMES. Nothing on the rim can be
+    /// times omega, which here is about 6,270 deg/s - so on a 60Hz panel the
+    /// wheel covers 104 degrees BETWEEN FRAMES. Nothing on the rim can be
     /// resolved at that rate by a display or by an eye, and a face that draws
     /// it sharply anyway is showing detail the viewer cannot track, which reads
     /// as chaos rather than as speed.
@@ -142,12 +147,32 @@ public sealed record Caliber(
     public string Signature => string.Create(CultureInfo.InvariantCulture, $"{Hertz:0.#} Hz  ·  {Vph:N0} vph");
 
     /// <summary>
-    /// A stock 4 Hz Swiss automatic - the beat rate under most of what is in a
-    /// boutique window. Nothing on this line identifies a maker: vibration
-    /// counts and tooth counts are engineering, published in every service
-    /// manual, and shared by dozens of calibers.
+    /// The caliber in the aperture, and every number on this line is now
+    /// measured rather than chosen.
+    ///
+    /// The wheels rendered through the opening are openmovement.org's OM10 - a
+    /// real, open-source Swiss movement - so the tooth counts are counted off
+    /// the solids: a 20-tooth escape wheel driven by an 8-leaf pinion on the
+    /// same arbor, itself driven by an 84-tooth fourth wheel.
+    ///
+    /// THE BEAT RATE FOLLOWS FROM THEM; it is not a separate preference. The
+    /// fourth wheel carries the seconds, so it must turn exactly once a minute:
+    ///
+    ///     escape turns per hour = 60 x 84/8          = 630
+    ///     vph = 2 x 20 teeth x 630                   = 25,200
+    ///
+    /// which is 3.5 Hz, an ordinary historical Swiss rate. The previous 28,800
+    /// was inherited from the invented 15-tooth wheel, and against these real
+    /// counts it puts the fourth wheel round in 52.5 seconds - so the wheel
+    /// visible in the opening would slowly drift against the seconds hand on
+    /// the dial above it. Nothing crashes; the watch is just wrong, in the one
+    /// way a watch is not allowed to be.
+    ///
+    /// Nothing here identifies a maker: vibration counts and tooth counts are
+    /// engineering, published in every service manual.
     /// </summary>
-    public static readonly Caliber Swiss4Hz = new("CW‑01 OPENWORKED", 28_800, 15, 285);
+    public static readonly Caliber Swiss4Hz =
+        new("CW‑01 OPENWORKED", 25_200, 20, 285);
 
     /// <summary>
     /// Every moving part's position for one instant: degrees clockwise from

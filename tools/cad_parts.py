@@ -1,132 +1,143 @@
-"""True solid models of the parts an extruded outline cannot describe.
+"""Writes the placed movement out for the renderer.
 
-    .venv-cad\\Scripts\\python tools/cad_parts.py
-
-WHY THIS EXISTS. Every part in this movement has been a flat 2D outline pushed
-to a constant thickness and then given one blanket bevel. That is fine for the
-parts that really are flat plates - an escape wheel is stamped, a lever is
-stamped - and hopeless for the ones that are turned.
-
-A balance wheel is the clearest case. Its rim is TALLER than its arm, chamfered
-top and bottom on both the inner and the outer edge; the hub stands proud of
-both; the timing screws are threaded radially into the rim, not sitting on top
-of it. That is four heights and four different chamfers in one component, and an
-extruded outline can express exactly one of each. Under a straight-down camera
-those chamfers are most of what there is to see, because they are the only
-surfaces angled toward a light.
-
-So the turned parts are built here with a real B-rep kernel - CadQuery, which is
-OpenCASCADE - where a cross-section can be REVOLVED and a chamfer can be put on
-one named edge rather than on everything at once. They export as STL and the
-render imports them instead of extruding a profile.
-
-COORDINATES. Face space, and already converted for Blender: x is face x, y is
-NEGATIVE face y, z is height above the plate. So a part comes in at the right
-place with no transform, the same bargain the rest of the pipeline makes.
-
-Run it with the CAD virtual environment, not the system python:
     .venv-cad\\Scripts\\python.exe tools/cad_parts.py
+
+The assembly itself is models/step/movement.step.py - real OM10 solids carried
+into the face by one similarity transform. This is the bridge from that to the
+render: one STL per part, already in face coordinates with its z set, plus a
+manifest saying what each part is made of, which arbor it turns about, and where
+that arbor is.
+
+WHY THE STL IS WRITTEN HERE AND NOT BY scripts/export. The renderer needs the
+parts SEPARATELY - each rotating group is its own image, because XAML turns
+images - and a single exported assembly is one mesh. Splitting it afterwards
+would mean matching solids back to names by size, which is exactly the guessing
+this whole rewrite exists to stop doing.
+
+The pivots are the other output and they matter as much. OpenworkedFace.xaml
+turns each layer about a centre, and that centre has to be the axis the solid
+was placed on. Emitting both from the same placement is what makes it impossible
+for them to disagree - previously the XAML held a hand-copied transcript of a
+JSON file, and re-copying it was a step somebody had to remember.
 """
 
+import importlib.util
 import json
-import math
 import os
 import sys
 
-import cadquery as cq
+from build123d import export_stl
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PROFILES = os.path.join(ROOT, "captures", "geom", "profiles.json")
+GENERATOR = os.path.join(ROOT, "models", "step", "movement.step.py")
 OUT = os.path.join(ROOT, "captures", "cad")
 
-# Enough segments that a rim edge is smooth at three pixels per face unit.
-cq.exporters.export.__defaults__  # (documentation of intent; tolerance set below)
-TOL = 0.05
+# How finely the solids are tessellated for the render. At 3 px per face unit a
+# 0.05 unit deviation is a sixth of a pixel, which is under what the camera can
+# resolve - and the angular tolerance is what actually decides whether a turned
+# rim looks turned, because it sets how many facets go round a circle.
+TOLERANCE = 0.05
+ANGULAR_TOLERANCE = 0.12
 
 
-def balance_wheel(R, band=0.135, arm=0.062, hub=0.17, blocks=4,
-                  rim_h=3.6, arm_h=2.0, hub_h=4.6, chamfer=0.45):
-    """
-    A free-sprung balance, turned rather than cut out of sheet.
+def load_entry(path):
+    """A `.step.py` cannot be imported by name; load it by path."""
+    spec = importlib.util.spec_from_file_location("movement_step", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
-    The rim is revolved, so its chamfers run right round both edges the way a
-    lathe leaves them - that is the bright line that says the part was turned.
-    The arm is thinner and sits at the BOTTOM of the rim, which is why a real
-    balance shows you the inside face of its rim rather than reading as a flat
-    washer. The hub stands proud of both.
-    """
-    inner = R * (1 - band)
 
-    # Rim: revolve a cross-section with a chamfer top and bottom, inside and out.
-    rim = (cq.Workplane("XZ")
-           .moveTo(inner, 0).lineTo(R, 0).lineTo(R, rim_h).lineTo(inner, rim_h)
-           .close()
-           .revolve(360, (0, 0, 0), (0, 1, 0)))
-    rim = rim.edges("%CIRCLE").chamfer(chamfer)
+# Parts whose tooth count is load-bearing, and what it must be. These set the
+# beat and every rotation rate downstream, so a wrong one is not a cosmetic
+# error - it is a watch that runs at the wrong speed.
+#
+# THIS GUARD EXISTS BECAUSE THE HAZARD IS AN ORDERING, WHICH IS INVISIBLE.
+# om10_extract.py writes provisional tooth counts from raw triangulation
+# vertices and gets them wrong; om10_check.py recounts properly and overwrites
+# them. Re-running the extractor therefore silently puts the bad numbers back,
+# and the first symptom was a train ratio of 84/0. Nothing about the STL export
+# looked wrong, because nothing about it was.
+EXPECTED_TEETH = {"escape": 20, "epinion": 8, "wheel_c": 84}
 
-    # The arm, across the middle and thinner than the rim.
-    a = R * arm
-    bar = (cq.Workplane("XY").box(2 * inner + 2, 2 * a, arm_h, centered=(True, True, False))
-           .edges("|Z").chamfer(a * 0.35))
-    bar = bar.intersect(cq.Workplane("XY").circle(inner + 0.4).extrude(arm_h))
 
-    boss = (cq.Workplane("XY").circle(R * hub).extrude(hub_h)
-            .edges(">Z").chamfer(chamfer))
-
-    wheel = rim.union(bar).union(boss)
-
-    # Timing screws, threaded radially INTO the rim, with their heads standing
-    # proud outside it. That is what makes a free-sprung balance read as
-    # adjustable rather than as a ring with beads stuck on.
-    #
-    # The bore has to be smaller than HALF the rim height and centred on the
-    # rim's mid-plane. The first attempt used neither and cut a bore wider than
-    # the rim was tall, straight through both faces, leaving four scalloped
-    # notches in the top of the wheel. From directly above that looked almost
-    # deliberate, which is exactly why it needed looking at from an angle.
-    screw_r = min(a * 0.45, rim_h * 0.30)
-    mid = rim_h / 2.0
-    for i in range(blocks):
-        turn = i * (360.0 / blocks) + 45.0
-        bore = (cq.Workplane("YZ").workplane(offset=inner - 1.0)
-                .circle(screw_r).extrude(R - inner + 2.0)
-                .translate((0, 0, mid)))
-        head = (cq.Workplane("YZ").workplane(offset=R - screw_r * 0.5)
-                .circle(screw_r * 1.75).extrude(screw_r * 1.5)
-                .translate((0, 0, mid))
-                .edges("%CIRCLE").chamfer(screw_r * 0.28))
-        wheel = wheel.cut(bore.rotate((0, 0, 0), (0, 0, 1), turn))
-        wheel = wheel.union(head.rotate((0, 0, 0), (0, 0, 1), turn))
-
-    return wheel
+def check_teeth(manifest):
+    """Refuse to export against tooth counts that have been clobbered."""
+    wrong = {k: manifest[k]["teeth"] for k, want in EXPECTED_TEETH.items()
+             if manifest[k]["teeth"] != want}
+    if wrong:
+        raise SystemExit(
+            "tooth counts are wrong: %s (expected %s).\n"
+            "This is almost always om10_extract.py having been re-run after "
+            "om10_check.py - the extractor's counts are provisional and it "
+            "overwrites the good ones. Run:\n"
+            "    .venv-cad\\Scripts\\python.exe tools/om10_check.py"
+            % (wrong, {k: EXPECTED_TEETH[k] for k in wrong}))
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    with open(PROFILES) as f:
-        payload = json.load(f)
-    pivots = payload["pivots"]
+    gen = load_entry(GENERATOR)
+    assembly = gen.gen_step()
+    manifest = gen._manifest()
+    check_teeth(manifest)
+    place = gen.PLACE
 
-    bx, by = pivots["balance"]
-    # The balance's rim radius, taken from the geometry rather than restated.
-    bR = None
-    for spec in payload["parts"]:
-        if spec["name"] == "balance":
-            xs = [p[0] for r in spec["rings"] for p in r]
-            ys = [p[1] for r in spec["rings"] for p in r]
-            bR = max(max(xs) - bx, max(ys) - by)
-            z, thick = spec["z"], spec["thickness"]
-    print("balance R %.2f at (%.1f, %.1f), z %.1f" % (bR, bx, by, z), flush=True)
+    parts = []
+    for (name, src, arbor, material, _at, _tz), child in zip(gen.STACK, assembly.children):
+        path = os.path.join(OUT, "%s.stl" % name)
+        export_stl(child, path, tolerance=TOLERANCE,
+                   angular_tolerance=ANGULAR_TOLERANCE)
+        box = child.bounding_box()
+        parts.append({
+            "name": name,
+            "material": material,
+            "arbor": arbor,
+            "stl": path.replace("\\", "/"),
+            # Face coordinates, y down - the frame profiles.json speaks.
+            "z": box.min.Z,
+            "thickness": box.max.Z - box.min.Z,
+            "bbox": [box.min.X, -box.max.Y, box.max.X, -box.min.Y],
+            "source": manifest[src]["source"],
+            "teeth": manifest[src]["teeth"],
+            # Face units, and only the parts this project builds itself carry
+            # one. A solid lifted out of the OM10 already HAS its chamfers cut
+            # into the B-rep, and render_lib is explicit that bevelling those
+            # again would round off the very edges that were the reason to use
+            # real CAD. A prism we extruded ourselves has no chamfer at all
+            # until something puts one on, and the reference photos make that
+            # edge the brightest thing on the part.
+            "bevel": manifest[src].get("bevel_units"),
+            "kb": os.path.getsize(path) // 1024,
+        })
+        print("  %-9s %-11s z %5.1f..%5.1f  %4d KB  <- OM10 %s"
+              % (name, material, box.min.Z, box.max.Z,
+                 parts[-1]["kb"], manifest[src]["source"]), flush=True)
 
-    wheel = balance_wheel(bR, rim_h=thick)
-    wheel = wheel.translate((bx, -by, z))
+    payload = {
+        "scale": place.SCALE,
+        "rotation": place.ROT_DEG,
+        "pivots": {k: list(place.axis_face(k))
+                   for k in ("balance", "pallet", "escape", "fourth")},
+        "teeth": {
+            "escape": manifest["escape"]["teeth"],
+            "escape_pinion": manifest["epinion"]["teeth"],
+            "fourth": manifest["wheel_c"]["teeth"],
+        },
+        "parts": parts,
+    }
+    with open(os.path.join(OUT, "manifest.json"), "w") as f:
+        json.dump(payload, f, indent=1)
 
-    path = os.path.join(OUT, "balance.stl")
-    cq.exporters.export(wheel, path, tolerance=TOL, angularTolerance=0.1)
-    print("wrote %s (%d KB)" % (path, os.path.getsize(path) // 1024), flush=True)
-
-    sys.stdout.flush()
-    os._exit(0)          # OCCT segfaults on teardown; the file is already written.
+    print("\nscale %.3f face units/mm, rotation %.2f deg" % (place.SCALE, place.ROT_DEG))
+    print("teeth: escape %d, escape pinion %d, fourth wheel %d  (ratio %.4f)"
+          % (payload["teeth"]["escape"], payload["teeth"]["escape_pinion"],
+             payload["teeth"]["fourth"],
+             payload["teeth"]["fourth"] / payload["teeth"]["escape_pinion"]))
+    print("pivots, for OpenworkedFace.xaml:")
+    for k, v in payload["pivots"].items():
+        print('    %-8s CenterX="%.1f" CenterY="%.1f"' % (k, v[0], v[1]))
+    print("\nwrote %s" % os.path.join(OUT, "manifest.json"))
 
 
 if __name__ == "__main__":

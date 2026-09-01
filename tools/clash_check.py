@@ -65,9 +65,12 @@ def main():
         payload = json.load(f)
 
     parts = {}
+    solids = set()
     for spec in payload["parts"]:
         z0 = spec["z"]
         parts[spec["name"]] = (z0, z0 + spec["thickness"])
+        if spec.get("stl"):
+            solids.add(spec["name"])
 
     geoms = eg.build()
 
@@ -75,7 +78,34 @@ def main():
         g = geoms[name]
         return g.buffer(0.6) if g.geom_type in ("LineString", "MultiLineString") else g
 
-    names = [n for n in parts if n in geoms and n not in GROUND]
+    # THE REAL PARTS ARE NOT CHECKED HERE, AND MUST NOT BE.
+    #
+    # This test is a footprint crossed with a z span, which was a fair proxy
+    # while every part was a flat extrusion of that exact footprint. It is not
+    # one for a real solid. A balance cock is a foot on the plate and an arm
+    # RAISED over the balance: its footprint covers the balance and its z span
+    # overlaps the balance, and it still does not touch it anywhere. Run this
+    # against the OM10 solids and it reports a clash that is not there - and the
+    # cure for a check that cries wolf is always to switch it off.
+    #
+    # Worse, the footprints here come from escapement_geometry's own drawings,
+    # which are no longer what gets rendered. Comparing an old outline against a
+    # new solid's height is not a weaker check, it is a check of nothing.
+    #
+    # The solids are checked properly instead, by boolean intersection volume:
+    #     .venv-cad\Scripts\python.exe tools/interfere_check.py
+    #
+    # That is NOT run from here or from render.ps1, deliberately. It rebuilds
+    # the STEP and runs a boolean intersection per pair, which costs minutes,
+    # and its answer can only change when the PLACEMENT changes - not when a
+    # material or a light does. So it belongs beside cad_parts.py, run when the
+    # assembly moves, rather than on the front of every render where the cost
+    # would be paid for nothing and would eventually get skipped.
+    names = [n for n in parts
+             if n in geoms and n not in GROUND and n not in solids]
+    if solids:
+        print("%d CAD solids checked by boolean intersection, not here: %s"
+              % (len(solids), ", ".join(sorted(solids))))
     clashes = []
     for i, a in enumerate(names):
         for b in names[i + 1:]:
