@@ -14,3 +14,8 @@ __pycache__/
 # fetched, not authored, and one of them is 6MB.
 .agents/
 .claude/skills/
+
+# The CAD kernel's virtualenv. cadquery pulls OpenCASCADE and VTK - several
+# hundred MB of binary wheels. Recreate with:
+#   uv venv .venv-cad --python 3.12 && uv pip install --python .venv-cad cadquery trimesh
+.venv-cad/

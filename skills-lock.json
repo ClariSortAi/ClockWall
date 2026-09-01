@@ -1,11 +1,29 @@
 {
   "version": 1,
   "skills": {
+    "blender-toolkit": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "blender-toolkit/SKILL.md",
+      "computedHash": "6120fc4de5f41cecec6a8f385d0b6532e02faf425412fb36eb1aa367d7167e64"
+    },
     "cad": {
       "source": "earthtojake/text-to-cad",
       "sourceType": "github",
       "skillPath": "skills/cad/SKILL.md",
       "computedHash": "1742d4333f1352db9be0f46579d2df44624ec405c17317c07389c78bd71ac895"
+    },
+    "crane-shot": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "crane-shot/SKILL.md",
+      "computedHash": "2b45be9e98327d6b59044d672b88966d7e02c2c8a85b028cebcf92581ae0d73e"
+    },
+    "dolly-rotate": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "dolly-rotate/SKILL.md",
+      "computedHash": "622eaadbfc6f58178766d91ca3bfdf37ed43802264cea469d1541bbcf6a42850"
     },
     "dxf": {
       "source": "earthtojake/text-to-cad",
@@ -13,17 +31,95 @@
       "skillPath": "skills/dxf/SKILL.md",
       "computedHash": "77386d29e4ebb694a88000430a030390434985a8e8dd85cdf9b20c45c669a79f"
     },
+    "dynamic-full-loop": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "dynamic-full-loop/SKILL.md",
+      "computedHash": "d8fdcc8725f5add47c4de010e1c8758039deee0fc707529aee5aa9805b4265b7"
+    },
+    "image-to-3d": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "image-to-3d/SKILL.md",
+      "computedHash": "9575a716d2a991c06409fe8c14299b98354e00be435e74748e6439d7de9b2139"
+    },
     "mechanical-engineer": {
       "source": "selfdriven-octo/skillzeb",
       "sourceType": "github",
       "skillPath": "skills/intelligence/organic-human/human/mechanical-engineer/SKILL.md",
       "computedHash": "5870a2c34c314a6b4ddd1977e599593b926999c5d4eb259403127a2b9c2275ff"
     },
+    "multi-image-to-3d": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "multi-image-to-3d/SKILL.md",
+      "computedHash": "dd09eadd3817f836889f27e71497fc704acabf8e55c9c1eb73d6a5883c339f12"
+    },
     "openscad": {
       "source": "mitsuhiko/agent-stuff",
       "sourceType": "github",
       "skillPath": "skills/openscad/SKILL.md",
       "computedHash": "f215caa02db01b8d5abfc64bb547713e0eeb0bb55ce8fb7a042b7c5195617230"
+    },
+    "perfect-loop": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "perfect-loop/SKILL.md",
+      "computedHash": "63b3aaae081bba435a33ae8690481938fdd4a48565ec6c401395deb7cdef54c2"
+    },
+    "polyhaven-hdri-showcase": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "polyhaven-hdri-showcase/SKILL.md",
+      "computedHash": "f82d8c4a3fb0a23cd3dbb14ddc948428853b3c9a9b68bda90690217e478204c5"
+    },
+    "polyhaven-material-swap": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "polyhaven-material-swap/SKILL.md",
+      "computedHash": "2107c73d7e468158d977676dd4950815b593f285b139d453118e69ea0c251a8f"
+    },
+    "polyhaven-scene-builder": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "polyhaven-scene-builder/SKILL.md",
+      "computedHash": "0273a494a246ced1d7f72d3efe1102328c86f07437b9a2301255ecb641921d75"
+    },
+    "polyhaven-studio-setup": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "polyhaven-studio-setup/SKILL.md",
+      "computedHash": "68a1954586401f48b1bc8b0b10986c47a6b849c7566fd8c47a829ec16faf039d"
+    },
+    "polyhaven-texture-apply": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "polyhaven-texture-apply/SKILL.md",
+      "computedHash": "f94764f1830a315f33d89fa3c0813877c95a262f020f48d8103586e88747fa79"
+    },
+    "product-polish": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "product-polish/SKILL.md",
+      "computedHash": "e34a0867c2448e6783e7dedc75b9c2aa8c2263a58b7f68b6d498b68f387af6ad"
+    },
+    "slow-zoom": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "slow-zoom/SKILL.md",
+      "computedHash": "27417b4b94a183331ba655729bb05ef6487aa09de929d80ba3447a4b34057137"
+    },
+    "threejs-export": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "threejs-export/SKILL.md",
+      "computedHash": "402f20245d526852fd17d2bf177a444f95c4d9bdbee08194582e0946d4f938dd"
+    },
+    "turntable": {
+      "source": "kevinbadi/blender-skills",
+      "sourceType": "github",
+      "skillPath": "turntable/SKILL.md",
+      "computedHash": "181bc7ccd38f3dcee50c34e8894f593762b4a18c548233733e31c2719550cf63"
     }
   }
 }
