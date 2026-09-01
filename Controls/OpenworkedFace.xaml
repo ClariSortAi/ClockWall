@@ -22,8 +22,12 @@
         camera framed exactly to this control's coordinate space. So each one is
         placed at (0,0) at native size and rotated about its own centre
         expressed in the SAME coordinates the Python that generated it used.
-        There is no fitting, no offset table, and moving a part in the geometry
-        needs no change here.
+        There is no fitting and no offset table - but the pivot numbers below ARE
+        a copy of captures/geom/profiles.json, and the one thing that does not
+        take care of itself. Move a part in the geometry and they must be
+        re-copied, or every wheel turns about a point it no longer sits on and
+        the face still looks plausible while being wrong. export_profiles.py
+        prints them ready to paste.
 
         PAINT ORDER IS Z ORDER. A stack of Images can only express a painter's
         algorithm, so the order below is the order the parts sit in: plate,
@@ -67,7 +71,7 @@
              escape wheel it is LOCKED for 94% of every beat and runs only while
              the lever is crossing, because that is what the lever is for. -->
         <Image Source="ms-appx:///Assets/movement-train.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="333.8" CenterY="360.4" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="331.8" CenterY="373.8" /></Image.RenderTransform>
         </Image>
 
         <!--
@@ -88,10 +92,10 @@
             would have caught.
         -->
         <Image x:Name="EscapeSharp" Source="ms-appx:///Assets/movement-escape.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="387.2" CenterY="391.2" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="377.1" CenterY="400.0" /></Image.RenderTransform>
         </Image>
         <Image x:Name="EscapeBlur" Source="ms-appx:///Assets/movement-escape-blur.png" Width="640" Height="640" Opacity="0">
-            <Image.RenderTransform><RotateTransform x:Name="EscapeBlurAngle" CenterX="387.2" CenterY="391.2" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="EscapeBlurAngle" CenterX="377.1" CenterY="400.0" /></Image.RenderTransform>
         </Image>
 
         <!-- The lever and its two ruby pallet stones. It does not bank on a
@@ -100,27 +104,12 @@
              enough to centre to be inside the fork slot. Which is why it and
              the balance below share one number - see Caliber.Read. -->
         <Image x:Name="ForkSharp" Source="ms-appx:///Assets/movement-fork.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="356.4" CenterY="430.3" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="344.0" CenterY="426.3" /></Image.RenderTransform>
         </Image>
         <Image x:Name="ForkBlur" Source="ms-appx:///Assets/movement-fork-blur.png" Width="640" Height="640" Opacity="0">
-            <Image.RenderTransform><RotateTransform x:Name="ForkBlurAngle" CenterX="356.4" CenterY="430.3" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="ForkBlurAngle" CenterX="344.0" CenterY="426.3" /></Image.RenderTransform>
         </Image>
 
-        <!-- The hairspring. It turns with the balance staff it is pinned to,
-             but only a FRACTION as far: the outer end is fixed to the cock, so
-             the coils breathe rather than sweep. Turning it rigidly with the
-             wheel would whip the stud round 570 degrees, which is the one thing
-             about a hairspring everybody can see is wrong. -->
-        <Image x:Name="SpringSharp" Source="ms-appx:///Assets/movement-spring.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="SpringAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
-        </Image>
-
-        <!-- ...and its smear, held still like the balance's. Rotating a
-             many-turned spiral by d returns very nearly the same spiral,
-             starting a hair further in, so there is nothing to gain by turning
-             it and resampling noise to lose. A real hairspring breathes
-             concentrically; it does not sweep. -->
-        <Image x:Name="SpringBlur" Source="ms-appx:///Assets/movement-spring-blur.png" Width="640" Height="640" Opacity="0" />
 
         <!--
             The balance and its timing screws, in one image so the screws cannot
@@ -158,13 +147,29 @@
             running and the change with it stopped dead are the same number.
         -->
         <Image x:Name="BalanceSharp" Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="296.2" CenterY="464.2" /></Image.RenderTransform>
         </Image>
         <Image x:Name="BalanceBlur" Source="ms-appx:///Assets/movement-balance-blur.png" Width="640" Height="640" Opacity="0" />
 
-        <!-- The cock, and the shadow it throws across the balance turning under
-             it. Static, but it has to be painted here rather than into the
-             plate: it is ABOVE the balance. -->
+        <!-- The hairspring. It turns with the balance staff it is pinned to,
+             but only a FRACTION as far: the outer end is fixed to the cock, so
+             the coils breathe rather than sweep. Turning it rigidly with the
+             wheel would whip the stud round 570 degrees, which is the one thing
+             about a hairspring everybody can see is wrong. -->
+        <Image x:Name="SpringSharp" Source="ms-appx:///Assets/movement-spring.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="SpringAngle" CenterX="296.2" CenterY="464.2" /></Image.RenderTransform>
+        </Image>
+
+        <!-- ...and its smear, held still like the balance's. Rotating a
+             many-turned spiral by d returns very nearly the same spiral,
+             starting a hair further in, so there is nothing to gain by turning
+             it and resampling noise to lose. A real hairspring breathes
+             concentrically; it does not sweep. -->
+        <Image x:Name="SpringBlur" Source="ms-appx:///Assets/movement-spring-blur.png" Width="640" Height="640" Opacity="0" />
+        <!-- The cock, the stud that holds the hairspring's outer end, and the
+             shadow they throw across the balance turning under them. Static,
+             but painted here rather than into the plate: it is ABOVE the
+             balance. -->
         <Image Source="ms-appx:///Assets/movement-cock.png" Width="640" Height="640" />
 
         <!-- =========================== DIAL AND CASE ========================== -->

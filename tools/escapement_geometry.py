@@ -48,16 +48,52 @@ APERTURE = (320.0, 450.0, 126.0)   # cx, cy, r
 # wheel is set clear of it by more than the width of the fork between them.
 _AX, _AY, _AR = APERTURE
 
+# HOW MUCH OF THE WINDOW THE MOVEMENT IS ALLOWED TO FILL, and it is the one
+# number that decides whether this reads as calm or as crowded.
+#
+# It used to be all of it. The balance came within 18 units of the rim, the
+# escape wheel within 4, and the train wheel ran straight off the edge and had
+# to be clipped - three wheels packed corner to corner in an opening with no
+# quiet anywhere in it. Every reference on open-heart design says the opposite:
+# the balance never fills its aperture, and most of what you see through the
+# window is meant to be still. Margin is not wasted space, it is the thing that
+# lets one moving part be the subject instead of five competing.
+#
+# Applied to the whole assembly at once, so every mechanical relation settled so
+# far - the pallet spread, the train mesh, the fork's reach - is preserved
+# exactly. This scales the drawing, it does not re-lay it out.
+MOVEMENT_FILL = 0.85
+_MR = _AR * MOVEMENT_FILL
+
 
 def _at(fx, fy, fr=None):
     """A placement given as fractions of the aperture: centre, then radius."""
-    p = (_AX + fx * _AR, _AY + fy * _AR)
-    return p if fr is None else (p[0], p[1], fr * _AR)
+    p = (_AX + fx * _MR, _AY + fy * _MR)
+    return p if fr is None else (p[0], p[1], fr * _MR)
 
 
 BALANCE = _at(-0.222, 0.133, 0.600)   # cx, cy, rim outer radius
 ESCAPE = _at(0.533, -0.467, 0.256)    # cx, cy, tooth tip radius
-STAFF = _at(0.289, -0.156)            # the pallet fork pivots here
+# THE LINE OF CENTRES, and it is not a stylistic choice.
+#
+# In a Swiss club-tooth lever escapement - the kind in essentially every modern
+# wristwatch - the escape arbor, the pallet arbor and the balance staff lie on
+# ONE STRAIGHT LINE. The BHI course text names it: "this line is known as the
+# line of centres." The angled layout, where the lever sits at right angles to
+# the pallets, is the older English ratchet-tooth pattern, and Grossmann's 1880
+# essay dismisses it as saving no space and being "a matter of taste".
+#
+# This was 22 degrees off straight, which is not a rounding error - it is the
+# wrong escapement. The pallet staff is now placed ON the segment, at the
+# fraction that leaves the pallet end exactly where it already meshed, so the
+# stones keep the engagement settled earlier and only the lever's pivot moves.
+#
+# It also lands where Grossmann says it should: with a balance 0.4 of the plate
+# and an escape wheel under 0.2, "the centre of the lever will lie within the
+# circumference of the balance". It does, by three units.
+PALLET_FRACTION = 0.591
+STAFF = (BALANCE[0] + (ESCAPE[0] - BALANCE[0]) * PALLET_FRACTION,
+         BALANCE[1] + (ESCAPE[1] - BALANCE[1]) * PALLET_FRACTION)
 
 # The escape wheel is riveted to a seven-leaf pinion, and that pinion is what
 # the going train actually drives.
@@ -72,7 +108,7 @@ TRAIN_TEETH = 64
 # teeth interleave, and the mesh is then the most convincing single detail in
 # the aperture - it is the one place the picture proves the parts drive
 # each other rather than merely sharing a timer.
-_TRAIN_R = 0.413 * _AR
+_TRAIN_R = 0.413 * _MR
 _MESH = _TRAIN_R * 0.93 + EPINION_R * 1.02      # root radius meets tip radius
 _TRAIN_BEARING = 300.0                          # up and to the left, clear of the balance
 TRAIN = (ESCAPE[0] + _MESH * math.sin(math.radians(_TRAIN_BEARING)),
@@ -89,7 +125,43 @@ TRAIN_RATIO = TRAIN_TEETH / ESCAPE_PINION_LEAVES
 # shape and not a proportion. U rescales all of them together when the aperture
 # changes, so nothing gets left at its old size. It is 1.0 at the r=90 opening
 # these dimensions were originally drawn against.
-U = _AR / 90.0
+U = _MR / 90.0
+
+# THE ROLLER, WHICH IS THE PART THAT MAKES THIS AN ESCAPEMENT AT ALL.
+#
+# A lever escapement does exactly one thing: a jewelled pin on the balance staff
+# enters the slot in the fork, unlocks it, takes an impulse and leaves. That pin
+# is the entire mechanical connection between the balance and the rest of the
+# watch. Without it the two halves are unrelated mechanisms bolted to the same
+# plate - which is what this drawing was. The fork had a slot cut in it, the
+# balance had a plain hub, and between the horns and the hub sat fifteen units
+# of nothing.
+#
+# The size is not invented. The fork was already drawn long enough to reach
+# within 14.6 units of the balance axis, and a pin orbiting at that radius is
+# 0.23 of the balance radius, implying a roller table about 0.15 of the balance
+# DIAMETER - which is what a real one is. So the drawing had always implied a
+# roller of the right size; nobody had drawn it. FORK_LENGTH is now derived from
+# the pin's orbit rather than left as a number that happened to work, so the two
+# cannot drift apart again.
+# Proportions from Headrick's worked construction, which gives a complete
+# trig-checked lever-and-double-roller: impulse roller radius 0.479 of the
+# pallet-to-balance span, and a safety roller 58% of that. Cross-checked against
+# the independent estimate that a roller table is about a fifth of the balance
+# DIAMETER - 0.44 of the radius is 0.22 of the diameter, so the two agree.
+#
+# The first attempt at this back-derived the roller from wherever the fork
+# happened to end, which got a table barely half the size it should be. Deriving
+# it the other way round - real roller, then a fork long enough to reach the
+# jewel's orbit - is what a watchmaker does, and it means the fork length is now
+# a consequence rather than a number that happened to look right.
+ROLLER_R = 0.44             # impulse roller radius, as a fraction of balance R
+SAFETY_R = 0.58 * ROLLER_R  # the safety roller under it
+IMPULSE_ORBIT = 0.37        # the jewel, set near the impulse roller's rim
+IMPULSE_R = 0.052           # the jewel itself
+
+_D_BALANCE = math.hypot(BALANCE[0] - STAFF[0], BALANCE[1] - STAFF[1])
+FORK_LENGTH = (_D_BALANCE - IMPULSE_ORBIT * BALANCE[2]) / U
 
 ESCAPE_TEETH = 15
 
@@ -109,6 +181,34 @@ ESCAPE_TEETH = 15
 #
 # Five half-spaces - two and a half tooth-spaces - is the ordinary Swiss lever
 # figure, and the one that leaves room for the fork to pass under the wheel.
+# Where the wheel sits at rest, relative to the stones.
+#
+# Free, in the sense that a stopped watch stopped wherever it stopped - but not
+# arbitrary, because the drawing has to show a tooth actually LOCKED on a stone
+# with the other stone clear. Moving the pallet staff onto the line of centres
+# rotated the stone pair against the tooth pattern and left both stones fouling
+# teeth at once, which is a jammed escapement rather than a locked one.
+#
+# Solved rather than eyeballed: swept in quarter degrees for the phase that
+# maximises the locking stone's engagement while driving the other stone's to
+# zero. It finds 11.75, and there the locked stone overlaps by 21.3 units and
+# the free one by nothing at all - the drop clearance a real escapement has.
+ESCAPE_PHASE = 11.75
+
+# Where the hairspring's coil STARTS, chosen so that where it ENDS is somewhere
+# it can be held.
+#
+# A hairspring's outer end is pinned to a stud carried on the cock. That fixed
+# end is the whole reason the spring can do anything: the inner end turns with
+# the staff, the outer end does not, and the coil between them winds and unwinds.
+# A spiral with both ends free is a decorative spring and controls nothing.
+#
+# This one ended 20 units clear of the cock, anchored to nothing at all. Since
+# the wind is 6.5 turns, the outer end lands wherever the inner end started plus
+# half a turn - so the start angle is free, and solving it for "outer end lands
+# under the cock" costs nothing and fixes the part. 284 degrees puts it there.
+SPRING_PHASE = 284.0
+
 PALLET_HALF_SPACES = 5
 _TOOTH_PITCH = 360.0 / ESCAPE_TEETH
 PALLET_SPREAD = PALLET_HALF_SPACES * _TOOTH_PITCH / 4.0
@@ -172,14 +272,14 @@ CLUB_TOOTH = [
 ]
 
 
-def escape_wheel(cx, cy, R, teeth=ESCAPE_TEETH, root=0.885,
+def escape_wheel(cx, cy, R, teeth=ESCAPE_TEETH, phase=0.0, root=0.885,
                  hub=0.17, rim_inner=0.74, crossings=4, spoke_half_deg=7.5):
     """A Swiss club-tooth escape wheel: rim disc, plus teeth, minus crossings."""
     body = disc(cx, cy, R * root)
 
     tooth_shapes = []
     for i in range(teeth):
-        base = i * 360.0 / teeth
+        base = i * 360.0 / teeth + phase
         tooth_shapes.append(Polygon(
             [polar(cx, cy, base + da, R * fr) for da, fr in CLUB_TOOTH]))
 
@@ -232,7 +332,33 @@ def balance(cx, cy, R, band=0.135, arm=0.062, hub=0.17,
     return unary_union(parts)
 
 
-def hairspring(cx, cy, R, r0=0.17, r1=0.56, coils=6.5, steps=560):
+def roller_table(cx, cy, R, to_fork):
+    """The double roller: the impulse table that carries the jewel, and the
+    smaller safety roller under it with the crescent the fork's guard pin rides
+    in. Two concentric circles and a notch is exactly what it looks like from
+    above, and the notch is the detail that says which one is which."""
+    table = disc(cx, cy, R * ROLLER_R, 64)
+    safety = disc(cx, cy, R * SAFETY_R, 48)
+    # The crescent, cut on the side facing the lever - it can only be passed
+    # when the impulse pin is in the slot, which is the whole point of it.
+    notch = disc(*polar(cx, cy, to_fork, R * SAFETY_R * 1.06), R * SAFETY_R * 0.62)
+    return unary_union([table, safety.difference(notch)])
+
+
+def impulse_pin(cx, cy, R, to_fork):
+    """The jewel, pointing at the fork.
+
+    Drawn AT the fork because the whole assembly is drawn at rest, and rest is
+    the centre of the swing - which is the exact instant the pin is inside the
+    slot unlocking the lever. So this is not a placement choice, it is a
+    consequence of when the drawing is taken, and it doubles as a check: if the
+    pin does not land between the horns at angle zero, the layout is wrong.
+    """
+    px, py = polar(cx, cy, to_fork, R * IMPULSE_ORBIT)
+    return disc(px, py, R * IMPULSE_R, 24)
+
+
+def hairspring(cx, cy, R, r0=0.17, r1=0.56, coils=6.5, steps=560, phase=0.0):
     """
     The balance spring: a flat Archimedean spiral.
 
@@ -244,14 +370,15 @@ def hairspring(cx, cy, R, r0=0.17, r1=0.56, coils=6.5, steps=560):
     it into a shape doubled the point count for a part one pixel wide - 40KB of
     path data to draw a hairline.
     """
-    return LineString([polar(cx, cy, (i / steps) * coils * 360.0,
+    return LineString([polar(cx, cy, phase + (i / steps) * coils * 360.0,
                              R * (r0 + (r1 - r0) * i / steps))
                        for i in range(steps + 1)])
 
 
 # ---------------------------------------------------------------- pallet fork
 
-def pallet_fork(sx, sy, to_escape, to_balance, length=40.0, reach=None, half=None):
+def pallet_fork(sx, sy, to_escape, to_balance, length=40.0, reach=None,
+                half=None, pin=2.0):
     """
     The lever. Built along the +x axis in its own frame and then swung into
     place, because a lever is a straight thing and reasoning about it in face
@@ -293,8 +420,17 @@ def pallet_fork(sx, sy, to_escape, to_balance, length=40.0, reach=None, half=Non
 
     # The slot between the horns, cut in rather than drawn around. The balance's
     # impulse jewel passes through here once a beat; it is the one detail that
-    # separates a lever from a stick.
-    slot = Polygon([(L - 11, -2.0), (L + 2, -2.0), (L + 2, 2.0), (L - 11, 2.0)])
+    # separates a lever from a stick - and it has to be WIDER THAN THE JEWEL,
+    # which is not something the drawing could get right while no jewel existed.
+    # It was 4 units across against a 6.7 unit pin, so the pin fouled the horns
+    # instead of entering between them. Derived from the pin now, with the
+    # clearance a real slot carries.
+    # Depth from the pin too, not a fixed 11. A slot cut that deep with a jewel
+    # this size ran back past the point where the neck narrows and sawed the
+    # lever clean in half - it stopped being one part. Two pin-diameters deep is
+    # enough to swallow the jewel and stays inside the flare of the horns.
+    w = pin * 1.35
+    slot = Polygon([(L - 2.0 * pin, -w), (L + 2, -w), (L + 2, w), (L - 2.0 * pin, w)])
 
     # The counterpoise: the stub that balances the lever on its staff. Real, and
     # it is what stops the silhouette reading as an arrow.
@@ -371,15 +507,20 @@ def build():
         "tcollet": collet(tx, ty, tR * 0.15),
 
         # --- the escapement -----------------------------------------------
-        "escape": escape_wheel(ex, ey, eR),
+        "escape": escape_wheel(ex, ey, eR, phase=ESCAPE_PHASE),
         "ecollet": collet(ex, ey, eR * 0.19),
         "balance": balance(bx, by, bR),
+        "roller": roller_table(bx, by, bR, heading((bx, by), (sx, sy))),
+        "impulse": impulse_pin(bx, by, bR, heading((bx, by), (sx, sy))),
         "bscrews": balance_screws(bx, by, bR),
-        "spring": hairspring(bx, by, bR),
+        "spring": hairspring(bx, by, bR, phase=SPRING_PHASE),
+        "stud": stud(bx, by, bR, SPRING_PHASE),
         # The stones are placed off the WHEEL; the lever's arms are then sized
         # to reach them, rather than both being drawn to a remembered number.
         "fork": pallet_fork(sx, sy, heading((sx, sy), (ex, ey)),
                             heading((sx, sy), (bx, by)),
+                            length=FORK_LENGTH,
+                            pin=IMPULSE_R * bR / U,
                             reach=_pallet_reach(ex, ey, eR, sx, sy),
                             half=eR * 0.99 * math.sin(math.radians(PALLET_SPREAD))),
         "stones": pallet_stones(ex, ey, eR, sx, sy),
@@ -480,6 +621,17 @@ if __name__ == "__main__":
 
 
 # ----------------------------------------------------------------- balance cock
+
+def stud(cx, cy, R, phase, coils=6.5):
+    """The block on the cock that the hairspring's outer end is pinned into.
+
+    Small, and it has to exist. Without it the spring has no fixed end and the
+    balance has nothing to oscillate against - the difference between an
+    oscillator and a curl of wire.
+    """
+    end = polar(cx, cy, phase + coils * 360.0, R * 0.56)
+    return disc(end[0], end[1], R * 0.062, 24)
+
 
 def balance_cock(bx, by, ax, ay, ar, anchor_deg=116.0,
                  boss=13.5 * U, foot=11.0 * U, screw=2.4 * U):

@@ -109,11 +109,19 @@ public sealed partial class OpenworkedFace : UserControl
     /// which is the exact artefact this is here to remove.</summary>
     private const double NominalFrameSeconds = 1.0 / 60.0;
 
-    /// <summary>How much of the balance's swing the hairspring takes. Not
-    /// derived: the real distribution runs from all of it at the collet to none
-    /// of it at the stud, and one number for the whole coil is the cheap
-    /// stand-in for that.</summary>
-    private const double SpringTravel = 0.16;
+    /// <summary>
+    /// How much of the balance's swing the hairspring takes, as a rigid turn.
+    ///
+    /// A crude stand-in either way - the real distribution runs from all of the
+    /// swing at the collet to NONE of it at the stud, and one number for the
+    /// whole coil cannot express that. But it was 0.16, which swung the outer
+    /// end through 91 degrees, and the outer end is precisely the part that is
+    /// pinned to a stud and cannot move at all. Now that the stud is modelled
+    /// the mismatch would be visible, so this is the largest rigid turn that
+    /// still reads as the coil breathing rather than the whole spring sliding
+    /// out from under its own anchor.
+    /// </summary>
+    private const double SpringTravel = 0.05;
 
     /// <summary>Same <see cref="UISettings"/> bargain the rest of the app
     /// makes: one instance, polled rather than subscribed to.</summary>

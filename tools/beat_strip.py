@@ -38,6 +38,7 @@ models the shipping composite - and measures it rather than showing it.
 Writes captures/beat/strip.png.
 """
 
+import json
 import math
 import os
 import sys
@@ -69,13 +70,11 @@ SPRING_TRAVEL = 0.16
 BALANCE_BAR_DEG = 7.0           # see OpenworkedFace.BalanceBarDegrees
 PEAK_DPS = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
 
-PIVOTS = {
-    "escape": (387.158, 391.158),
-    "train": (333.849, 360.380),
-    "balance": (292.028, 466.758),
-    "spring": (292.028, 466.758),
-    "fork": (356.414, 430.344),
-}
+# Read, never written out. These moved when the assembly was scaled to leave
+# margin in the aperture, and a hardcoded copy would have quietly rotated every
+# part about the wrong centre while still looking like a movement.
+with open(os.path.join(ROOT, "captures", "geom", "profiles.json")) as _f:
+    PIVOTS = {k: tuple(v) for k, v in json.load(_f)["pivots"].items()}
 
 APERTURE = (320.0, 450.0, 126.0)
 

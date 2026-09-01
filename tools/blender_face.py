@@ -67,8 +67,8 @@ GROUPS = [
     ("escape", ("epinion", "escape", "ecollet"), PLATE_TOP, None),
     ("fork", ("fork", "stones"), PLATE_TOP, None),
     ("spring", ("spring",), PLATE_TOP, None),
-    ("balance", ("balance", "bscrews"), PLATE_TOP, "balance"),
-    ("cock", ("cock", "screws"), BALANCE_TOP, None),
+    ("balance", ("balance", "bscrews", "roller", "impulse"), PLATE_TOP, "balance"),
+    ("cock", ("cock", "screws", "stud"), BALANCE_TOP, None),
 ]
 MOVING = {n for _, names, _, _ in GROUPS for n in names}
 

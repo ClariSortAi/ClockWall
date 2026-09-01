@@ -340,11 +340,18 @@ SURFACES = {
     # against a plate half their luminance. Attention capture scales with
     # contrast, so the two parts that most needed to recede were shouting.
     #
-    # Rhodium-grey, still brighter than the plate so it reads as a part rather
-    # than a hole, but no longer the loudest thing in the window. The bright
-    # finish belongs on the cock, which is where a watchmaker puts it and which
-    # has the considerable advantage of not moving.
-    "escapement": ((0.395, 0.405, 0.430), 1.0, 0.30),
+    # Rhodium-grey. It sits between the plate and the bright bridges, which is a
+    # three-tier hierarchy rather than a two-tier one, and that is the whole
+    # difference between finishing and suppression.
+    #
+    # It was taken down to 0.395 first, which was a band-aid over a layout
+    # problem: three wheels packed corner to corner with no quiet anywhere, so
+    # the only lever left was to turn the fast ones down. At that value the
+    # escapement was barely separable from the plate - the movement stopped
+    # being chaotic by becoming muddy, which is not the same as calm. With the
+    # assembly scaled to leave real margin, the hierarchy comes from the LAYOUT
+    # and the metal can look like metal again.
+    "escapement": ((0.550, 0.562, 0.590), 1.0, 0.24),
     "case":     ((0.760, 0.775, 0.810), 1.0, 0.150),
     "index":    ((0.840, 0.850, 0.880), 1.0, 0.055),
     "gold":     ((0.860, 0.660, 0.290), 1.0, 0.12),

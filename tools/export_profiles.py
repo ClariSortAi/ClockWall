@@ -57,15 +57,34 @@ STACK = [
     ("fork", 16.0, 2.2, "escapement"),
     ("stones", 16.2, 2.0, "ruby"),
 
-    # The spring belongs UNDER the wheel. Above the arms it read as rings laid
-    # on top of the balance; below, it is what you see through the crossings.
-    ("spring", 17.8, 1.0, "blued"),
+    # The roller rides on the balance staff just under the wheel, and the jewel
+    # hangs DOWN from it into the fork's slot - so the pin has to start below
+    # the fork's top face or it is a picture of a pin rather than one.
+    ("impulse", 16.2, 3.2, "ruby"),
+    ("roller", 18.5, 0.9, "steel"),
     ("balance", 19.8, 3.6, "brass"),
     ("bscrews", 19.5, 4.2, "steel"),
+
+    # THE SPRING GOES ABOVE THE WHEEL, and it took a clash check to admit it.
+    #
+    # It was underneath, on the aesthetic argument that above the arms it read
+    # as rings laid on top of the balance. That placement is impossible. The
+    # lever passed straight through the coils, the impulse jewel did too, and
+    # worse: a hairspring's outer end must be pinned to a stud, a stud at that
+    # height sits inside the balance's own sweep, and the bar would strike it
+    # eight times a second. A hairspring sits above the balance in every watch
+    # ever made for exactly this reason - it is the only place it can be
+    # anchored. The visual objection was real. It was also an objection to
+    # building a watch.
+    ("spring", 24.0, 0.8, "blued"),
 
     # The cock bridges over the lot, and the gap is large on purpose: it is the
     # deepest shadow in the aperture and most of what says this is a stack of
     # parts rather than a picture of one.
+    # The stud stands from the spring up to the cock that carries it. One part,
+    # one job: holding the outer end of the hairspring still while the inner
+    # end turns with the staff.
+    ("stud", 24.0, 8.0, "steel"),
     ("cock", 29.0, 6.0, "steel"),
     ("screws", 35.0, 2.2, "blued"),
 ]
@@ -141,6 +160,13 @@ def main():
     print("wrote %s (%d movement + %d case + %d hand parts, %d KB)"
           % (OUT, len(payload["parts"]), len(payload["case"]),
              len(payload["hands"]), os.path.getsize(OUT) // 1024))
+
+    # The pivots are the one thing OpenworkedFace.xaml has to copy by hand, so
+    # print them in the form it wants them rather than leaving somebody to
+    # transcribe a JSON file into XML attributes.
+    print("  pivots for OpenworkedFace.xaml:")
+    for _k, _v in payload["pivots"].items():
+        print('    %-8s CenterX="%.1f" CenterY="%.1f"' % (_k, _v[0], _v[1]))
 
 
 if __name__ == "__main__":

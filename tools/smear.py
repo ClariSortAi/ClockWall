@@ -62,7 +62,11 @@ PEAK_BALANCE_DPS = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
 # (part, pivot key, span in degrees). See the header for why each span is what
 # it is - none of them is a dial to turn.
 PARTS = [
-    ("balance", "balance", 180.0),                       # the bar's symmetry
+    # 360, not the bar's 180. The roller's impulse pin is a SINGLE feature - it
+    # has no rotational symmetry at all - so only a whole turn averages it into
+    # a uniform ring. It earns that honestly: the pin sweeps 570 degrees every
+    # beat, rather more than a full circle, so a ring is what it actually is.
+    ("balance", "balance", 360.0),
     ("escape", "escape", 360.0 / (2.0 * ESCAPE_TEETH)),  # half a tooth-space
     ("fork", "fork", 2.0 * FORK_BANK),                   # bank to bank
     ("spring", "spring", PEAK_BALANCE_DPS * SPRING_TRAVEL / FPS),
