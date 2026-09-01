@@ -33,69 +33,59 @@ OUT = "captures/geom/profiles.json"
 # TWO THINGS IN MESH MUST OVERLAP IN Z. The train wheel and the escape pinion
 # are drawn interleaved in plan and were at different heights, so the mesh they
 # appeared to make was impossible. Their spans now cross.
+# WHAT IS STILL DRAWN HERE, now that the movement itself is real.
+#
+# Only the things that are ours: the plate this face cuts its aperture in, the
+# floor behind it so a bore reads as a bore, and the steel collars the jewels sit
+# in. Every moving part - and the cock over them - is an OM10 solid placed by
+# models/step/movement.step.py and arrives through captures/cad/manifest.json.
+#
+# The rubies used to be drawn here too. They are gone because there is now a
+# real jewel, with a real olive bore, fitted at all four pivots.
 STACK = [
     # A floor below the plate, so a bore reads as a bore. Drill through a plate
     # with nothing behind it and every hole renders as a black disc.
     ("floor", -5.0, 4.0, "floor"),
     ("plate", 0.0, 6.5, "plate"),
 
-    # Jewels, sunk into the plate's bores. Their tops finish a hair below the
-    # plate surface - that is what countersunk means, and it is the difference
-    # between a jewelled bearing and a red sticker.
+    # The steel collars the jewels are pressed into, countersunk in the plate.
     ("collars", 1.4, 5.0, "steel"),
-    ("rubies", 2.6, 3.2, "ruby"),
 
-    # The going train. tpinion is driven from behind the plate; the train wheel
-    # drives epinion, and epinion carries the escape wheel.
-    ("tpinion", 6.8, 2.6, "steel"),
-    ("epinion", 9.4, 2.4, "escapement"),        # spans 9.4-11.8
-    ("train", 9.6, 2.0, "brass"),          # spans 9.6-11.6, so they mesh
-    ("tcollet", 11.6, 1.8, "steel"),
-    ("escape", 12.2, 1.8, "escapement"),
-    ("ecollet", 14.0, 1.6, "escapement"),
-
-    ("fork", 16.0, 2.2, "escapement"),
-    ("stones", 16.2, 2.0, "ruby"),
-
-    # The roller rides on the balance staff just under the wheel, and the jewel
-    # hangs DOWN from it into the fork's slot - so the pin has to start below
-    # the fork's top face or it is a picture of a pin rather than one.
-    ("impulse", 16.2, 3.2, "ruby"),
-    ("roller", 18.5, 0.9, "steel"),
-    ("balance", 19.8, 3.6, "brass"),
-    ("bscrews", 19.5, 4.2, "steel"),
-
-    # THE SPRING GOES ABOVE THE WHEEL, and it took a clash check to admit it.
-    #
-    # It was underneath, on the aesthetic argument that above the arms it read
-    # as rings laid on top of the balance. That placement is impossible. The
-    # lever passed straight through the coils, the impulse jewel did too, and
-    # worse: a hairspring's outer end must be pinned to a stud, a stud at that
-    # height sits inside the balance's own sweep, and the bar would strike it
-    # eight times a second. A hairspring sits above the balance in every watch
-    # ever made for exactly this reason - it is the only place it can be
-    # anchored. The visual objection was real. It was also an objection to
-    # building a watch.
-    ("spring", 24.0, 0.8, "blued"),
-
-    # The cock bridges over the lot, and the gap is large on purpose: it is the
-    # deepest shadow in the aperture and most of what says this is a stack of
-    # parts rather than a picture of one.
-    # The stud stands from the spring up to the cock that carries it. One part,
-    # one job: holding the outer end of the hairspring still while the inner
-    # end turns with the staff.
-    ("stud", 24.0, 8.0, "steel"),
-    ("cock", 29.0, 6.0, "steel"),
-    ("screws", 35.0, 2.2, "blued"),
 ]
+
+
+CAD = os.path.join("captures", "cad", "manifest.json")
+
+
+def cad_parts():
+    """
+    The movement, as real solids rather than outlines.
+
+    Each entry names an STL that render_lib imports instead of extruding - the
+    part already has its chamfers, its turned steps and its tooth flanks, and
+    the extrude-and-bevel path would only round them off. `rings` stays empty
+    on purpose: there is no 2D outline to fill, and anything put there would be
+    a second, worse description of a part that is already fully described.
+    """
+    with open(CAD) as f:
+        payload = json.load(f)
+    specs = []
+    for p in payload["parts"]:
+        specs.append({
+            "name": p["name"], "z": p["z"], "thickness": p["thickness"],
+            "material": p["material"], "open": False, "rings": [],
+            "stl": p["stl"], "solid": True, "arbor": p["arbor"],
+            "source": p["source"], "bevel": p.get("bevel"),
+        })
+    return payload, specs
 
 
 def main():
     parts = eg.build()
 
-    collars, rubies, screws = eg.jewels_and_screws(
+    collars, _rubies, _screws = eg.jewels_and_screws(
         *eg.BALANCE[:2], *eg.ESCAPE[:2], *eg.STAFF)
-    parts["collars"], parts["rubies"], parts["screws"] = collars, rubies, screws
+    parts["collars"] = collars
 
     # Everything is clipped to the opening. The dial covers the rest, so a part
     # that runs past the edge - the train wheel does, deliberately - simply
@@ -103,20 +93,28 @@ def main():
     ax, ay, ar = eg.APERTURE
     window = eg.disc(ax, ay, ar - 1.0, 320)
 
+    cad, cad_specs = cad_parts()
+
     payload = {
         "face": 640,
         "aperture": list(eg.APERTURE),
         # Centres of rotation, so the render and the XAML cannot disagree about
-        # where a wheel turns. OpenworkedFace reads these back out.
+        # where a wheel turns. These come from the CAD placement, which is the
+        # same transform that positioned the solids - so a pivot and the part it
+        # turns are the same point by construction, not by transcription.
         "pivots": {
-            "escape": list(eg.ESCAPE[:2]),
-            "train": list(eg.TRAIN[:2]),
-            "balance": list(eg.BALANCE[:2]),
-            "spring": list(eg.BALANCE[:2]),
-            "fork": list(eg.STAFF),
+            "escape": cad["pivots"]["escape"],
+            "train": cad["pivots"]["fourth"],
+            "balance": cad["pivots"]["balance"],
+            "spring": cad["pivots"]["balance"],
+            "fork": cad["pivots"]["pallet"],
         },
         "train_ratio": eg.TRAIN_RATIO,
-        "parts": [],
+        "escape_teeth": eg.ESCAPE_TEETH,
+        "vph": eg.VPH,
+        "amplitude": eg.BALANCE_AMPLITUDE,
+        "scale": cad["scale"],
+        "parts": list(cad_specs),
         "case": [],
         "hands": [],
     }
@@ -157,9 +155,15 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
         json.dump(payload, f)
-    print("wrote %s (%d movement + %d case + %d hand parts, %d KB)"
-          % (OUT, len(payload["parts"]), len(payload["case"]),
+    solids = sum(1 for p in payload["parts"] if p.get("stl"))
+    print("wrote %s (%d movement parts, %d of them real CAD solids; "
+          "%d case + %d hand, %d KB)"
+          % (OUT, len(payload["parts"]), solids, len(payload["case"]),
              len(payload["hands"]), os.path.getsize(OUT) // 1024))
+    print("  escapement: %d-tooth escape wheel, %d-leaf pinion, %d-tooth fourth "
+          "wheel, ratio %.4f"
+          % (eg.ESCAPE_TEETH, eg.ESCAPE_PINION_LEAVES, eg.TRAIN_TEETH,
+             eg.TRAIN_RATIO))
 
     # The pivots are the one thing OpenworkedFace.xaml has to copy by hand, so
     # print them in the form it wants them rather than leaving somebody to

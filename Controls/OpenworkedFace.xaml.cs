@@ -316,14 +316,17 @@ public sealed partial class OpenworkedFace : UserControl
     /// resynchronising - there is no phase being maintained anywhere that could
     /// be wrong.
     ///
-    /// Per-frame, and NOT in order to draw the transit. Sixty frames a second
-    /// against eight beats is exactly 15:2, so a frame's phase relative to the
-    /// beat only ever takes fifteen values, a fifteenth of a beat apart - and
-    /// the lever's seven milliseconds of travel is narrower than that gap.
-    /// Whether an intermediate frame is ever caught is therefore not random and
-    /// not per-crossing: it is decided once by the offset between the display's
-    /// clock and the system's, holds for every crossing after that, and slides
-    /// in and out over minutes only because those are two different crystals.
+    /// Per-frame, and the reason has changed with the caliber. Sixty frames a
+    /// second against EIGHT beats was exactly 15:2, so a frame's phase relative
+    /// to the beat took only fifteen values a fifteenth of a beat apart, and the
+    /// lever's few milliseconds of travel was narrower than that gap: the
+    /// transit was reliably stepped over, and whether it was ever caught was
+    /// settled once by the offset between two crystals.
+    ///
+    /// At seven beats a second, 60 and 7 share no factor. The phase now takes
+    /// SIXTY values a sixtieth of a beat apart, which is 2.4 ms, and the lever's
+    /// travel is wider than that. So the transit IS sampled now, a few frames
+    /// per beat, instead of being aliased away. The smears carry it.
     ///
     /// What per-frame actually buys is that the fork and the balance are read
     /// from the SAME instant, so wherever the sampling comb happens to fall the
@@ -390,7 +393,8 @@ public sealed partial class OpenworkedFace : UserControl
             (reading.Advanced + prev.Advanced) / 2.0 * Movement.EscapeStepDegrees % 360.0;
 
         // The wheel that drives the escape pinion, turning the other way and
-        // 9.14 times slower. Two speeds of rotation in one opening is most of
+        // 10.5 times slower, which puts it round once a minute. Two speeds of
+        // rotation in one opening is most of
         // what makes it read as a gear train rather than as a spinning disc -
         // and because both come off the same beat count, the mesh they are
         // drawn in stays honest.

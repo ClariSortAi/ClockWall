@@ -71,11 +71,11 @@
              escape wheel it is LOCKED for 94% of every beat and runs only while
              the lever is crossing, because that is what the lever is for. -->
         <Image Source="ms-appx:///Assets/movement-train.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="331.8" CenterY="373.8" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="TrainAngle" CenterX="396.6" CenterY="422.6" /></Image.RenderTransform>
         </Image>
 
         <!--
-            The escape wheel with its collet and its seven-leaf pinion. One
+            The escape wheel with its eight-leaf pinion. One
             image, because they are one assembly on one arbor - and then the
             same assembly again, smeared across the half tooth-space it covers
             when it fires.
@@ -92,10 +92,10 @@
             would have caught.
         -->
         <Image x:Name="EscapeSharp" Source="ms-appx:///Assets/movement-escape.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="377.1" CenterY="400.0" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="EscapeAngle" CenterX="353.4" CenterY="418.8" /></Image.RenderTransform>
         </Image>
         <Image x:Name="EscapeBlur" Source="ms-appx:///Assets/movement-escape-blur.png" Width="640" Height="640" Opacity="0">
-            <Image.RenderTransform><RotateTransform x:Name="EscapeBlurAngle" CenterX="377.1" CenterY="400.0" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="EscapeBlurAngle" CenterX="353.4" CenterY="418.8" /></Image.RenderTransform>
         </Image>
 
         <!-- The lever and its two ruby pallet stones. It does not bank on a
@@ -104,10 +104,10 @@
              enough to centre to be inside the fork slot. Which is why it and
              the balance below share one number - see Caliber.Read. -->
         <Image x:Name="ForkSharp" Source="ms-appx:///Assets/movement-fork.png" Width="640" Height="640">
-            <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="344.0" CenterY="426.3" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="ForkAngle" CenterX="324.8" CenterY="441.5" /></Image.RenderTransform>
         </Image>
         <Image x:Name="ForkBlur" Source="ms-appx:///Assets/movement-fork-blur.png" Width="640" Height="640" Opacity="0">
-            <Image.RenderTransform><RotateTransform x:Name="ForkBlurAngle" CenterX="344.0" CenterY="426.3" /></Image.RenderTransform>
+            <Image.RenderTransform><RotateTransform x:Name="ForkBlurAngle" CenterX="324.8" CenterY="441.5" /></Image.RenderTransform>
         </Image>
 
 

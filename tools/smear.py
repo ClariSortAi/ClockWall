@@ -49,9 +49,19 @@ ASSETS = os.path.join(ROOT, "Assets")
 PROFILES = os.path.join(ROOT, "captures", "geom", "profiles.json")
 
 FACE = 640.0
-VPH = 28_800
-AMPLITUDE = 285.0
-ESCAPE_TEETH = 15
+
+# READ, NOT RESTATED. These were literals here - 28,800 vph and a 15-tooth
+# escape wheel - copied from the caliber at the time. When the tooth counts were
+# replaced with the real movement's, this file went on computing blur spans for
+# the old watch: a 12-degree escape step instead of 9, and a balance moving 14%
+# too fast. Every smear was subtly wrong and nothing said so, because a blurred
+# image of the wrong length still looks like a blurred image.
+with open(PROFILES) as _f:
+    _profile = json.load(_f)
+VPH = _profile["vph"]
+AMPLITUDE = _profile["amplitude"]
+ESCAPE_TEETH = _profile["escape_teeth"]
+
 FORK_BANK = 7.0
 SPRING_TRAVEL = 0.16
 FPS = 60.0

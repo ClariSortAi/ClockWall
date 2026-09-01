@@ -35,7 +35,11 @@ import render_lib as rl                                       # noqa: E402
 RES = 1920          # 3 px per face unit: a chamfer must land on more than one
 
 PLATE_TOP = 6.6
-BALANCE_TOP = 23.4
+# The balance's top face, which is where the cock's shadow lands. Taken from the
+# CAD placement rather than remembered: the balance now sits at 19.0-24.6, and a
+# shadow catcher left at the old 23.4 would float the cock's shadow inside the
+# wheel it is supposed to fall on.
+BALANCE_TOP = 24.6
 DIAL_TOP = 47.0
 
 # Rotating groups, in the order XAML must paint them - which is z order, since a
@@ -46,7 +50,9 @@ DIAL_TOP = 47.0
 # The cock is a group even though it does not turn: it sits ABOVE the balance,
 # and baking it into the base plate meant the balance was drawn over its own
 # bridge. It has to be a layer on top, and its shadow falls on the balance
-# rather than on the plate twenty units further down.
+# rather than on the plate twenty units further down. It carries the upper
+# balance jewel with it - the ruby is set IN the bridge, so it belongs in the
+# bridge's image and not twenty units down in the plate's.
 #
 # The last value says to light the group on its OWN AXIS instead of by the
 # face's key. Only the balance asks for it, and it is the same exception the
@@ -62,13 +68,19 @@ DIAL_TOP = 47.0
 # turning it changes nothing you can see. Lighting it axially makes rotation a
 # symmetry of the lighting again, and leaves only the bar and the timing screws
 # actually moving, which is what a real one shows.
+# The names are the OM10's parts now, so the groups are the real sub-assemblies
+# that share an arbor: a wheel with the pinion it is riveted to, the lever with
+# both its stones and its guard dart, the balance with its staff and roller.
+# Grouping by arbor is not a rendering convenience - it is what "turns together"
+# means in the movement, and profiles.json carries each part's arbor so a part
+# added later cannot end up in the wrong group by accident.
 GROUPS = [
-    ("train", ("tpinion", "train", "tcollet"), PLATE_TOP, None),
-    ("escape", ("epinion", "escape", "ecollet"), PLATE_TOP, None),
-    ("fork", ("fork", "stones"), PLATE_TOP, None),
+    ("train", ("tpinion", "train"), PLATE_TOP, None),
+    ("escape", ("epinion", "escape"), PLATE_TOP, None),
+    ("fork", ("lever", "stone_a", "stone_b", "guard"), PLATE_TOP, None),
     ("spring", ("spring",), PLATE_TOP, None),
-    ("balance", ("balance", "bscrews", "roller", "impulse"), PLATE_TOP, "balance"),
-    ("cock", ("cock", "screws", "stud"), BALANCE_TOP, None),
+    ("balance", ("balance", "roller", "staff", "collet"), PLATE_TOP, "balance"),
+    ("cock", ("cock", "jewel_c", "screw_1"), BALANCE_TOP, None),
 ]
 MOVING = {n for _, names, _, _ in GROUPS for n in names}
 

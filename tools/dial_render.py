@@ -26,6 +26,7 @@ Output: Assets/dial-texture.png, 1280x1280, covering the 640x640 face box.
 
 import math
 import os
+import sys
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
@@ -174,8 +175,18 @@ def render():
     draw_track(img, ink)
 
     # Both lines sit in the upper half, clear of the opening at six.
+    #
+    # THE BEAT IS READ, NOT TYPED. It was the literal "4 Hz  ·  28,800 vph",
+    # which is what a dial says and also what this dial said after the movement
+    # behind it started beating at 25,200. A watch whose dial disagrees with its
+    # own escapement is a specific kind of wrong, and it is invisible in every
+    # check except reading the dial.
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import escapement_geometry as eg
+    signature = "%.3g Hz  ·  %s vph" % (eg.VPH / 7200.0, format(eg.VPH, ","))
+
     text(img, "CW  ·  OPENWORKED", 176, 25, ink, tracking=2.2)
-    text(img, "4 Hz  ·  28,800 vph", 214, 17, (198, 210, 230), tracking=1.6)
+    text(img, signature, 214, 17, (198, 210, 230), tracking=1.6)
     return img
 
 
