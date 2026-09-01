@@ -124,6 +124,20 @@ public sealed record Caliber(
     public double TransitFraction =>
         2.0 * Math.Asin(Math.Min(1.0, LiftAngleDegrees / 2.0 / BalanceAmplitudeDegrees)) / Math.PI;
 
+    /// <summary>
+    /// How fast the balance is moving at its fastest, in degrees per second.
+    ///
+    /// The number that explains why a running watch is restful to look at and
+    /// a badly drawn one is not. Simple harmonic motion peaks at amplitude
+    /// times omega, which here is about 7,200 deg/s - so on a 60Hz panel the
+    /// wheel covers 119 degrees BETWEEN FRAMES. Nothing on the rim can be
+    /// resolved at that rate by a display or by an eye, and a face that draws
+    /// it sharply anyway is showing detail the viewer cannot track, which reads
+    /// as chaos rather than as speed.
+    /// </summary>
+    public double PeakBalanceDegreesPerSecond =>
+        BalanceAmplitudeDegrees * 2.0 * Math.PI * Hertz;
+
     /// <summary>The line printed on the dial: "4 Hz · 28,800 vph".</summary>
     public string Signature => string.Create(CultureInfo.InvariantCulture, $"{Hertz:0.#} Hz  ·  {Vph:N0} vph");
 

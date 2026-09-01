@@ -59,6 +59,8 @@ BEATS_PER_SECOND = VPH / 3600.0
 ESCAPE_STEP = 360.0 / (2.0 * ESCAPE_TEETH)
 TRAIN_STEP = -ESCAPE_STEP * eg.ESCAPE_PINION_LEAVES / eg.TRAIN_TEETH
 SPRING_TRAVEL = 0.16
+BALANCE_BAR_DEG = 7.0           # see OpenworkedFace.BalanceBarDegrees
+PEAK_DPS = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
 
 PIVOTS = {
     "escape": (387.158, 391.158),
@@ -81,7 +83,8 @@ def read(beats, fork_sign=1.0):
     advanced = n - 1.0 + (fork * heading + 1.0) / 2.0
     return {
         "balance": balance,
-        "speed": abs(math.cos(math.pi * (beats % 2.0))),
+        "speed": min(1.0, abs(math.cos(math.pi * (beats % 2.0)))
+                     * PEAK_DPS / 60.0 / BALANCE_BAR_DEG),
         "spring": balance * SPRING_TRAVEL,
         "fork": fork * FORK_BANK * fork_sign,
         "escape": advanced * ESCAPE_STEP,
@@ -122,10 +125,9 @@ def frame(beats, fork_sign=1.0, zoom=False):
             # The same cross-fade the face does, or this previews something the
             # app does not show - which is the one thing a preview must not do.
             im = fade(im, 1.0 - a["speed"])
+            # The smear is NOT rotated - it is rotationally invariant, so
+            # turning it would only add resampling noise. See the .xaml.
             blur = Image.open(os.path.join(ASSETS, "movement-balance-blur.png")).convert("RGBA")
-            px, py = PIVOTS["balance"]
-            blur = blur.rotate(-a["balance"], resample=Image.BICUBIC,
-                               center=(px * SCALE, py * SCALE))
             out = Image.alpha_composite(out, im)
             im = fade(blur, a["speed"])
         out = Image.alpha_composite(out, im)

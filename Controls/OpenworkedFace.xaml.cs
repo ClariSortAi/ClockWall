@@ -69,6 +69,27 @@ public sealed partial class OpenworkedFace : UserControl
     /// decision and lives here.</summary>
     private const double ForkBankDegrees = 7.0;
 
+    /// <summary>
+    /// The angular width of the balance's bar, which is what decides when the
+    /// wheel stops being resolvable.
+    ///
+    /// A feature cannot be seen as a feature once it sweeps more than its own
+    /// width inside one frame - past that it is a streak, and drawing it sharp
+    /// shows the eye a bar teleporting 119 degrees with nothing to track. That
+    /// is the difference between fast and chaotic. The bar is drawn 0.062 of
+    /// the rim radius either side of centre in escapement_geometry.py, so it
+    /// subtends about seven degrees; this is that number, and it is the only
+    /// place the two files have to agree.
+    /// </summary>
+    private const double BalanceBarDegrees = 7.0;
+
+    /// <summary>Taken as one frame for the smear calculation. Nominal on
+    /// purpose: the real interval varies, and the eye integrates over more like
+    /// two or three frames anyway, so a measured value would make the wheel
+    /// flicker between sharp and smeared as frames arrived early or late -
+    /// which is the exact artefact this is here to remove.</summary>
+    private const double NominalFrameSeconds = 1.0 / 60.0;
+
     /// <summary>How much of the balance's swing the hairspring takes. Not
     /// derived: the real distribution runs from all of it at the collet to none
     /// of it at the stud, and one number for the whole coil is the cheap
@@ -329,10 +350,14 @@ public sealed partial class OpenworkedFace : UserControl
         BalanceAngle.Angle = reading.Balance;
         ForkAngle.Angle = reading.Fork * ForkBankDegrees;
 
-        // ...and the wheel fades into its own smear as it picks up speed. See
-        // the note in the .xaml: this is answering the DISPLAY, not the watch.
-        BalanceBlur.Opacity = reading.BalanceSpeed;
-        BalanceSharp.Opacity = 1.0 - reading.BalanceSpeed;
+        // ...and the wheel fades into its own smear once the bar is moving too
+        // fast to be resolved - which, at 4 Hz, is nearly all the time. See the
+        // note in the .xaml: this answers the DISPLAY, not the watch.
+        var swept = reading.BalanceSpeed * Movement.PeakBalanceDegreesPerSecond
+                    * NominalFrameSeconds;
+        var smear = Math.Clamp(swept / BalanceBarDegrees, 0.0, 1.0);
+        BalanceBlur.Opacity = smear;
+        BalanceSharp.Opacity = 1.0 - smear;
 
         // The hairspring travels a fraction of the wheel's arc, because only the
         // inner coil goes with the staff - the outer end is pinned to the cock,

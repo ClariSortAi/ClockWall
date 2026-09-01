@@ -45,10 +45,29 @@ AMPLITUDE = 285.0
 FPS = 60.0
 
 # Peak angular speed of simple harmonic motion is amplitude * omega, and the
-# balance completes one oscillation every two beats.
+# balance completes one oscillation every two beats. 119 degrees per frame at
+# 4 Hz on a 60Hz panel - which is the LOWER bound on how far it smears, since
+# the eye integrates over more like two or three frames, not one.
 BEATS_PER_SECOND = VPH / 3600.0
 PEAK_DEG_PER_SEC = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
-SPAN = PEAK_DEG_PER_SEC / FPS          # 119 degrees at 4 Hz on a 60Hz panel
+FRAME_SWEEP = PEAK_DEG_PER_SEC / FPS
+
+# ...but the span is taken from the wheel's SYMMETRY instead, and that choice is
+# the difference between a smear that helps and one that only half helps.
+#
+# This balance is one bar through the centre - 180 degree symmetry - and four
+# inertia blocks at 90. Smeared over exactly 180 degrees both features average
+# into a perfectly uniform annulus, so the blurred wheel becomes rotationally
+# INVARIANT and turning it changes nothing at all. That is not a trick; it is
+# what a real smeared balance is. A rim is a smooth ring, and a ring does not
+# look different when you rotate it - which is why a running balance is calm to
+# watch and why measuring one frame against the next found this face's balance
+# producing 84% of all the change in the aperture.
+#
+# 119 degrees left the bar smeared but still lumpy, so rotating the smear went
+# on churning pixels for no visible motion. 180 is both wider than the frame
+# sweep (so, honest) and the exact point where the churn goes to zero.
+SPAN = 180.0
 
 SAMPLES = 49                           # odd, so the sharp position is included
 

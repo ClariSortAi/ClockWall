@@ -110,17 +110,29 @@
 
             A real balance answers it for us: it does not resolve into arms
             either. It smears into a translucent ring through the middle of the
-            swing and snaps into focus at the two turning points, where it is
-            momentarily stopped. So the sharp render and the smear trade places
-            on the balance's own angular speed, and at the speeds that alias
-            there is no detail left to alias. One RotateTransform over both,
-            because they are the same wheel.
+            swing and comes back into focus at the two turning points, where it
+            is momentarily stopped. So the sharp render and the smear trade
+            places, on whether the bar is sweeping more than its own width in a
+            frame - and at 4 Hz it nearly always is.
+
+            THE SMEAR DOES NOT TURN, and that is the whole point rather than an
+            optimisation. It is an average over 180 degrees, which is exactly
+            the bar's rotational symmetry and twice the inertia blocks', so it
+            comes out a uniform annulus - and a uniform annulus looks identical
+            however far you rotate it. That is not a trick either; it is what a
+            real balance IS. A rim is a smooth ring, so turning one changes
+            nothing you can see, which is why watching a running movement is
+            restful.
+
+            Measured at wall scale, the balance was producing 84% of all the
+            frame-to-frame change in this aperture. Sharp render turning, smear
+            held still, it now produces none: the change with the balance
+            running and the change with it stopped dead are the same number.
         -->
-        <Canvas Width="640" Height="640">
-            <Canvas.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Canvas.RenderTransform>
-            <Image x:Name="BalanceSharp" Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640" />
-            <Image x:Name="BalanceBlur" Source="ms-appx:///Assets/movement-balance-blur.png" Width="640" Height="640" Opacity="0" />
-        </Canvas>
+        <Image x:Name="BalanceSharp" Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640">
+            <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="292.0" CenterY="466.8" /></Image.RenderTransform>
+        </Image>
+        <Image x:Name="BalanceBlur" Source="ms-appx:///Assets/movement-balance-blur.png" Width="640" Height="640" Opacity="0" />
 
         <!-- The cock, and the shadow it throws across the balance turning under
              it. Static, but it has to be painted here rather than into the

@@ -47,15 +47,30 @@ DIAL_TOP = 47.0
 # and baking it into the base plate meant the balance was drawn over its own
 # bridge. It has to be a layer on top, and its shadow falls on the balance
 # rather than on the plate twenty units further down.
+#
+# The last value says to light the group on its OWN AXIS instead of by the
+# face's key. Only the balance asks for it, and it is the same exception the
+# hands get, for a stronger reason. A baked render carries its highlight in the
+# image, so rotating the image drags that highlight around with it - and the
+# balance turns through 570 degrees eight times a second. A specular band
+# sweeping round a rim is not what a turned wheel does; the rim is
+# rotationally symmetric and its highlight STAYS WHERE THE LIGHT IS.
+#
+# It is also most of why the movement reads as chaotic. Measured at wall scale,
+# the balance was producing 84% of all frame-to-frame change in the aperture,
+# and a real balance produces almost none - its rim is a smooth annulus, so
+# turning it changes nothing you can see. Lighting it axially makes rotation a
+# symmetry of the lighting again, and leaves only the bar and the timing screws
+# actually moving, which is what a real one shows.
 GROUPS = [
-    ("train", ("tpinion", "train", "tcollet"), PLATE_TOP),
-    ("escape", ("epinion", "escape", "ecollet"), PLATE_TOP),
-    ("fork", ("fork", "stones"), PLATE_TOP),
-    ("spring", ("spring",), PLATE_TOP),
-    ("balance", ("balance", "bscrews"), PLATE_TOP),
-    ("cock", ("cock", "screws"), BALANCE_TOP),
+    ("train", ("tpinion", "train", "tcollet"), PLATE_TOP, None),
+    ("escape", ("epinion", "escape", "ecollet"), PLATE_TOP, None),
+    ("fork", ("fork", "stones"), PLATE_TOP, None),
+    ("spring", ("spring",), PLATE_TOP, None),
+    ("balance", ("balance", "bscrews"), PLATE_TOP, "balance"),
+    ("cock", ("cock", "screws"), BALANCE_TOP, None),
 ]
-MOVING = {n for _, names, _ in GROUPS for n in names}
+MOVING = {n for _, names, _, _ in GROUPS for n in names}
 
 # Each hand is two tiers - a base and a raised ridge - which must render into
 # ONE image, because XAML turns one image per hand.
@@ -102,9 +117,17 @@ def main():
     show(static, catching=False)
     rl.render_to(os.path.join(rl.ASSETS, "movement-base.png"))
 
-    for group, names, catch_z in GROUPS:
+    for group, names, catch_z, axial in GROUPS:
         show(names, catching=True, z=catch_z)
+        if axial:
+            # Blender's y runs the other way from face space.
+            px, py = payload["pivots"][axial]
+            rl.clear_lights()
+            rl.lights_axial((px, -py))
         rl.render_to(os.path.join(rl.ASSETS, "movement-%s.png" % group))
+        if axial:
+            rl.clear_lights()
+            rl.lights()
 
     # ---- the case ---------------------------------------------------------
     # The catcher stays at plate height so the dial's opening casts DOWN into
