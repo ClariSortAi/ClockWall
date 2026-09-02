@@ -62,9 +62,10 @@ MOVING = ("train", "escape", "fork", "spring", "balance")
 
 # WHAT THE FACE ACTUALLY DOES. Every measurement below is taken against this,
 # because a row measured against some other configuration is not a measurement
-# of anything that ships. The smear threshold is the balance bar's own angular
-# width and the smear does not turn; see OpenworkedFace.
-SHIP = {"threshold": 7.0, "spin_blur": False}
+# of anything that ships. The balance cross-fades on its SPEED with no
+# threshold at all, its smear does not turn, and the three stepping parts get a
+# shutter across their jump; see OpenworkedFace.Draw.
+SHIP = {"threshold": None, "spin_blur": False, "shutter": True}
 
 # The parts that jump rather than glide, and the angular width below which their
 # jump stops being resolvable as a movement of a thing. A shutter, in other
@@ -101,16 +102,27 @@ def _fade(im, k):
     return Image.merge("RGBA", (r, g, b, a.point(lambda v: int(v * k))))
 
 
-# Peak angular speed of the balance, degrees per second, and how far it travels
-# in one 60Hz frame at that speed.
-PEAK_DPS = 285.0 * 2.0 * math.pi * 4.0
-PEAK_SWEEP = PEAK_DPS / FPS
+# How far the balance travels in one 60Hz frame at its fastest. From the
+# caliber rather than typed: this file had it at 4 Hz, which is the beat the
+# face had before the OM10's real tooth counts put it at 3.5.
+PEAK_SWEEP = bs.PEAK_DPS / FPS
 
 
 def smear_of(speed, threshold):
-    """How smeared the wheel should read. A feature cannot be resolved once it
-    sweeps more than its own width inside one frame, so the threshold is an
-    angular WIDTH and the law is a ratio, not a raw speed."""
+    """
+    How smeared the wheel should read.
+
+    None is what ships and what the physics asks for: the smear is a full-turn
+    rotational average, so cross-fading to it is a fade between stopped and
+    spinning and the control on that is speed itself.
+
+    A threshold is the other hypothesis - the rule the three stepping parts
+    use, where a feature stops being resolvable once it sweeps more than its
+    own width in a frame. On the balance that ratio is fifteen, so it clamps
+    for 96% of the oscillation and the wheel appears only in a spike at each
+    reversal. Kept as a row rather than deleted, because it is what the wall
+    was showing when it was reported as flickering between two states.
+    """
     if threshold is None:
         return speed
     return min(1.0, speed * PEAK_SWEEP / threshold)
@@ -196,7 +208,7 @@ def apparent_shift(p0, p1):
     return k - 360 if k > 180 else k
 
 
-def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=7.0,
+def audit(ims, scale, freeze=(), use_blur=True, frames=30, threshold=None,
           spin_blur=False, shutter=True):
     step = bs.BEATS_PER_SECOND / FPS
     seq = [compose(ims, scale, 4.0 + i * step, freeze, use_blur, threshold,
@@ -263,10 +275,12 @@ def main():
     ims, scale = _load()
     print("aperture at wall scale, 60fps sampling, two beats")
     print("lower is calmer, except that zero motion is a stopped watch\n")
-    show("deployed now", audit(ims, scale, shutter=False))
-    show("+ shutter on steppers", audit(ims, scale, shutter=True))
-    show("(before the balance fix)",
-         audit(ims, scale, threshold=None, spin_blur=True, shutter=False))
+    # The first row is what ships. It was labelled that while being measured
+    # with the shutter off, which the face has never run without.
+    show("deployed now", audit(ims, scale, **SHIP))
+    show("(threshold cross-fade)", audit(ims, scale, threshold=7.0))
+    show("(before the smear was pinned)",
+         audit(ims, scale, threshold=7.0, spin_blur=True, shutter=False))
 
     if "--ablate" in sys.argv:
         print()

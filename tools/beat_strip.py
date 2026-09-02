@@ -67,24 +67,27 @@ RES = 1920                      # the assets' native size
 FACE = 640.0
 SCALE = RES / FACE
 
-VPH = 28_800
-ESCAPE_TEETH = 15
-AMPLITUDE = 285.0
+# Read, never written out. The pivots moved when the assembly was scaled to
+# leave margin in the aperture, and the beat rate and tooth count changed when
+# the invented movement was replaced by the OM10 - a hardcoded copy of either
+# turns every number this file prints into a measurement of a watch that is not
+# the one on the wall. It had exactly that: 28,800 vph on a 15-tooth wheel,
+# which is 14% too fast and 12 degrees a step instead of 9.
+with open(os.path.join(ROOT, "captures", "geom", "profiles.json")) as _f:
+    _profile = json.load(_f)
+PIVOTS = {k: tuple(v) for k, v in _profile["pivots"].items()}
+
+VPH = _profile["vph"]
+ESCAPE_TEETH = _profile["escape_teeth"]
+AMPLITUDE = _profile["amplitude"]
 LIFT = 52.0
 FORK_BANK = 7.0                 # the face's exaggeration, from OpenworkedFace
 
 BEATS_PER_SECOND = VPH / 3600.0
 ESCAPE_STEP = 360.0 / (2.0 * ESCAPE_TEETH)
 TRAIN_STEP = -ESCAPE_STEP * eg.ESCAPE_PINION_LEAVES / eg.TRAIN_TEETH
-SPRING_TRAVEL = 0.16
-BALANCE_BAR_DEG = 7.0           # see OpenworkedFace.BalanceBarDegrees
+SPRING_TRAVEL = 0.05            # OpenworkedFace.SpringTravel
 PEAK_DPS = AMPLITUDE * 2.0 * math.pi * (BEATS_PER_SECOND / 2.0)
-
-# Read, never written out. These moved when the assembly was scaled to leave
-# margin in the aperture, and a hardcoded copy would have quietly rotated every
-# part about the wrong centre while still looking like a movement.
-with open(os.path.join(ROOT, "captures", "geom", "profiles.json")) as _f:
-    PIVOTS = {k: tuple(v) for k, v in json.load(_f)["pivots"].items()}
 
 APERTURE = (320.0, 450.0, 126.0)
 
@@ -99,8 +102,12 @@ def read(beats, fork_sign=1.0):
     advanced = n - 1.0 + (fork * heading + 1.0) / 2.0
     return {
         "balance": balance,
-        "speed": min(1.0, abs(math.cos(math.pi * (beats % 2.0)))
-                     * PEAK_DPS / 60.0 / BALANCE_BAR_DEG),
+        # Caliber.Reading.BalanceSpeed: the balance's angular speed as a
+        # fraction of its peak, and nothing else. It used to arrive with the
+        # face's smear threshold already multiplied into it, so any caller that
+        # applied that rule itself - motion_audit does - applied it twice and
+        # was auditing a face nobody had ever shipped.
+        "speed": abs(math.cos(math.pi * (beats % 2.0))),
         "spring": balance * SPRING_TRAVEL,
         "fork": fork * FORK_BANK * fork_sign,
         "escape": advanced * ESCAPE_STEP,

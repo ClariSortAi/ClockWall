@@ -70,20 +70,6 @@ public sealed partial class OpenworkedFace : UserControl
     private const double ForkBankDegrees = 7.0;
 
     /// <summary>
-    /// The angular width of the balance's bar, which is what decides when the
-    /// wheel stops being resolvable.
-    ///
-    /// A feature cannot be seen as a feature once it sweeps more than its own
-    /// width inside one frame - past that it is a streak, and drawing it sharp
-    /// shows the eye a bar teleporting 119 degrees with nothing to track. That
-    /// is the difference between fast and chaotic. The bar is drawn 0.062 of
-    /// the rim radius either side of centre in escapement_geometry.py, so it
-    /// subtends about seven degrees; this is that number, and it is the only
-    /// place the two files have to agree.
-    /// </summary>
-    private const double BalanceBarDegrees = 7.0;
-
-    /// <summary>
     /// How far each stepping part must travel in one frame before its jump
     /// stops being a movement and becomes a jolt. Half a tooth-space for the
     /// escape wheel, half the bank travel for the lever, and about a coil for
@@ -414,14 +400,47 @@ public sealed partial class OpenworkedFace : UserControl
         ForkSharp.Opacity = 1.0 - forkSmear;
         ForkBlurAngle.Angle = (reading.Fork + prev.Fork) / 2.0 * ForkBankDegrees;
 
-        // ...and the wheel fades into its own smear once the bar is moving too
-        // fast to be resolved - which, at 4 Hz, is nearly all the time. See the
-        // note in the .xaml: this answers the DISPLAY, not the watch.
-        var swept = reading.BalanceSpeed * Movement.PeakBalanceDegreesPerSecond
-                    * NominalFrameSeconds;
-        var smear = Math.Clamp(swept / BalanceBarDegrees, 0.0, 1.0);
-        BalanceBlur.Opacity = smear;
-        BalanceSharp.Opacity = 1.0 - smear;
+        // ...and the wheel trades places with its smear ON ITS SPEED, which is
+        // the whole of the fix for what the wall was showing. BalanceSpeed is
+        // |cos|: one as the balance whips through centre, zero where it stops
+        // to turn round. So the smear is thickest mid-swing and the sharp
+        // wheel owns the two reversals - which is where a real balance is
+        // momentarily still, and the only place a camera or an eye ever gets
+        // it in focus. The opacity is now a smooth function of the phase
+        // instead of a switch, and that is what makes this read as a swing.
+        //
+        // WHAT WAS HERE, AND WHY IT READ AS TWO FROZEN POSITIONS. The same
+        // |cos|, first multiplied by how far the bar travels in one frame over
+        // the bar's own angular width - 104 degrees over 7 - and then clamped.
+        // That gain is fifteen, so the clamp held at 1 for 96% of the
+        // oscillation and the sharp wheel existed only in a 6 ms spike at each
+        // reversal. A square wave, not a cross-fade. Measured on the deployed
+        // app the layer was on screen in 4 frames out of 240 and at the same
+        // two angles every time, which is exactly the complaint.
+        //
+        // THE FEATURE-WIDTH RULE IS RIGHT FOR THE OTHER THREE AND WRONG HERE.
+        // Smear() asks whether a part jumped further than the smallest feature
+        // on it, because what those parts fade to is ONE BEAT'S travel: a
+        // shutter held open across a jump, so it is either that jump or it is
+        // nothing, and a hard threshold is the honest control. What the
+        // balance fades to is a rotational average over a WHOLE TURN (see
+        // tools/smear.py), which is not a shutter - it is the wheel at speed.
+        // Cross-fading to that is a fade between stopped and spinning, so the
+        // control on it is speed itself.
+        //
+        // ponytail: the aliasing the old threshold was defending against is
+        // real and has not gone away - past about 60 degrees a frame, half the
+        // wheel's three-fold symmetry, the spokes appear to run backwards. It
+        // is defended differently now: the sharp layer is under 43% opacity
+        // everywhere that happens and falls to zero at the worst of it, over a
+        // smear that is uniform and therefore carries no direction at all. If
+        // the wall ever shows a counter-rotating ghost, this line is the one
+        // knob - a gain on BalanceSpeed, fading out where the aliasing starts
+        // rather than fifteen times too early. Do not put the clamp back
+        // without measuring it: tools/motion_check.py --balance fits the gain
+        // straight out of the pixels and its baseline is the failing one.
+        BalanceBlur.Opacity = reading.BalanceSpeed;
+        BalanceSharp.Opacity = 1.0 - reading.BalanceSpeed;
 
         // The hairspring travels a fraction of the wheel's arc, because only the
         // inner coil goes with the staff - the outer end is pinned to the cock,

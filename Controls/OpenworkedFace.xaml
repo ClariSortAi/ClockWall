@@ -123,33 +123,41 @@
 
             TWO COPIES, CROSS-FADED, because of the display and not the watch.
             This is the fastest thing in a watch: 285 degrees either side of
-            centre, four times a second, which at 60fps is up to 119 degrees
-            between consecutive frames. A two-armed wheel stepping 119 degrees
-            is indistinguishable from one stepping 61 the other way, so a
-            perfectly correct balance reads as a disc spinning at some huge
-            random speed. That is the wagon-wheel effect and it is a sampling
-            limit - there is no rate to correct, because the rate is right.
+            centre, 3.5 times a second, which at 60fps is up to 104 degrees
+            between consecutive frames. The wheel has three arms, so it repeats
+            every 120: stepping 104 is indistinguishable from stepping 16 the
+            other way, and a perfectly correct balance reads as a disc spinning
+            backwards at some random speed. That is the wagon-wheel effect and
+            it is a sampling limit - there is no rate to correct, because the
+            rate is right.
 
             A real balance answers it for us: it does not resolve into arms
             either. It smears into a translucent ring through the middle of the
             swing and comes back into focus at the two turning points, where it
             is momentarily stopped. So the sharp render and the smear trade
-            places, on whether the bar is sweeping more than its own width in a
-            frame - and at 4 Hz it nearly always is.
+            places ON SPEED - all smear as it whips through centre, all wheel
+            where it stops to turn round, and a continuous fade in between. See
+            OpenworkedFace.Draw: driving that cross-fade off a threshold
+            instead made it a square wave, and the wall showed a wheel snapping
+            between two frozen positions rather than swinging.
 
             THE SMEAR DOES NOT TURN, and that is the whole point rather than an
-            optimisation. It is an average over 180 degrees, which is exactly
-            the bar's rotational symmetry and twice the inertia blocks', so it
-            comes out a uniform annulus - and a uniform annulus looks identical
+            optimisation. It is an average over a full turn - more than the
+            wheel's own 120 degrees of symmetry, because the impulse pin on the
+            roller is a single feature with no symmetry at all - so it comes
+            out a uniform annulus, and a uniform annulus looks identical
             however far you rotate it. That is not a trick either; it is what a
             real balance IS. A rim is a smooth ring, so turning one changes
             nothing you can see, which is why watching a running movement is
-            restful.
+            restful. It is also what keeps the cross-fade safe at speed: a
+            layer with no angular structure cannot appear to run backwards, so
+            the fade to it is the fade away from the aliasing.
 
             Measured at wall scale, the balance was producing 84% of all the
-            frame-to-frame change in this aperture. Sharp render turning, smear
-            held still, it now produces none: the change with the balance
-            running and the change with it stopped dead are the same number.
+            frame-to-frame change in this aperture, and the shading baked into
+            it was orbiting the arbor. Sharp render turning, smear held still,
+            it produces none of that: the mainplate around it reads the same
+            whether the balance is running or stopped dead.
         -->
         <Image x:Name="BalanceSharp" Source="ms-appx:///Assets/movement-balance.png" Width="640" Height="640">
             <Image.RenderTransform><RotateTransform x:Name="BalanceAngle" CenterX="296.2" CenterY="464.2" /></Image.RenderTransform>
