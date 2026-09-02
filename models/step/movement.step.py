@@ -86,7 +86,23 @@ PLACE = L.make(BALANCE_XY, BALANCE_R, ESCAPE_BEARING)
 # just under the plate surface instead, which is what countersunk looks like
 # from above, and is the one place the real movement's z cannot be inherited
 # because the part it is measured against is not the part we are rendering.
-JEWEL_TOP = 5.8
+#
+# LOWERED from 5.8 once the plate became the OM10's own, and the reason is a
+# measurement rather than a preference. At 5.8 each stone sat just under the
+# plate's surface, which is where a jewel LOOKS right - and it put the stone's
+# hole around the fat part of every arbor instead of around the turned-down
+# pivot. The profiles say so: the balance staff is 0.54 units across from z
+# 0.71 to 2.36 and 1.34 above that; the escape pinion is 0.57 to z 0.97 and
+# 1.80 above; the fourth's pinion is 1.7 below z 0.32 and 3.24 above. Every one
+# of those steps happens between 0 and 3.5, so a stone whose bore starts at 2.5
+# is holding the shoulder and not the pivot, and interfere_check has been
+# reporting exactly that as three "pivot turning inside its jewel" contacts.
+#
+# 3.5 puts the stone from 0.55 to 3.50 - still wholly inside a plate that runs
+# 0 to 6.5, so nothing drops into the floor below it, and now around the thin
+# part of all three arbors. It also looks more like a countersunk jewel than
+# flush-mounting ever did: three units down a bore is a recess you can see.
+JEWEL_TOP = 3.5
 
 # The slim balance bridge's top face, in face units. It is the height the OM10
 # cock's top face used to sit at, and it is not a free choice: the cock screw's

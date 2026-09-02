@@ -244,6 +244,54 @@ def check_fork_axis(manifest):
           "(%.2f deg off); tolerance %.1f deg" % (bearing_tip, bearing_balance, delta, tol_deg))
 
 
+# ------------------------------------------- 2b. the plate is drilled for this movement
+
+def check_plate_bores(manifest):
+    """
+    Every pivot must run in a bore the OM10 actually drilled, and the bore
+    must be able to take the stone.
+
+    This is the invariant the plate change stands on. The mainplate is not
+    positioned against the movement by eye or by fitting - it goes through the
+    SAME similarity transform the parts do, so if both are the OM10's then a
+    real bore has to arrive under every real pivot. It does, to within 0.05
+    face units, which is 4 microns of watch and about a sixtieth of a rendered
+    pixel. Nothing was aimed there.
+
+    The second half is what makes it a check rather than a coincidence
+    detector: the bore has to be wide enough for the jewel. It is, and barely -
+    the escape and pallet bores measure 5.77 against a 5.91-unit stone, which
+    is the interference a jewel is pressed in with. A plate scaled or rotated
+    even slightly wrong would break one of the two halves.
+    """
+    plate = manifest.get("mainplate")
+    if plate is None:
+        check("mainplate drilling present", False,
+              "captures/cad/manifest.json has no mainplate - re-run cad_parts.py")
+        return
+
+    jewel = next(p for p in manifest["parts"] if p["name"] == "jewel_e")
+    jewel_r = (jewel["bbox"][2] - jewel["bbox"][0]) / 2.0
+    scale = manifest["scale"]
+
+    tol = 0.5                       # face units
+    worst = max(plate["bores"].items(), key=lambda kv: kv[1][3])
+    arbor, (_bx, _by, _br, d) = worst
+    check("every pivot runs in a real OM10 bore",
+          d <= tol,
+          "worst is %s at %.3f face units (%.4f mm); tolerance %.1f units "
+          "over %d bores" % (arbor, d, d / scale, tol, len(plate["bores"])))
+
+    # A stone that cannot enter its hole is a plate belonging to another watch.
+    tight = {k: v[2] for k, v in plate["bores"].items() if v[2] < jewel_r * 0.9}
+    check("every bore can take the jewel",
+          not tight,
+          "jewel radius %.2f units; smallest bore %.2f (%s)%s"
+          % (jewel_r, min(v[2] for v in plate["bores"].values()),
+             min(plate["bores"], key=lambda k: plate["bores"][k][2]),
+             "" if not tight else "; too tight: %s" % tight))
+
+
 # --------------------------------------------------- 3. cock screws in plate holes
 
 def check_screws_in_holes(manifest):
@@ -620,6 +668,7 @@ def check_cad():
 
     check_cock_jewel(manifest)
     check_fork_axis(manifest)
+    check_plate_bores(manifest)
     check_screws_in_holes(manifest)
     check_pallet_stones(manifest)
 

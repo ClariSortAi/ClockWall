@@ -197,7 +197,17 @@ def main():
     movement_names = [n for n in objects
                       if n not in case_names and n not in hand_names]
     static = [n for n in movement_names if n not in MOVING]
-    show(static, catching=False, casters=movement_names)
+    # AND THE CASE CASTS INTO IT TOO, which is what makes the opening a recess
+    # rather than a disc of grey paint. The plate sits 37 units below the dial
+    # and the dial is a lid with a hole in it: the sky the plate can see is the
+    # hole, not the whole room. Leaving the case out of `casters` lit the plate
+    # as if the dial above it did not exist, and wall_sheet measured the result
+    # - the aperture reading BRIGHTER than the dial around it, which no
+    # open-heart watch does. This is the honest half of that fix and the plate's
+    # own colour is the other half. It is legal because movement-base is a
+    # STATIC layer: the app never turns it, so a directional shadow baked into
+    # it stays where the light put it. See this file's header.
+    show(static, catching=False, casters=movement_names + case_names)
     rl.render_to(os.path.join(rl.ASSETS, "movement-base.png"))
 
     for group, names, catch_z, pivot_key in GROUPS:

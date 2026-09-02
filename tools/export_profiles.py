@@ -83,17 +83,20 @@ def cad_parts():
 def main():
     parts = eg.build()
 
-    collars, _rubies, _screws = eg.jewels_and_screws(
-        *eg.BALANCE[:2], *eg.ESCAPE[:2], *eg.STAFF)
-    parts["collars"] = collars
+    cad, cad_specs = cad_parts()
+
+    # The chatons, sized to the OM10's own bores against the OM10's own jewel.
+    # The stone's radius is read off the placed solid rather than typed: it is
+    # the same part fitted at four bearings, and what decides whether a bearing
+    # gets a setting at all is how that radius compares with the hole.
+    jewel = next(p for p in cad["parts"] if p["name"] == "jewel_e")
+    parts["collars"] = eg.collars((jewel["bbox"][2] - jewel["bbox"][0]) / 2.0)
 
     # Everything is clipped to the opening. The dial covers the rest, so a part
     # that runs past the edge - the train wheel does, deliberately - simply
     # stops there, exactly as it would if you were looking through the hole.
     ax, ay, ar = eg.APERTURE
     window = eg.disc(ax, ay, ar - 1.0, 320)
-
-    cad, cad_specs = cad_parts()
 
     payload = {
         "face": 640,

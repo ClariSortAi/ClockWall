@@ -727,7 +727,14 @@ SURFACES = {
     # back down with it - the darkness is now doing the separating, so the
     # surface is free to be as polished as the part really is, and a smoother
     # top is what lets the anglage read as a line rather than a smudge.
-    "escapement": ((0.205, 0.212, 0.230), 1.0, 0.22),
+    # ...and then down again with the plate, by the same factor, because what
+    # this number was ever set against is the plate behind it. See "plate"
+    # below: the plate had to come down to stop the opening being the brightest
+    # thing on the dial, and holding the escapement still while it moved would
+    # have re-run the failure recorded three paragraphs up with the signs
+    # swapped - the lever brighter than its background instead of equal to it.
+    # 0.205/0.430 was measured; 0.122/0.255 is the same fraction.
+    "escapement": ((0.096, 0.099, 0.108), 1.0, 0.22),
     "case":     ((0.760, 0.775, 0.810), 1.0, 0.150),
     "index":    ((0.840, 0.850, 0.880), 1.0, 0.055),
     "gold":     ((0.860, 0.660, 0.290), 1.0, 0.12),
@@ -739,15 +746,29 @@ SURFACES = {
     # is exactly the distinction a movement is finished on.
     "bridge":   ((0.700, 0.715, 0.750), 1.0, 0.21),
 
-    # The plate, brought UP. It was 0.300 against a cock at 0.680, so the
-    # brightest and largest thing in the window was the bridge over the balance
-    # and the plate read as a hole behind it. Every reference photograph has it
-    # the other way round: "plate and bridge metal make up most of what is
-    # visible in an openworked watch". Perlage is a matte finish, so this stays
-    # well under the polished parts - it is the quiet majority of the frame, not
-    # a competitor.
-    "plate":    ((0.430, 0.442, 0.470), 0.92, 0.30),
-    "floor":    ((0.145, 0.150, 0.168), 0.60, 0.60),
+    # The plate. It was brought UP to 0.430 when the aperture still held the
+    # OM10's decorated cock and the plate read as a hole behind it; that fight
+    # ended when the cock was replaced by a thin arm, and 0.430 then turned out
+    # to be winning a different one. tools/wall_sheet.py measures the opening
+    # against the dial touching it and read 1.177 - the aperture BRIGHTER than
+    # the dial, on a face whose aperture is a fifth of its width. From the
+    # doorway that is the only thing on the wall.
+    #
+    # Every open-heart photograph in captures/refs has it the other way: the
+    # Orient measures 0.588 and the Tissot 0.689, and both of those are silver
+    # dials, so the opening is not dark by accident - it is a recess, cut into
+    # a lacquered dial, with a movement sitting well below the crystal. A dial
+    # this face's own dark blue needs it darker still to read the same way.
+    #
+    # So: deep rhodium-grey, which is what a mainplate plated for the dial side
+    # actually is, and which reference photo 1's plate is once you stop reading
+    # its studio highlight as its colour. The perlage and the polished bevel do
+    # not change - a matte pattern on a dark metal is still a matte pattern -
+    # and the drilling that arrived with the real plate does more of the work
+    # than the colour does: seventeen real bores inside the opening, each one a
+    # well 6.5 units deep over a floor.
+    "plate":    ((0.200, 0.206, 0.219), 0.92, 0.30),
+    "floor":    ((0.105, 0.109, 0.122), 0.60, 0.60),
 }
 
 # Which way the balance bridge's arm runs, in the picture, so the cotes cross it

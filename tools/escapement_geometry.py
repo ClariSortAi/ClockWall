@@ -22,13 +22,17 @@ Face space throughout: 640x640, centre (320,320), degrees clockwise from twelve,
 screen y (down is positive, as in XAML).
 """
 
+import json
 import math
+import os
 import sys
 
 import om10_layout as _om10
 from shapely import affinity
 from shapely.geometry import LineString, Polygon
 from shapely.ops import unary_union
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ------------------------------------------------------------------ placement
 #
@@ -784,31 +788,32 @@ def crossed_wheel(cx, cy, R, teeth, root=0.93, tooth_deg=2.4,
     return wheel.difference(unary_union(cutters))
 
 
-def chaton(cx, cy, r_jewel=3.4 * U, collar=2.6 * U):
-    """A jewel setting: the steel collar. The ruby that sits in it is a
-    separate part, because it is a separate material."""
-    return disc(cx, cy, r_jewel + collar, 48).difference(disc(cx, cy, r_jewel, 40))
+def collars(jewel_r):
+    """
+    The steel chatons, each one sized to the bore the OM10 actually drilled.
 
+    A chaton is the setting a jewel is pressed into when the hole is wider than
+    the stone, so the ring is exactly the gap between the two - and where the
+    plate drilled the hole to the stone's own diameter there is NO chaton,
+    because the stone goes straight into the plate. That is a real distinction
+    and the measured bores make it for us: 11.06 units at the balance against a
+    5.91-unit jewel is a setting, 5.77 at the escape and the pallet is an
+    interference fit, 6.35 at the fourth wheel is a whisker of clearance.
 
-def jewels_and_screws(bx, by, ex, ey, sx, sy):
-    """The jewelled bearings and the blued screws, as three sets of shapes:
-    collars, rubies, screws. Positions are the pivots that actually exist -
-    balance staff, escape arbor, pallet staff - plus the screws that hold the
-    cock down."""
-    collars, rubies = [], []
-    for p, rj in (((bx, by), 3.6 * U), ((ex, ey), 2.8 * U), ((sx, sy), 2.4 * U),
-                  (TRAIN[:2], 3.0 * U)):
-        collars.append(chaton(p[0], p[1], rj))
-        rubies.append(disc(p[0], p[1], rj, 40))
-
-    ang = heading((bx, by), APERTURE[:2]) + 180.0
-    screws = []
-    for s in (-1, 1):
-        n = polar(0.0, 0.0, ang + 90.0, 4.4 * U * s)
-        anchor = polar(bx, by, 116.0, APERTURE[2] * 0.86)
-        screws.append(disc(anchor[0] + n[0], anchor[1] + n[1], 3.0 * U, 32))
-
-    return (unary_union(collars), unary_union(rubies), unary_union(screws))
+    The radii used to be four multiples of U picked to look right, and they
+    made four identical rings around four holes drilled to match them.
+    """
+    rings = []
+    for _arbor, (cx, cy, bore_r, _d) in drilling()["bores"].items():
+        # A ring thinner than this is under a pixel and a half on the wall, so
+        # it is noise rather than a setting. The escape and pallet bores are
+        # the stone's own diameter and the fourth's clears it by 0.44 units;
+        # only the balance has a hole a chaton could actually be made for.
+        if bore_r <= jewel_r + 1.0:
+            continue                       # the stone IS the bearing here
+        rings.append(disc(cx, cy, bore_r, 48).difference(
+            disc(cx, cy, jewel_r, 40)))
+    return unary_union(rings)
 
 
 def balance_screws(cx, cy, R, count=8, r=1.9 * U):
@@ -867,6 +872,26 @@ def collet(cx, cy, r):
     return disc(cx, cy, r, 64)
 
 
+def drilling():
+    """
+    The OM10 mainplate's own holes, in face coordinates.
+
+    Written by tools/cad_parts.py, because reading them off the real solid
+    needs trimesh and this module has to run under the system interpreter that
+    render.ps1 uses. See `mainplate_drilling` there for the whole argument;
+    the short version is that the plate and the parts are placed by the SAME
+    similarity transform, so the bores arrive under the pivots rather than
+    being aimed at them.
+    """
+    with open(os.path.join(_ROOT, "captures", "cad", "manifest.json")) as f:
+        payload = json.load(f)
+    if "mainplate" not in payload:
+        raise SystemExit(
+            "captures/cad/manifest.json has no mainplate drilling. Re-run\n"
+            "    .venv-cad\\Scripts\\python.exe tools/cad_parts.py")
+    return payload["mainplate"]
+
+
 def plate_openings():
     """
     Every hole in the mainplate, as one shape to subtract.
@@ -880,29 +905,34 @@ def plate_openings():
     The plate is drilled through and a darker floor sits below it, so a bore
     reads as a bore: a lit wall on one side, a shadowed wall on the other, and
     something further away at the bottom.
+
+    THESE ARE NOW THE REAL PLATE'S HOLES, and that is the difference between a
+    plate and a disc with six holes punched in it. Forty of them, twenty inside
+    the opening, and four land on the four pivots to within 0.05 face units -
+    which is not luck. The plate came out of the same movement as the parts and
+    went through the same transform, so the hole the escape wheel's pivot runs
+    in is the hole the escape wheel's pivot runs in. The bore at the escape
+    arbor measures 5.77 units against a jewel of 5.91: the OM10 drilled it as
+    an interference fit for that stone, and it still is one here.
+
+    What was here before was six discs at radii chosen to suit the chatons
+    drawn around them - correct-looking, and describing no watch.
     """
-    holes = []
-
-    # A jewel sink at every pivot that exists, sized to its chaton.
-    for (px, py), r in ((BALANCE[:2], 7.6), (ESCAPE[:2], 6.0),
-                        (STAFF, 5.2), (TRAIN[:2], 6.4)):
-        holes.append(disc(px, py, r, 48))
-
-    # The bores the cock screws thread into, at the cock's OWN screw holes.
-    #
-    # These used to come from a bearing-and-radius rule invented alongside the
-    # drawn cock. When the cock became the OM10's, the rule stayed put and left
-    # two countersunk holes in open plate on the far side of the aperture,
-    # threaded into nothing, with the actual screws forty units away. A hole
-    # that is not under a screw is a very quiet kind of wrong: it renders as a
-    # perfectly good bore.
-    for sx, sz in COCK_SCREWS:
-        holes.append(disc(*_PLACE.to_face(sx, sz), 4.2, 32))
-
-    return unary_union(holes)
+    return unary_union([Polygon(ring) for ring in drilling()["holes"]])
 
 
 def mainplate():
-    """The plate, drilled. Everything else in the aperture sits on this."""
+    """
+    The plate, drilled. Everything else in the aperture sits on this.
+
+    The DISC is still ours and the drilling is not, and that split is a framing
+    decision rather than a shortcut. The real plate is 366 face units across
+    with its centre 92 units from a 252-unit opening, so it covers 88 per cent
+    of the window and stops; what is on show is a REGION of a real mainplate,
+    which is exactly what an open-heart aperture shows of one. Filling the last
+    crescent with plate rather than leaving a gap is what the dial would be
+    covering if the case were a real one, and because the two are coplanar and
+    the same material the join has no edge to see.
+    """
     ax, ay, ar = APERTURE
     return disc(ax, ay, ar - 1.0, 320).difference(plate_openings())
