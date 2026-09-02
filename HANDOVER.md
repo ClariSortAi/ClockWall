@@ -41,7 +41,10 @@ Run in this order. `tools/render.ps1` does everything from step 3 on.
 3. `.venv-cad\Scripts\python.exe tools/cad_parts.py`
    Places every part into the face and writes `captures/cad/*.stl` plus a
    manifest carrying the pivots, materials and tooth counts. It loads
-   `models/step/movement.step.py`, which is the actual assembly.
+   `models/step/movement.step.py`, which is the actual assembly. It also
+   projects the OM10 mainplate and writes its drilling into the same manifest
+   in face coordinates, because `escapement_geometry` draws the plate and runs
+   under the system interpreter, where trimesh does not exist.
 
 4. `python tools/export_profiles.py`, then Blender, then `tools/smear.py`.
    Unchanged in shape. `export_profiles` now takes the movement from the CAD
@@ -121,6 +124,24 @@ dials, because every judgement made at render resolution has been wrong the
 same way: it read beautifully at 1920 and turned to mush at the 640 the wall
 actually gives it.
 
+The sheet also prints one number and exits non-zero on it, because "the
+aperture pulls the eye" is not a sentence two people read the same way. It is
+the mean luminance of the opening over the mean luminance of the band of dial
+immediately outside it, taken from the composited capture rather than from
+`Assets/`, and it has to come out under 1.0: the opening has to be darker than
+the dial around it. Every reference in `captures/refs` is, and by more than
+this face is - the Orient measures 0.588 and the Tissot 0.689, both of them
+against silver dials rather than a dark blue one. This face read 1.177 before
+the plate work and 0.836 after. In absolute terms its opening is now darker
+than either photograph's; what differs is the dial they are measured against.
+
+The band is local on purpose. Contrast is read against what a thing touches,
+and the far side of this dial carries the sunburst's own bright quadrant, which
+would swing the denominator for reasons that have nothing to do with the
+opening. `captures/wall/ratio-regions.png` draws every region over the image it
+was taken from, because the two reference circles are placed by hand and a
+ratio nobody can check is a ratio nobody should believe.
+
 ## The one idea worth keeping
 
 Every part of the escapement is placed by a **single similarity transform**:
@@ -158,10 +179,14 @@ lands at (-8.06, 3.51) in the movement's plane. That is the balance arbor read
 independently off the assembly. Two decimals, so the arbor, the extraction
 centring and the placement transform all agree.
 
-Both pallet stones reach inside the escape wheel's tooth-tip circle by 0.160 mm
-and 0.158 mm. Equal lock on entry and exit is what a correctly set escapement
-has, and two thousandths of a millimetre apart is not something a drawing gets
-by accident.
+Both pallet stones reach inside the escape wheel's tooth-tip circle, by 0.1612
+mm and 0.1803 mm. Equal lock on entry and exit is what a correctly set
+escapement has, and nineteen thousandths of a millimetre apart, against a
+tolerance of fifty, is not something a drawing gets by accident. (An earlier
+version of this file quoted 0.160 and 0.158. Those numbers do not come out of
+the code as it stands, and re-running the placement with the plate work stashed
+gives the pair above, so they are a stale transcription rather than a change
+anything made.)
 
 The stones bear 202.0 and 264.1 degrees from the escape arbor, 62.08 degrees
 apart. On a 20-tooth wheel that is 6.90 half tooth-spaces, so 7. The reasoning
@@ -170,9 +195,17 @@ arrives with a tooth pointing at the gap between the stones and cannot
 alternate. It is odd. Our own figure had been 5.
 
 `scripts/inspect validate` reports ok with zero failures.
-`tools/interfere_check.py` reports 7 contacts, all of them press fits and
+`tools/interfere_check.py` reports 6 contacts, all of them press fits and
 bearings that are declared with their reason, and no part passing through
-another. `tools/placement_invariants.py` passes 7 of 7.
+another. `tools/placement_invariants.py` passes 9 of 9.
+
+The four pivot bores are the newest of those nine and the cheapest to explain.
+Every pivot has to run in a hole the OM10 actually drilled, and the hole has to
+be able to take the stone. Both halves hold: the worst bore sits 0.053 face
+units from its pivot, which is four microns of watch, and the tightest measures
+5.77 units against a 5.91-unit jewel, which is the interference a jewel is
+pressed in with. A plate scaled or turned even slightly wrong breaks one of the
+two.
 
 `tools/beat_strip.py` is now stale and was not updated. It draws from
 `escapement_geometry`'s own outlines, which are no longer what gets rendered for
@@ -202,6 +235,17 @@ depth is measured against a mainplate 9.42 mm thick, which is 111 face units
 here, against the 6.5-unit plate this face uses. Carried across literally they
 bury themselves several plate-thicknesses down and render as nothing. They are
 placed by an explicit top-face height instead.
+
+**The OM10 manifest's mainplate thickness is not the mainplate's.** The
+manifest records the plate as 9.42 mm between z -4.41 and 5.01. The STEP and
+the STL the extractor actually wrote span 2.21 to 4.71, so 2.5 mm, and their
+volumes agree with each other to three decimals. What the manifest quotes is
+`BRepBndLib`'s box, taken before the solid is triangulated, and on a plate full
+of cylindrical bores that box is loose in exactly the axis that comes from the
+OM10's own y. Nothing in the render depends on it, because the drilling is a
+plan projection and the plate is extruded to the face's own 6.5 units. It
+matters only if somebody quotes 9.42 as a real plate thickness, which this file
+did until now.
 
 **`build123d` is patched in `.venv-cad`.** One malformed file in the Windows
 font folder, `C:\Windows\Fonts\mstmc.ttf`, raises "bad sfntVersion" during the
@@ -259,11 +303,40 @@ aperture at all. It has been replaced with a thin front-view arm,
 photographs of open-heart and skeleton dials rather than against the OM10 cock
 it stands in for. See that function's docstring for the full reasoning.
 
-The plate is the headline item left. It is still ours: a 6.5-unit disc with
-bores, plain against the real parts sitting on it. The OM10 mainplate is in
-`captures/om10/parts/mainplate.step` if anyone wants to try it, though at this
-scale it is 363 face units across against a 252-unit aperture, so bringing it
-in is a framing decision and not a drop-in. `HANDOVER-REALISM.md`'s closing
-section has the rest of what is still open: viewing-distance legibility through
-the dial's crystal, and a bridge-foot screw that sits close to the plate's rim
-at the plate's current size.
+The plate is no longer ours. Every hole in it comes out of
+`captures/om10/parts/mainplate.step`: `cad_parts.py` projects the real solid,
+carries the plan into face coordinates through the same similarity the parts go
+through, and writes it into the manifest, where
+`escapement_geometry.plate_openings()` reads it. Forty holes, twenty of them
+inside the opening, and the four that matter land on the four pivots to within
+0.05 face units. Nothing aimed them there. They arrive under the pivots because
+the plate and the parts came out of the same movement and went through the same
+transform.
+
+What is still ours is the disc under the drilling, and that is the framing
+decision this always was. The real plate is 366 face units across with its
+centre 92 units from a 252-unit opening, so it reaches 88 per cent of the way
+across the window and stops. The far upper-left crescent is plate we drew,
+coplanar with the real one and in the same material, so the join has no edge to
+find. Covering the whole opening with the real outline instead would mean
+shrinking the movement, which is a rescale, which is pivot coordinates in the
+XAML and somebody's decision rather than a render setting.
+
+Two things followed from having real bores. The chatons are now the gap between
+each hole and the stone that goes in it, which leaves exactly one: the balance's
+hole is 11.06 units against a 5.91-unit jewel, while the escape and pallet bores
+are 5.77 and take the stone directly. And the jewels came down. `JEWEL_TOP` was
+5.8, which is where a stone looks right and where every arbor is at its widest;
+at 3.5 each one sits around the turned-down pivot instead, still wholly inside a
+plate that runs 0 to 6.5. `interfere_check.py` went from seven contacts to six:
+the balance staff stopped touching its jewel at all, and the fourth wheel's
+halved from 0.0396 to 0.0200 mm3.
+
+The bridge foot's screw still sits 112 units out on a plate of 126, and it is
+now defensible rather than tolerated. The OM10 drilled a hole there, it is one
+of the forty, and the screw goes into it. It is near the rim because the
+aperture is cut where it is, not because there is anything wrong with the screw.
+
+`HANDOVER-REALISM.md`'s closing section has the one left: legibility at the
+wall's real viewing distance, through the dial's crystal haze. The wall sheet
+answers the scale half of that and nothing has been tried on the haze.

@@ -1,5 +1,44 @@
 # Handover: making the watch face real
 
+## Closed 2026-09-01, evening session
+
+The plate was the last named gap and it is closed. It reads as a recess now
+instead of as the brightest thing on the dial, and there is a number on the
+wall sheet that says so: the opening measured 1.177 times the luminance of the
+dial touching it and now measures 0.836. The two open-heart photographs in
+`captures/refs` measure 0.588 and 0.689, so this face is on the right side of
+the line without being a hole cut in the dial. In absolute terms its opening is
+darker than either of theirs; what differs is that they are silver dials and
+this one is dark blue.
+
+The instrument came first and it lives in `tools/wall_sheet.py`, which now
+exits non-zero when the opening is the brighter of the two.
+`captures/wall/ratio-regions.png` draws every region it measured over the
+picture it measured it on, because the reference circles are hand-placed.
+
+The plate itself is the OM10's. Not the solid, which is 2.5 mm against the 6.5
+face units this stack has room for, but the drilling: forty holes projected off
+the real mainplate and carried into the face by the same similarity transform
+the parts go through. Four of them land on the four pivots to within 0.05 face
+units, which is not a fit anybody made, and the escape and pallet bores measure
+5.77 units against a 5.91-unit jewel, which is a press fit the OM10 designed
+and this face inherited. `placement_invariants.py --cad` now asserts both, and
+passes 9 of 9.
+
+Seating the jewels in those bores paid for itself. `JEWEL_TOP` came down from
+5.8 to 3.5, which puts every stone around the thin part of its arbor rather
+than the shoulder above it, and `interfere_check.py` went from seven contacts
+to six: the balance staff's contact with its jewel disappeared and the fourth
+wheel's halved.
+
+Two other things were changed and both are recorded where they were made. The
+plate's base colour went from 0.430 to 0.200 with the escapement following it
+down by the same fraction, so the hierarchy the last session measured survives.
+And the case now casts into the base pass, which is the honest half of the
+darkening: the plate sits 37 units under a dial with a hole in it, and it was
+being lit as though the dial were not there. That is legal because
+`movement-base` is a static layer.
+
 ## Closed 2026-09-01, afternoon session
 
 A third session picked this up to re-baseline, tidy, and commit what the
@@ -42,6 +81,9 @@ render resolution or in a close crop. And the bridge foot's screw sits close to
 the plate's rim, about 112 of its roughly 126-unit radius, which is fine at the
 plate's current size but is worth rechecking if the mainplate above ever
 replaces it.
+
+(Two of those three were closed by the evening session at the top of this file.
+The crystal haze is the one left.)
 
 Gates are green: `tools/placement_invariants.py` passes 7 of 7 (an 8th check
 retired along with the second cock screw, see `movement.step.py`'s
