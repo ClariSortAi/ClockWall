@@ -36,11 +36,16 @@
         has to be its own layer rather than part of the plate, or the balance is
         drawn over its own bridge.
 
-        EACH MOVING PART CARRIES ITS OWN SHADOW. The renders put the rotating
-        groups over an invisible shadow catcher, so a wheel's shadow is inside
-        the wheel's own image and turns with it. Baking those shadows into the
-        static plate instead left them pointing the same way all day while the
-        wheels spun.
+        NO MOVING PART CARRIES A SHADOW, and the note that used to sit here
+        said the opposite. Each rotating group was rendered over a shadow
+        catcher so its shadow lived in its own image, which meant the shadow
+        orbited the arbor every time this file turned the image. Measured, that
+        was half of each wheel's alpha lying twenty to sixty units off the
+        pivot, all of it at the key light's bearing. The shadows are baked into
+        movement-base.png now, at the positions the parts occupy, and every
+        layer with a RotateTransform below is lit on its own axis instead. See
+        tools/blender_face.py. tools/placement_invariants.py is what holds it,
+        in its assets half, and it reads the transforms out of this file.
 
         ONE CLOCK DRIVES ALL OF IT. Every RotateTransform below is written from
         a single Caliber.Read on a single frame. Nothing here is a Storyboard,

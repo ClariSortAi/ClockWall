@@ -37,6 +37,7 @@ import os
 
 import bmesh
 import bpy
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -125,7 +126,7 @@ def world(path=HDRI, strength=WORLD_STRENGTH, rotation=WORLD_ROTATION):
     mapping = nt.nodes.new("ShaderNodeMapping")
     tex = nt.nodes.new("ShaderNodeTexCoord")
 
-    env.image = bpy.data.images.load(path)
+    env.image = bpy.data.images.load(path, check_existing=True)
     bg.inputs["Strength"].default_value = strength
     mapping.inputs["Rotation"].default_value = (0.0, 0.0, math.radians(rotation))
 
@@ -133,6 +134,93 @@ def world(path=HDRI, strength=WORLD_STRENGTH, rotation=WORLD_ROTATION):
     nt.links.new(mapping.outputs["Vector"], env.inputs["Vector"])
     nt.links.new(env.outputs["Color"], bg.inputs["Color"])
     nt.links.new(bg.outputs["Background"], out.inputs["Surface"])
+    return env
+
+
+def _ring_of(path=HDRI, percentile=99.0):
+    """
+    The same measured studio, rebuilt as a ring light on the camera's axis.
+
+    An equirectangular environment's rows ARE lines of constant elevation, so
+    collapsing each row to a single value and repeating it across the row makes
+    an environment that cannot tell one compass bearing from another. What each
+    row collapses TO is the whole question, and the mean is the wrong answer: a
+    mirror shows the radiance it points at, not the average of the room, so
+    averaging a softbox over the dark wall either side of it dims every
+    reflection by about three times and the parts come back flat and dark. It
+    is the right average for the total light in the room and the wrong one for
+    what a polished bevel does.
+
+    A high percentile instead says: take the brightest thing at this elevation
+    and put it at EVERY bearing at this elevation - which is a ring of the
+    studio's own softboxes rather than one of them. The panel's radiance
+    survives, so a chamfer still throws its hard white line, and now it throws
+    it all the way round the contour. That is what reference photo 13 shows a
+    polished edge doing, and it is the finish this face is trying to have. The
+    percentile rather than the maximum only so that a single blown lamp pixel
+    cannot become a bright ring; a softbox spans a tenth of its row, so it sits
+    well inside the top per cent.
+
+    THIS IS WHY A MOVING PART GETS ONE AT ALL. The environment is the material
+    here - every part is metal, and metal shows what it reflects - so lighting
+    a rotating sprite under the real studio bakes the softbox into it as a
+    bright side, and the app then turns the sprite and the bright side orbits
+    the arbor once a turn. Nothing measured is thrown away here: the studio's
+    own elevation profile is kept whole, and only the bearing it came from is
+    forgotten, which is exactly the thing a mover is not allowed to remember.
+
+    AND THEN IT IS BROUGHT BACK TO THE STUDIO'S OWN LEVEL, which is the step
+    that keeps this from needing a second brightness dial next to
+    WORLD_STRENGTH. Replicating the softbox round the axis multiplies the light
+    in the room by about nine and a half, so a mover lit by the raw ring
+    renders as a different, brighter watch from the plate it sits on. Scaling
+    the ring so its mean radiance equals the source studio's says: same room,
+    same amount of light in it, arranged in a circle instead of in a corner.
+    One number, derived from the HDRI rather than tuned against it, so
+    replacing the HDRI cannot silently change the exposure of half the face.
+
+    Built once and cached; a 2k HDR is about eight million floats to reduce.
+    """
+    cached = bpy.data.images.get("studio_axial")
+    if cached is not None:
+        return cached
+
+    src = bpy.data.images.load(path, check_existing=True)
+    w, h = src.size
+    buf = np.empty(w * h * 4, dtype=np.float32)
+    src.pixels.foreach_get(buf)
+    px = buf.reshape(h, w, 4)
+    rows = np.percentile(px, percentile, axis=1)
+
+    def _lum(a):
+        return float((a[..., 0] * 0.299 + a[..., 1] * 0.587
+                      + a[..., 2] * 0.114).mean())
+
+    ring_lum = _lum(rows)
+    if ring_lum > 0.0:
+        rows = rows * (_lum(px) / ring_lum)
+
+    # Wider than one pixel only so no sampler has to interpolate against
+    # nothing; every column is the same, which is the whole point.
+    out_w = 8
+    dst = bpy.data.images.new("studio_axial", out_w, h, alpha=False,
+                              float_buffer=True)
+    dst.colorspace_settings.name = src.colorspace_settings.name
+    tile = np.repeat(rows[:, None, :], out_w, axis=1).astype(np.float32)
+    tile[..., 3] = 1.0
+    dst.pixels.foreach_set(tile.ravel())
+    dst.update()
+    return dst
+
+
+def world_axial(strength=WORLD_STRENGTH):
+    """`world()`, but with nothing in it that can tell one bearing from another.
+
+    For the layers the app ROTATES. Rotation has to be a symmetry of everything
+    that lights a mover, and the environment lights these parts more than the
+    lamps do."""
+    env = world(strength=strength, rotation=0.0)
+    env.image = _ring_of()
     return env
 
 
@@ -191,14 +279,20 @@ def lights():
 
 def lights_axial(centre=(320.0, -320.0)):
     """
-    Lighting for the hands, and for them alone.
+    Lighting for a layer the app turns. `centre` is the arbor it turns about.
 
-    Every source is centred on the hands' own pivot axis, which makes the setup
-    rotationally symmetric about it - so rotating a hand is a SYMMETRY of the
-    lighting, and one baked image is correct at all twelve hours rather than
-    only at the one it was rendered at. Bake a hand under the raking key instead
-    and its lit facet turns with it, so at six o'clock it is lit from the lower
-    right while every other shadow on the dial still points upper left.
+    Every source sits on that axis, which makes the setup rotationally
+    symmetric about it - so rotating the layer is a SYMMETRY of the lighting,
+    and one baked image is correct at every angle rather than only at the one
+    it was rendered at. Bake a hand under the raking key instead and its lit
+    facet turns with it, so at six o'clock it is lit from the lower right while
+    every other shadow on the dial still points upper left; bake a wheel under
+    it and the bright side of the rim orbits the arbor once a turn.
+
+    It started as the hands' exception and is now the rule for everything that
+    moves. `lights()` - the directional drama - is for the layers that hold
+    still, where a fixed light direction is what makes the face look like one
+    object photographed once.
     """
     area_light("axial", (centre[0], centre[1], 1500.0), radiance=0.72, size=520, aim=False)
     area_light("axial_tight", (centre[0], centre[1], 700.0), radiance=1.6, size=90, aim=False)
@@ -907,11 +1001,20 @@ def shadow_catcher(aperture, z):
     """
     An invisible disc that collects a shadow onto its own transparent layer.
 
-    This is what lets a moving part carry its own shadow. Render the balance
-    alone above one and the image comes back as the wheel PLUS the shadow it
-    casts, on alpha - so when XAML turns that image, the shadow turns with it.
-    Baking the same shadow into the static plate leaves it pointing the same way
-    all day while the wheel spins.
+    FOR STATIC LAYERS ONLY, and the comment that used to sit here said the
+    opposite: "this is what lets a moving part carry its own shadow". It does,
+    and that was the bug. Render the balance above one and the image comes back
+    as the wheel PLUS the shadow it casts, so when XAML turns the image the
+    shadow orbits the arbor - measured at 46% of that layer's alpha, sitting 18
+    units off the pivot. No still frame shows it and nothing else on the wall
+    is visible while it happens.
+
+    A cast shadow belongs to the surface it lands on, which is the mainplate,
+    which never moves. blender_face.py bakes them there instead, by letting the
+    movers cast into the base pass while staying invisible to the camera. What
+    is left for this disc is the cock, the case and the hand cap - the layers
+    that are painted once and held still, where a shadow is free to point
+    wherever the light says.
     """
     ax, ay, ar = aperture
     bpy.ops.mesh.primitive_circle_add(vertices=128, radius=ar - 1.0,
