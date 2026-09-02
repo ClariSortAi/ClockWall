@@ -47,6 +47,80 @@ Run in this order. `tools/render.ps1` does everything from step 3 on.
    Unchanged in shape. `export_profiles` now takes the movement from the CAD
    manifest and only draws the plate, the floor and the jewel collars itself.
 
+## Two laws, and the instruments that hold them
+
+### Nothing directional may be baked into a layer that moves
+
+A cast shadow belongs to the surface it lands on and a raking highlight belongs
+to the lamp that threw it. Bake either into a sprite the app rotates and it
+orbits the arbor once a turn: the geometry is right, the light is right, and
+what the wall shows is a gear wobbling. No single frame shows it, which is why
+it survived every screenshot anybody took of this face.
+
+The render now splits on one question, and `Controls/OpenworkedFace.xaml`
+answers it: does the app turn this layer?
+
+A layer that turns gets no shadow catcher at all, an environment collapsed onto
+its own axis (`render_lib.world_axial`, the studio HDRI rebuilt as a ring
+light), lamps on the same axis (`lights_axial`), and nothing else visible to
+its reflected rays. Rotating it is then a symmetry of everything lighting it.
+That covers the five movement groups, their smear twins and the three hands.
+
+A layer that holds still keeps the directional key and its catcher: the
+mainplate base, the cock, the case, the cap over the hand pivots. Every cast
+shadow in the face now lives on one of those four.
+
+The grounding moved with the shadows. Movers cast into the base pass while
+staying invisible to the camera, so each wheel's contact pool sits on the plate
+under the wheel and stays there while the wheel turns. The hands were given no
+shadow rather than an argument about which shadows are axial enough; the cap is
+what says they stand off the dial.
+
+`python tools/placement_invariants.py --assets` is the gate, and
+`tools/render.ps1` throws at step 5 until it passes. It reads the
+RotateTransforms out of the XAML, so a layer that gains one gains a gate on the
+same edit. Of a symmetric mover it asks whether the alpha centroid sits on the
+pivot; of any mover, how much alpha lies outside the part's own silhouette.
+Before the relight, ten layers failed fourteen checks, with 46 to 50 per cent
+of each wheel's alpha off the part and nearly all of it bearing about 235
+degrees, which is the key light's direction rather than any wheel's. After it,
+the worst layer reads 1.1 per cent and no centroid is further than 0.05 units
+from its pivot.
+
+Do not soften `SOLID_ALPHA`, `PART_MARGIN`, `STRAY_FRACTION_MAX` or
+`CENTROID_MAX`. Each was set against these layers and the file says how. The
+gate is deliberately blind in one place, a shadow lying along a hand's own
+axis, because an axial source really does cast one that way. It is written down
+as evidence for whoever reads a failure, not as a hole to drive a shadow
+through.
+
+### The wall is the acceptance test
+
+Nothing here is settled from a crop at render resolution. Render, build,
+deploy, screenshot the deployed app, then look at the sheet:
+
+    .\tools\render.ps1                                    # ~8 min, one Blender ever
+    dotnet build ClockWall.csproj -c Release -r win-x64
+    python tools/motion_check.py                          # ~20 s, takes the foreground
+    .\deploy.ps1
+    ClockWall.exe --screenshot captures\wall\deployed.png
+    python tools/wall_sheet.py captures\wall\deployed.png
+
+The order matters. `Assets/` reaches `bin/` only at build time and
+`%LOCALAPPDATA%` only at deploy time, so a screenshot taken before either one
+shows the previous render. `motion_check.py` runs the built app and watches it
+move, which is the question `placement_invariants.py` cannot ask: what the user
+complains about is a composite that has been cross-faded, scaled to the panel
+and covered by three hands. Its baseline lives in
+`captures/motion/scores-baseline.json` and is never overwritten, so every run
+prints a before and an after.
+
+`captures/wall/wall-sheet.png` is the only artifact appearance may be judged
+from. It shows the face at full size, half and a quarter beside real open-heart
+dials, because every judgement made at render resolution has been wrong the
+same way: it read beautifully at 1920 and turned to mush at the 640 the wall
+actually gives it.
+
 ## The one idea worth keeping
 
 Every part of the escapement is placed by a **single similarity transform**:
