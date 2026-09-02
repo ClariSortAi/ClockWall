@@ -105,6 +105,7 @@ deploy, screenshot the deployed app, then look at the sheet:
     .\tools\render.ps1                                    # ~8 min, one Blender ever
     dotnet build ClockWall.csproj -c Release -r win-x64
     python tools/motion_check.py                          # ~20 s, takes the foreground
+    python tools/motion_check.py --balance                # ~20 s, same
     .\deploy.ps1
     ClockWall.exe --screenshot captures\wall\deployed.png
     python tools/wall_sheet.py captures\wall\deployed.png
@@ -117,6 +118,21 @@ complains about is a composite that has been cross-faded, scaled to the panel
 and covered by three hands. Its baseline lives in
 `captures/motion/scores-baseline.json` and is never overwritten, so every run
 prints a before and an after.
+
+`--balance` is the same capture put to a different question, and it is the one
+the balance needs. The plate score asks whether anything moves that should not.
+This asks whether the one part that swings rather than steps is swinging. It
+cannot watch a 286 ms oscillation at the eight frames a second a screen grab
+manages, and it does not try: every frame carries the instant it was taken and
+the movement is a function of the wall clock alone, so folding 240 stamps into
+beat phase rebuilds one oscillation out of frames taken at any rate at all. The
+capture rate stops mattering; only the count does. Then it rotates the balance's
+own render against the annulus in each frame, which gives the angle and, as the
+regression coefficient, how much of the sharp layer was on screen.
+`captures/motion/balance-waveform.png` plots both against one folded
+oscillation and `balance-frames.png` puts six captures beside the render turned
+to the angle claimed for them, because an angle estimator nobody has checked
+against pixels is an angle estimator nobody should believe.
 
 `captures/wall/wall-sheet.png` is the only artifact appearance may be judged
 from. It shows the face at full size, half and a quarter beside real open-heart
@@ -207,10 +223,12 @@ units from its pivot, which is four microns of watch, and the tightest measures
 pressed in with. A plate scaled or turned even slightly wrong breaks one of the
 two.
 
-`tools/beat_strip.py` is now stale and was not updated. It draws from
+`tools/beat_strip.py`'s strip drawing is still stale. It draws from
 `escapement_geometry`'s own outlines, which are no longer what gets rendered for
 any moving part. The question it existed to answer, whether a pallet stone meets
-a tooth, is answered above by measurement instead.
+a tooth, is answered above by measurement instead. Its copy of the physics is
+not stale any more, because `motion_audit` imports it and was giving wrong
+answers on the strength of it; see the balance entry under Still open.
 
 ## Traps
 
@@ -336,6 +354,54 @@ The bridge foot's screw still sits 112 units out on a plate of 126, and it is
 now defensible rather than tolerated. The OM10 drilled a hole there, it is one
 of the forty, and the screw goes into it. It is near the rim because the
 aperture is cut where it is, not because there is anything wrong with the screw.
+
+The balance swings again. It was reported from the wall as flickering between
+two apparent states, and it was. `Draw` faded the sharp wheel into its smear on
+the rule the three stepping parts use, which asks whether a part has moved
+further in one frame than the smallest feature on it. For the balance that
+ratio is fifteen, so the clamp sat at full smear for 96 per cent of every
+oscillation and the sharp wheel existed only in a six-millisecond spike at each
+reversal. Measured on the deployed app it was on screen in four frames out of
+240, at the same two angles both times. Those two angles are the two states.
+
+It now fades on speed itself, which is `reading.BalanceSpeed`, which is |cos|:
+thickest smear through centre, the wheel in focus at the two turning points
+where a real balance is momentarily stopped. Fitting a gain on |cos| back out
+of the pixels gives 15.43 before and 1.05 after, against 1.00 for a fade that
+tracks speed exactly. The wheel is seen sharp through 62 per cent of its swing
+instead of 8, in two arcs 38 degrees wide instead of two five-degree dwells,
+and where it is caught it sits 2.8 degrees from where `Caliber` says it is.
+`captures/motion/balance-baseline.json` holds the failing run.
+
+What is not settled is the aliasing that threshold was over-defending against.
+The wheel has three arms, so it repeats every 120 degrees, and past 60 degrees
+in a frame the spokes appear to run backwards. That covers most of the swing.
+The sharp layer is under 43 per cent opacity everywhere it happens and reaches
+zero at the worst of it, over a smear with no angular structure to run
+backwards at all, so the argument is that nothing coherent is left to see. That
+is an argument rather than a measurement. If the wall shows a counter-rotating
+ghost, the knob is a gain on `BalanceSpeed` in `Draw`, fading out where the
+aliasing starts instead of fifteen times before it, and `--balance` will read
+whatever is set there. Do not put the old clamp back without measuring it.
+
+The cross-fade does modulate the light in the annulus, because a wheel in focus
+and a wheel smeared into a ring do not carry the same amount of it. Over the
+whole aperture that comes to 0.7 per cent, against 0.6 before, which is what
+the third panel of the waveform plot is for.
+
+`tools/motion_audit.py` had been auditing a face nobody shipped, and its
+numbers should be read knowing what was wrong with them. Its physics comes from
+`beat_strip.py`, which still had 28,800 vph and a 15-tooth escape wheel, and
+`beat_strip.read` was returning the balance's speed with the face's smear
+threshold already multiplied into it, so `motion_audit` applied that threshold a
+second time. Its first row, labelled "deployed now", was also drawn with the
+shutter off, which the face has never run without. Rate and tooth count now come
+from `profiles.json`, `read` returns the speed `Caliber` means by that name, and
+the three rows are what ships, the threshold cross-fade that was just removed,
+and the build before the smear was pinned. On those rows the jolt, which is the
+worst frame's change over the typical frame's, was 44.5x with the threshold and
+is 2.0x now. That is the same defect counted a second way. `beat_strip`'s own
+strip drawing is still stale for the reasons already given above.
 
 `HANDOVER-REALISM.md`'s closing section has the one left: legibility at the
 wall's real viewing distance, through the dial's crystal haze. The wall sheet
