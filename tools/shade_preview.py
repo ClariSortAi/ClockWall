@@ -22,6 +22,13 @@ FLAGS
                   which is what most shading questions are actually about
                   ("is the cock still a white slab") and is most of why this
                   is fast: a border render only costs what is inside it.
+    --axial       Light the crop with the MOVERS' rig instead of the face's:
+                  render_lib.world_axial() plus render_lib.lights_axial() on
+                  the balance arbor. Nothing directional may be baked into a
+                  layer the app turns, so every moving group is rendered this
+                  way, and this is the cheap way to ask whether the parts still
+                  read as metal once the softbox has been averaged round the
+                  axis. Render it twice, with and without, and compare.
     --out NAME    Output file base name. Writes captures/preview/NAME.png.
                   Defaults to "full" or "aperture" depending on the mode above.
     --samples N   EEVEE render samples. Default 24: enough to read shape,
@@ -72,6 +79,7 @@ def _args():
     argv = argv[argv.index("--") + 1:] if "--" in argv else []
 
     full = "--full" in argv
+    axial = "--axial" in argv
     samples, res, name = 24, None, None
     for i, a in enumerate(argv):
         if a == "--samples" and i + 1 < len(argv):
@@ -84,12 +92,12 @@ def _args():
     if res is None:
         res = 640 if full else 900
     if name is None:
-        name = "full" if full else "aperture"
-    return full, samples, res, name
+        name = ("full" if full else "aperture") + ("-axial" if axial else "")
+    return full, axial, samples, res, name
 
 
 def main():
-    full, samples, res, name = _args()
+    full, axial, samples, res, name = _args()
 
     with open(rl.PROFILES) as f:
         payload = json.load(f)
@@ -104,8 +112,15 @@ def main():
     # of the HDRI has to be turned on explicitly.
     scene.eevee.use_raytracing = True
 
-    rl.world()
-    rl.lights()
+    if axial:
+        # The balance arbor stands in for "a mover's own axis" here. Blender's
+        # y runs the other way from face space.
+        px, py = payload["pivots"]["balance"]
+        rl.world_axial()
+        rl.lights_axial((px, -py))
+    else:
+        rl.world()
+        rl.lights()
     rl.camera()
 
     specs = list(payload["parts"])

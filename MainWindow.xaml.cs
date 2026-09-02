@@ -35,6 +35,8 @@ public sealed partial class MainWindow : Window
 
     private readonly IntPtr _hwnd;
     private readonly string? _screenshotPath;
+    private readonly int _screenshotFrames;
+    private readonly TimeSpan _screenshotInterval;
     private readonly bool _startFullScreen;
 
     private bool _isFullScreen;
@@ -45,7 +47,8 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
 
-        (_screenshotPath, _startFullScreen) = ParseCommandLine(Environment.GetCommandLineArgs());
+        (_screenshotPath, _screenshotFrames, _screenshotInterval, _startFullScreen) =
+            ParseCommandLine(Environment.GetCommandLineArgs());
 
         _hwnd = WindowNative.GetWindowHandle(this);
         Title = "ClockWall";
@@ -138,12 +141,29 @@ public sealed partial class MainWindow : Window
     // ---------------------------------------------------------------- command line
 
     /// <summary>
-    /// Recognises <c>--screenshot PATH</c> and <c>--fullscreen</c>. Anything else
-    /// is ignored, so the app always starts rather than failing on a stray argument.
+    /// Recognises <c>--screenshot PATH</c>, <c>--screenshot-seq N INTERVAL_MS</c>
+    /// and <c>--fullscreen</c>. Anything else is ignored, so the app always
+    /// starts rather than failing on a stray argument.
     /// </summary>
-    private static (string? ScreenshotPath, bool FullScreen) ParseCommandLine(string[] args)
+    /// <remarks>
+    /// WHY A SEQUENCE MODE EXISTS. Everything wrong with this wall that is
+    /// worth fixing is wrong in MOTION - a shadow that orbits with the wheel it
+    /// is baked into is invisible in any single frame and obvious across two.
+    /// Relaunching <c>--screenshot</c> in a loop cannot measure that: each run
+    /// costs about four seconds of process start and settle, and the escapement
+    /// covers several whole turns in that time, so consecutive frames land at
+    /// unrelated - and unknowable - phases. One launch that holds the window
+    /// still and captures N frames a known interval apart gives frames that can
+    /// actually be differenced, and prints the instant each was taken so the
+    /// analysis can say what the movement was doing between them.
+    /// See tools/motion_check.py, which is the only caller.
+    /// </remarks>
+    private static (string? ScreenshotPath, int Frames, TimeSpan Interval, bool FullScreen)
+        ParseCommandLine(string[] args)
     {
         string? screenshot = null;
+        var frames = 1;
+        var intervalMs = 500;
         var fullScreen = false;
 
         for (var i = 1; i < args.Length; i++)
@@ -161,10 +181,28 @@ public sealed partial class MainWindow : Window
                     }
 
                     break;
+
+                // A bad count or interval leaves the defaults standing rather
+                // than throwing: this path exists to produce files for a person
+                // who is waiting on them, so it must never fail to start.
+                case "--screenshot-seq" or "-screenshot-seq" or "/screenshot-seq":
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out var parsedFrames))
+                    {
+                        frames = Math.Clamp(parsedFrames, 1, 240);
+                        i++;
+                    }
+
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out var parsedInterval))
+                    {
+                        intervalMs = Math.Clamp(parsedInterval, 16, 10_000);
+                        i++;
+                    }
+
+                    break;
             }
         }
 
-        return (screenshot, fullScreen);
+        return (screenshot, frames, TimeSpan.FromMilliseconds(intervalMs), fullScreen);
     }
 
     // ---------------------------------------------------------------- window shell
@@ -414,6 +452,14 @@ public sealed partial class MainWindow : Window
     /// session scan land, grabs the screen region and writes a PNG - then exits.
     /// A watchdog guarantees the process terminates even if any of that wedges.
     /// </summary>
+    /// <remarks>
+    /// With <c>--screenshot-seq</c> the same settled window is captured N times
+    /// instead of once, and each frame's file gets a <c>-000</c> suffix. The
+    /// window is parked and sized ONCE, before the first frame: a second
+    /// <see cref="SizeClientToDesign"/> mid-sequence would move content between
+    /// two frames that are about to be differenced, which is the one thing an
+    /// instrument reading those differences cannot survive.
+    /// </remarks>
     private async Task RunScreenshotAsync(string path)
     {
         StartScreenshotWatchdog();
@@ -436,15 +482,42 @@ public sealed partial class MainWindow : Window
             // Let layout, the first clock tick and the watcher's initial scan land.
             await Task.Delay(ScreenshotSettleDelay);
 
-            // ...and give the compositor a couple of frames to present them.
-            await WaitForRenderAsync();
-            await WaitForRenderAsync();
-
             var bounds = GetClientBoundsOnScreen();
-            var pixels = Native.CaptureScreenRegion(bounds.X, bounds.Y, bounds.Width, bounds.Height);
-            await SavePngAsync(path, pixels, bounds.Width, bounds.Height);
 
-            Console.Out.WriteLine($"{bounds.Width}x{bounds.Height} -> {path}");
+            for (var frame = 0; frame < _screenshotFrames; frame++)
+            {
+                if (frame > 0)
+                {
+                    await Task.Delay(_screenshotInterval);
+                }
+
+                // ...and give the compositor a couple of frames to present them.
+                await WaitForRenderAsync();
+                await WaitForRenderAsync();
+
+                // Read as late as possible: the movement is drawn from
+                // DateTime.Now on the Rendering callback just awaited, so this
+                // is within a frame of the instant the pixels below describe.
+                var taken = DateTime.Now;
+                var framePath = _screenshotFrames == 1
+                    ? path
+                    : Path.Combine(
+                        Path.GetDirectoryName(path) ?? ".",
+                        $"{Path.GetFileNameWithoutExtension(path)}-{frame:000}{Path.GetExtension(path)}");
+
+                var pixels = Native.CaptureScreenRegion(bounds.X, bounds.Y, bounds.Width, bounds.Height);
+                await SavePngAsync(framePath, pixels, bounds.Width, bounds.Height);
+
+                // A lone screenshot keeps the line it has always printed - it is
+                // read by people. A sequence prints one machine-readable line
+                // per frame instead, because the analysis needs the INSTANT and
+                // not just the order: the escapement's phase is a function of
+                // the wall clock and of nothing else.
+                Console.Out.WriteLine(_screenshotFrames == 1
+                    ? $"{bounds.Width}x{bounds.Height} -> {framePath}"
+                    : $"{frame}\t{taken:yyyy-MM-ddTHH:mm:ss.fffffff}\t{bounds.Width}x{bounds.Height}\t{framePath}");
+            }
+
             exitCode = 0;
         }
         catch (Exception ex)
@@ -463,7 +536,11 @@ public sealed partial class MainWindow : Window
     private void StartScreenshotWatchdog()
     {
         var watchdog = DispatcherQueue.CreateTimer();
-        watchdog.Interval = ScreenshotWatchdog;
+
+        // The ceiling has to clear the sequence it is supervising, or a long
+        // capture kills itself half way through and the failure looks like a
+        // hang rather than a mis-set timer.
+        watchdog.Interval = ScreenshotWatchdog + _screenshotFrames * _screenshotInterval;
         watchdog.IsRepeating = false;
         watchdog.Tick += (_, _) =>
         {

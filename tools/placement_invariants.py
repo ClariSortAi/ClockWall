@@ -1,6 +1,52 @@
 """Geometric assertions on the placed movement, checked after every placement change.
 
-    .venv-cad\\Scripts\\python.exe tools/placement_invariants.py
+    .venv-cad\\Scripts\\python.exe tools/placement_invariants.py    # everything
+    python tools/placement_invariants.py --assets                   # the PNGs only
+    .venv-cad\\Scripts\\python.exe tools/placement_invariants.py --cad
+
+TWO HALVES. The first half reads the placed CAD and asks whether the movement
+could work: jewel on arbor, fork at the balance, screws in holes, stones
+locking. It needs trimesh and the STLs, so it runs under `.venv-cad`. The
+second half reads `Assets/*.png` and asks whether the layers the APP MOVES can
+survive being moved. It needs only numpy, PIL and scipy, so it runs under plain
+`python` and is cheap enough to gate every render - which is why `--assets`
+exists and why render.ps1 calls it.
+
+WHY THE SECOND HALF EXISTS. Every check above it passed while the wall still
+showed wobbling gears, because all of them are about WHERE a part is and the
+defect was about what is PAINTED ON IT. The rendered rim centres sit within
+0.7px of the pivots the XAML turns them about - placement was never the
+problem. What was wrong is that each rotating sprite carried a cast shadow and
+a directional highlight that belong to the world, not to the wheel: rotate the
+sprite and the shadow orbits the wheel and the specular spins with the teeth.
+Not one still frame shows it. The user watching the wall sees nothing else.
+
+So an image gate has to ask a question a still cannot answer: what does this
+layer do WHEN TURNED? Two forms of it, because the movers are two kinds of
+thing:
+
+  A ROTATIONALLY SYMMETRIC MOVER (a wheel) has, by its own geometry, its mass
+  centred on its arbor. Any displacement of its alpha-weighted centroid from
+  the pivot is therefore shading rather than shape, and it is exactly the
+  quantity that swings round the pivot once per turn. One number, no
+  judgement, and it is the check the brief asked for.
+
+  AN ASYMMETRIC MOVER (a lever, a hairspring, a hand) is legitimately
+  off-pivot, so that test would fail on every one of them for the wrong
+  reason. What is still illegitimate is alpha sitting where the part is NOT:
+  paint the part's own silhouette, grow it by a small margin so anti-aliasing,
+  chamfer glow and a tight contact shadow are all inside it, and any weight
+  left outside cannot be the part. It is a shadow cast onto whatever the
+  render put underneath, and it is riding on a sprite that turns. That
+  measure never looks at where the part's mass is, so the part's own
+  asymmetry cannot trip it.
+
+WHICH LAYERS ARE CHECKED IS READ OUT OF THE XAML, not listed here. Every Image
+in Controls/OpenworkedFace.xaml that carries a RotateTransform is a mover, and
+its CenterX/CenterY is the pivot the app will actually turn it about - which is
+the number that has to be measured against, not profiles.json's. A layer that
+gains a RotateTransform therefore gains a gate on the same edit, and one whose
+symmetry has not been declared below fails rather than being skipped.
 
 WHY THIS EXISTS. A 13.2-degree rotation-sign bug sat in the placement for
 hours, because nothing asserted what a correct placement actually implies:
@@ -47,18 +93,39 @@ import json
 import math
 import os
 import sys
+import xml.etree.ElementTree as ET
 
 import numpy as np
-import trimesh
-from trimesh.path import polygons as tp
+from PIL import Image
+from scipy import ndimage
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 
-import escapement_geometry as eg                              # noqa: E402
-import om10_layout as L                                        # noqa: E402
+# The CAD half's dependencies, imported softly so the ASSET half can run under
+# a plain interpreter. trimesh, shapely and build123d live in .venv-cad only,
+# and render.ps1 - which is what has to run the asset gate on every render -
+# uses the system python. Failing here would make a cheap PNG check
+# unavailable exactly where it is cheapest to run.
+try:
+    import trimesh                                             # noqa: E402
+    from trimesh.path import polygons as tp                    # noqa: E402
+
+    import escapement_geometry as eg                           # noqa: E402
+    import om10_layout as L                                    # noqa: E402
+
+    CAD_IMPORT_ERROR = None
+except ImportError as exc:                                     # pragma: no cover
+    CAD_IMPORT_ERROR = exc
 
 CAD = os.path.join(ROOT, "captures", "cad")
+ASSETS = os.path.join(ROOT, "Assets")
+FACE_XAML = os.path.join(ROOT, "Controls", "OpenworkedFace.xaml")
+
+# The face's own coordinate space, and the one every measurement below is
+# reported in. Assets render at 1920px for the same 640 units, so a face unit
+# is 3 asset pixels and "1 unit" is a third of a pixel on the wall.
+FACE = 640.0
 
 FAILURES = []
 
@@ -272,7 +339,280 @@ def check_pallet_stones(manifest):
           % (span, half_spaces, teeth, nearest, "odd" if is_odd else "EVEN"))
 
 
-def main():
+# ============================================================================
+#  BAKED DIRECTIONALITY IN THE LAYERS THE APP MOVES
+#
+#  Everything above this line is about the CAD. Everything below is about the
+#  rendered PNGs, and about one question: can this layer be rotated about its
+#  pivot without the lighting rotating with it?
+# ============================================================================
+
+# What counts as the part rather than as light falling near it. Chosen against
+# the layers themselves: every solid component reaches full opacity somewhere,
+# and the hairspring - the thinnest thing rendered, a wire about a pixel and a
+# half wide at 1920 - peaks at 0.80, so a half-alpha floor keeps its coils and
+# nothing softer. Raising it drops the spring; lowering it starts admitting the
+# shadow, which peaks around 0.47.
+SOLID_ALPHA = 0.5
+
+# How far outside the part's own silhouette still counts as the part, in face
+# units. It has to clear the anti-aliased edge (a pixel or two, so about half a
+# unit), the chamfer glow that a polished edge legitimately throws, and a
+# contact shadow tight enough to read as the part sitting ON something rather
+# than as a shadow orbiting it. Three units is about a millimetre of movement.
+# A shadow displaced less than that is not what anybody can see wobbling; the
+# ones measured here are displaced ten to twenty times further.
+PART_MARGIN = 3.0
+
+# How much of a mover's alpha may sit outside its own footprint. This is a
+# WEIGHT share, so it cannot be gamed by spreading the same shadow thinner -
+# only by making it about ten times fainter, which is the fix.
+STRAY_FRACTION_MAX = 0.05
+
+# How far a symmetric mover's centroid may sit from the pivot it turns about,
+# and the distance below which a stray lobe is centred enough on the pivot to
+# be harmless. Both in face units: a halo centred on the arbor rotates into
+# itself and nobody sees it turn, which is precisely what the two smear layers
+# rely on.
+CENTROID_MAX = 1.0
+ORBIT_MIN = 1.0
+
+# Whether each moving layer's own shape is centred on its arbor. This is the
+# one hand-written table here, because it is a judgement about the PART and
+# cannot be read off the pixels - a wheel whose shadow is heavy enough looks
+# exactly like an asymmetric part to any measurement that does not already
+# know which it is.
+SYMMETRIC = {
+    # A rim with two arms and their timing screws: two-fold symmetric about the
+    # staff, so its own mass sits on the pivot to within a rounding error.
+    "movement-balance.png": True,
+    # Twenty teeth on a hub. Twenty-fold, and its smear is the same wheel.
+    "movement-escape.png": True,
+    "movement-escape-blur.png": True,
+    # Wheel, crossings and pinion, all concentric with the arbor.
+    "movement-train.png": True,
+    # A lever: pallet stones at one end, horns at the other, and no symmetry at
+    # all about the pallet arbor between them.
+    "movement-fork.png": False,
+    "movement-fork-blur.png": False,
+    # A spiral is nearly symmetric, but the stud and the outer terminal are
+    # not, and the wire never reaches full opacity - a centroid test on this
+    # layer would be measuring the shadow with the spring as a rounding error.
+    "movement-spring.png": False,
+    # A hand is entirely on one side of the pivot. That IS the shape.
+    "hand-hour.png": False,
+    "hand-minute.png": False,
+    "hand-second.png": False,
+}
+
+
+def _layers():
+    """
+    Every layer the face paints, in paint order, as (asset, pivot, label).
+
+    `pivot` is None for a layer the app never turns. Read out of
+    Controls/OpenworkedFace.xaml rather than listed here, for the reason the
+    .xaml's own header gives: those CenterX/CenterY attributes are a hand-copy
+    of the geometry, and they are what the app actually turns the image about.
+    Measuring against profiles.json instead would be measuring against the
+    number that was MEANT to be there.
+
+    A layer with no RotateTransform is reported and not checked - the two
+    held-still smears (balance and spring) are exactly that, and holding a
+    shadow still is the fix rather than the fault.
+    """
+    xn = "{http://schemas.microsoft.com/winfx/2006/xaml}Name"
+    out = []
+    for image in ET.parse(FACE_XAML).getroot().iter():
+        if not image.tag.endswith("}Image"):
+            continue
+        source = image.get("Source")
+        if not source:
+            continue
+        rotate = None
+        for child in image:
+            if child.tag.endswith("}Image.RenderTransform"):
+                for grand in child:
+                    if grand.tag.endswith("}RotateTransform"):
+                        rotate = grand
+        name = os.path.basename(source)
+        if rotate is None:
+            out.append((name, None, image.get(xn, name)))
+        else:
+            out.append((name,
+                        (float(rotate.get("CenterX", 0.0)), float(rotate.get("CenterY", 0.0))),
+                        rotate.get(xn, name)))
+    return out
+
+
+def _rim_centre(solid, unit, pivot):
+    """
+    The centre of the circle the layer's OUTERMOST solid pixels lie on.
+
+    For a wheel that is the tooth-tip circle, and it is a far better statement
+    about registration than any centroid: it is fitted to the part's own
+    boundary, so no amount of shading anywhere else can move it. This is the
+    measurement that says placement was never the problem - it lands within a
+    fifth of a face unit of the pivot on every wheel in the face, while the
+    same layer's alpha centroid is tens of units away.
+
+    One point per half-degree of angle about the pivot, taken at the largest
+    radius that is still part, then a least-squares circle through those.
+    """
+    ys, xs = np.nonzero(solid)
+    x = (xs + 0.5) * unit - pivot[0]
+    y = (ys + 0.5) * unit - pivot[1]
+    r = np.hypot(x, y)
+
+    bins = 720
+    idx = ((np.arctan2(y, x) + math.pi) / (2 * math.pi) * bins).astype(int) % bins
+    best_r = np.zeros(bins)
+    best_i = np.full(bins, -1)
+    order = np.argsort(r)
+    # Ascending radius, so the last write into each bin is that bin's furthest
+    # point. Cheaper than a groupby and exact.
+    best_i[idx[order]] = order
+    best_r[idx[order]] = r[order]
+    # Only the bins that actually reached the outer circle. A toothed wheel has
+    # gullets, and a bin that falls in one contributes a point off the wheel
+    # body instead of off the tip circle - mixing the two radii into one fit is
+    # what dragged the escape wheel's fitted centre 0.9 units off its pivot
+    # while the tips themselves were dead on it.
+    keep = (best_i >= 0) & (best_r >= 0.92 * best_r.max())
+    if keep.sum() < 32:
+        return None
+    pts = np.column_stack([x[best_i[keep]] + pivot[0], y[best_i[keep]] + pivot[1]])
+    cx, cy, _ = _circle_fit(pts)
+    return float(cx), float(cy)
+
+
+def _alpha(name):
+    """A layer's alpha as floats in 0..1, plus how many face units a pixel is."""
+    with Image.open(os.path.join(ASSETS, name)) as im:
+        a = np.asarray(im.convert("RGBA").split()[-1], dtype=np.float64) / 255.0
+    return a, FACE / a.shape[0]
+
+
+def _centroid(weight, unit):
+    """The weighted centroid of an image, in face units. Pixel centres, so a
+    single lit pixel reports the middle of that pixel rather than its corner."""
+    total = weight.sum()
+    if total <= 0.0:
+        return None
+    ys, xs = np.indices(weight.shape)
+    return (float((weight * (xs + 0.5)).sum() / total * unit),
+            float((weight * (ys + 0.5)).sum() / total * unit))
+
+
+def check_mover_shading(name, pivot, label):
+    """
+    One moving layer: is anything painted on it that would swing with it?
+
+    Prints the solid part's own centroid first, every time and whether or not
+    anything fails, because that number is the alibi. It is what says the
+    registration is clean and the render is what is wrong - and without it the
+    failures below read as "the wheel is in the wrong place", which is the
+    diagnosis this whole file exists to prevent being made twice.
+    """
+    a, unit = _alpha(name)
+    px, py = pivot
+    total = a.sum()
+
+    solid = a >= SOLID_ALPHA
+    if not solid.any():
+        check("%s has a part in it at all" % name, False,
+              "no pixel reaches alpha %.2f, so there is nothing to measure "
+              "the shading against" % SOLID_ALPHA)
+        return
+
+    solid_c = _centroid(np.where(solid, a, 0.0), unit)
+    solid_d = math.hypot(solid_c[0] - px, solid_c[1] - py)
+
+    # The alibi. For a wheel it is the tooth-tip circle, fitted to the part's
+    # own boundary; for a lever or a hand there is no such circle, so the
+    # solid mass's centroid stands in and is reported as what it is.
+    rim = _rim_centre(solid, unit, pivot) if SYMMETRIC[name] else None
+
+    # The part, grown by the margin. distance_transform_edt measures in pixels
+    # from each empty pixel to the nearest solid one, so this is "every pixel
+    # within PART_MARGIN of the silhouette", exactly.
+    grown = ndimage.distance_transform_edt(~solid) <= PART_MARGIN / unit
+    stray = np.where(grown, 0.0, a)
+    stray_w = stray.sum()
+    fraction = stray_w / total
+
+    stray_c = _centroid(stray, unit)
+    if stray_c is None:
+        orbit, bearing = 0.0, 0.0
+    else:
+        orbit = math.hypot(stray_c[0] - px, stray_c[1] - py)
+        bearing = math.degrees(math.atan2(stray_c[0] - px, -(stray_c[1] - py))) % 360.0
+
+    if rim is None:
+        print("       %-24s the part itself sits %5.2f units from the pivot "
+              "(%.1f,%.1f) - which is the shape, not a fault"
+              % (name, solid_d, px, py))
+    else:
+        print("       %-24s rim fits at (%6.2f,%6.2f), %5.3f units from the "
+              "pivot (%.1f,%.1f) it turns about"
+              % (name, rim[0], rim[1], math.hypot(rim[0] - px, rim[1] - py), px, py))
+
+    if SYMMETRIC[name]:
+        centroid = _centroid(a, unit)
+        d = math.hypot(centroid[0] - px, centroid[1] - py)
+        check("%s: mass centred on its pivot" % label,
+              d <= CENTROID_MAX,
+              "alpha centroid (%.2f, %.2f) is %.2f face units off the pivot; "
+              "this part is rotationally symmetric, so that displacement is "
+              "shading and it orbits once a turn (limit %.1f)"
+              % (centroid[0], centroid[1], d, CENTROID_MAX))
+
+    # WHERE THE LOBE LIES RELATIVE TO THE PART, which is the one thing that
+    # could make a big off-part shadow legitimate. The hands are lit by a
+    # source centred on their own pivot axis (see the .xaml), and a shadow cast
+    # by an axial light lies straight along the part, so rotating the hand
+    # rotates that shadow correctly - it is a symmetry of the lighting, not a
+    # defect. A shadow thrown SIDEWAYS is a directional light, and it orbits.
+    # This number is printed rather than exempted: it is evidence for whoever
+    # reads the failure, not a hole to drive a shadow through. Today it reads
+    # 28 to 121 degrees on the three hands, so their lobes are not axial and
+    # the failures are real.
+    part_bearing = math.degrees(math.atan2(solid_c[0] - px, -(solid_c[1] - py))) % 360.0
+    off_axis = abs((bearing - part_bearing + 180.0) % 360.0 - 180.0)
+
+    check("%s: nothing painted off the part" % label,
+          not (fraction > STRAY_FRACTION_MAX and orbit > ORBIT_MIN),
+          "%.1f%% of the layer's alpha sits more than %.0f units outside the "
+          "part's own silhouette, centred %.1f units from the pivot at %.0f deg "
+          "- %.0f deg off the part's own direction, which lies %.1f units out "
+          "(limit %.0f%%); that weight is a shadow, and it swings"
+          % (fraction * 100.0, PART_MARGIN, orbit, bearing, off_axis, solid_d,
+             STRAY_FRACTION_MAX * 100.0))
+
+
+def check_assets():
+    layers = _layers()
+    movers = [l for l in layers if l[1] is not None]
+    print("baked directionality, over the %d of %d layers "
+          "Controls/OpenworkedFace.xaml rotates" % (len(movers), len(layers)))
+    print("(solid = alpha >= %.2f; off-part = further than %.0f face units from it)\n"
+          % (SOLID_ALPHA, PART_MARGIN))
+
+    for name, pivot, label in movers:
+        if name not in SYMMETRIC:
+            # Not a skip. A new rotating layer whose symmetry nobody has
+            # declared is a layer nobody has thought about turning.
+            check("%s: symmetry declared" % label, False,
+                  "%s is rotated by the XAML but is not in SYMMETRIC, so this "
+                  "file does not know which test applies to it" % name)
+            continue
+        check_mover_shading(name, pivot, label)
+
+    print("\n       held still by the XAML, so not checked: %s"
+          % ", ".join(name for name, pivot, _ in layers if pivot is None))
+
+
+def check_cad():
     manifest = _manifest()
     print("placement invariants, from captures/cad/manifest.json")
     print("(scale %.4f face units/mm, rotation %.2f deg)\n"
@@ -282,6 +622,25 @@ def main():
     check_fork_axis(manifest)
     check_screws_in_holes(manifest)
     check_pallet_stones(manifest)
+
+
+def main():
+    args = sys.argv[1:]
+    want_cad = "--assets" not in args
+    want_assets = "--cad" not in args
+
+    if want_cad:
+        if CAD_IMPORT_ERROR is not None:
+            print("the CAD half needs .venv-cad (%s).\n"
+                  "Run .venv-cad\\Scripts\\python.exe tools/placement_invariants.py, "
+                  "or --assets for the image half alone." % CAD_IMPORT_ERROR)
+            return 2
+        check_cad()
+        if want_assets:
+            print()
+
+    if want_assets:
+        check_assets()
 
     print()
     if FAILURES:
