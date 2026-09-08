@@ -1,0 +1,10 @@
+# CAD and rendered assets are checked out byte-for-byte. STEP is technically
+# text, so git will happily normalise its line endings, which changes the file
+# between platforms for no benefit and breaks any hash anyone takes of it. These
+# are extracted geometry, not source to be diffed - store and restore verbatim.
+*.step -text
+*.stp  -text
+*.stl  -text
+*.glb  -text
+*.gltf -text
+*.hdr  -text

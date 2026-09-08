@@ -7,7 +7,17 @@ obj/
 .vs/
 Generated Files/
 *.binlog
-captures/
+# Scratch: screenshots, render intermediates, audit output. All regenerable,
+# all noise. The ONE exception is the extracted OM10 parts, which are not
+# regenerable by anybody here - om10_extract.py reads them out of the 18.8MB
+# openmovement STEP, and no machine on this project still has that file. They
+# are the source for tools/gltf_export.py and for clash_check, om10_check,
+# layout_preview and cad_parts, so losing them would strand both pipelines.
+# Git cannot re-include a path under an excluded directory, hence the ladder.
+captures/*
+!captures/om10/
+captures/om10/*
+!captures/om10/parts/
 __pycache__/
 
 # Installed skill payloads. skills-lock.json pins them; the trees themselves are
