@@ -1,0 +1,425 @@
+{
+ "printer": "MSLA resin 50 um",
+ "scale": 3.391912925929854,
+ "machine_clearance_mm": 0.2,
+ "model_gap_mm": 0.058964,
+ "note": "Bores to open before slicing. Diameters at 1x; scale the whole model afterwards.",
+ "bores": [
+  {
+   "bearing": "barrel_bearing",
+   "source": "OM00-00120",
+   "pivot": "barrel_arbor",
+   "arbor": [
+    6.674,
+    -3.765
+   ],
+   "span": [
+    1.23,
+    1.532
+   ],
+   "parallel": [
+    1.235,
+    1.4766
+   ],
+   "bore_dia_now": 1.4008,
+   "bore_dia_new": 1.5061,
+   "opens_by": 0.1053,
+   "wall_left_mm": 0.449,
+   "wall_thinnest_mm": 0.3948,
+   "wall_at_scale_mm": 1.5231,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "barrel_bearing_2",
+   "source": "OM00-00120#2",
+   "pivot": "barrel_arbor",
+   "arbor": [
+    6.674,
+    -3.765
+   ],
+   "span": [
+    -1.712,
+    -1.41
+   ],
+   "parallel": [
+    -1.6566,
+    -1.415
+   ],
+   "bore_dia_now": 1.4008,
+   "bore_dia_new": 1.5061,
+   "opens_by": 0.1053,
+   "wall_left_mm": 0.4293,
+   "wall_thinnest_mm": 0.3948,
+   "wall_at_scale_mm": 1.4561,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "centre_bearing",
+   "source": "OM00-00140",
+   "pivot": "pinion_centre",
+   "arbor": [
+    7.029,
+    4.222
+   ],
+   "span": [
+    1.3,
+    1.602
+   ],
+   "parallel": [
+    1.305,
+    1.5466
+   ],
+   "bore_dia_now": 0.5509,
+   "bore_dia_new": 0.656,
+   "opens_by": 0.1051,
+   "wall_left_mm": 0.274,
+   "wall_thinnest_mm": 0.2198,
+   "wall_at_scale_mm": 0.9295,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "centre_bearing_2",
+   "source": "OM00-00140#2",
+   "pivot": "pinion_centre",
+   "arbor": [
+    7.029,
+    4.222
+   ],
+   "span": [
+    -2.202,
+    -1.9
+   ],
+   "parallel": [
+    -2.1466,
+    -1.905
+   ],
+   "bore_dia_now": 0.5509,
+   "bore_dia_new": 0.656,
+   "opens_by": 0.1051,
+   "wall_left_mm": 0.2543,
+   "wall_thinnest_mm": 0.2198,
+   "wall_at_scale_mm": 0.8626,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "intermediate_bearing",
+   "source": "OM00-00123",
+   "pivot": "intermediate",
+   "arbor": [
+    1.53,
+    4.125
+   ],
+   "span": [
+    1.75,
+    2.052
+   ],
+   "parallel": [
+    1.755,
+    1.906
+   ],
+   "bore_dia_now": 0.1812,
+   "bore_dia_new": 0.3087,
+   "opens_by": 0.1275,
+   "wall_left_mm": 0.2475,
+   "wall_thinnest_mm": 0.1933,
+   "wall_at_scale_mm": 0.8396,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "jewel",
+   "source": "OM00-00124",
+   "pivot": "epinion",
+   "arbor": [
+    -3.679,
+    7.898
+   ],
+   "span": [
+    1.27,
+    1.582
+   ],
+   "parallel": [
+    1.3272,
+    1.3584
+   ],
+   "bore_dia_now": 0.1011,
+   "bore_dia_new": 0.2108,
+   "opens_by": 0.1097,
+   "wall_left_mm": 0.3965,
+   "wall_thinnest_mm": 0.3664,
+   "wall_at_scale_mm": 1.345,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "jewel_2",
+   "source": "OM00-00124#2",
+   "pivot": "impulse_pin",
+   "arbor": [
+    -5.871,
+    5.706
+   ],
+   "span": [
+    1.29,
+    1.602
+   ],
+   "parallel": [
+    1.3472,
+    1.3784
+   ],
+   "bore_dia_now": 0.1012,
+   "bore_dia_new": 0.2108,
+   "opens_by": 0.1097,
+   "wall_left_mm": 0.3965,
+   "wall_thinnest_mm": 0.3664,
+   "wall_at_scale_mm": 1.345,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "jewel_3",
+   "source": "OM00-00124#3",
+   "pivot": "epinion",
+   "arbor": [
+    -3.679,
+    7.898
+   ],
+   "span": [
+    -2.182,
+    -1.87
+   ],
+   "parallel": [
+    -1.9584,
+    -1.9272
+   ],
+   "bore_dia_now": 0.1011,
+   "bore_dia_new": 0.2108,
+   "opens_by": 0.1097,
+   "wall_left_mm": 0.3965,
+   "wall_thinnest_mm": 0.3664,
+   "wall_at_scale_mm": 1.345,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "jewel_4",
+   "source": "OM00-00124#4",
+   "pivot": "impulse_pin",
+   "arbor": [
+    -5.871,
+    5.706
+   ],
+   "span": [
+    0.108,
+    0.42
+   ],
+   "parallel": [
+    0.3316,
+    0.3628
+   ],
+   "bore_dia_now": 0.1016,
+   "bore_dia_new": 0.2108,
+   "opens_by": 0.1092,
+   "wall_left_mm": 0.3963,
+   "wall_thinnest_mm": 0.3661,
+   "wall_at_scale_mm": 1.3442,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "shock_jewel_cock",
+   "source": "OM00-00134",
+   "pivot": "staff",
+   "arbor": [
+    -8.063,
+    3.514
+   ],
+   "span": [
+    -1.953,
+    -1.77
+   ],
+   "parallel": [
+    -1.9225,
+    -1.8981
+   ],
+   "bore_dia_now": 0.0911,
+   "bore_dia_new": 0.2008,
+   "opens_by": 0.1097,
+   "wall_left_mm": 0.2701,
+   "wall_thinnest_mm": -0.0373,
+   "wall_at_scale_mm": 0.9162,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "shock_jewel_dial",
+   "source": "OM00-00115",
+   "pivot": "staff",
+   "arbor": [
+    -8.063,
+    3.514
+   ],
+   "span": [
+    1.25,
+    1.39
+   ],
+   "parallel": [
+    1.3083,
+    1.3877
+   ],
+   "bore_dia_now": 0.0891,
+   "bore_dia_new": 0.2008,
+   "opens_by": 0.1117,
+   "wall_left_mm": 0.35,
+   "wall_thinnest_mm": 0.0014,
+   "wall_at_scale_mm": 1.1873,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "train_bearing",
+   "source": "OM00-00122",
+   "pivot": "pinion_third",
+   "arbor": [
+    4.453,
+    8.124
+   ],
+   "span": [
+    1.3,
+    1.602
+   ],
+   "parallel": [
+    1.305,
+    1.456
+   ],
+   "bore_dia_now": 0.3012,
+   "bore_dia_new": 0.4057,
+   "opens_by": 0.1046,
+   "wall_left_mm": 0.349,
+   "wall_thinnest_mm": 0.3293,
+   "wall_at_scale_mm": 1.1839,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "train_bearing_2",
+   "source": "OM00-00122#2",
+   "pivot": "pinion_seconds",
+   "arbor": [
+    0.0,
+    8.0
+   ],
+   "span": [
+    1.3,
+    1.602
+   ],
+   "parallel": [
+    1.305,
+    1.456
+   ],
+   "bore_dia_now": 0.302,
+   "bore_dia_new": 0.4049,
+   "opens_by": 0.1029,
+   "wall_left_mm": 0.349,
+   "wall_thinnest_mm": 0.3293,
+   "wall_at_scale_mm": 1.1839,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "train_bearing_3",
+   "source": "OM00-00122#3",
+   "pivot": "pinion_third",
+   "arbor": [
+    4.453,
+    8.124
+   ],
+   "span": [
+    -2.202,
+    -1.9
+   ],
+   "parallel": [
+    -2.056,
+    -1.905
+   ],
+   "bore_dia_now": 0.3012,
+   "bore_dia_new": 0.4057,
+   "opens_by": 0.1046,
+   "wall_left_mm": 0.349,
+   "wall_thinnest_mm": 0.3293,
+   "wall_at_scale_mm": 1.1839,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "train_bearing_back",
+   "source": "OM00-00145",
+   "pivot": "intermediate",
+   "arbor": [
+    1.53,
+    4.125
+   ],
+   "span": [
+    -2.242,
+    -1.9
+   ],
+   "parallel": [
+    -2.0596,
+    -1.9057
+   ],
+   "bore_dia_now": 0.2012,
+   "bore_dia_new": 0.3087,
+   "opens_by": 0.1075,
+   "wall_left_mm": 0.3975,
+   "wall_thinnest_mm": 0.3728,
+   "wall_at_scale_mm": 1.3484,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  },
+  {
+   "bearing": "train_bearing_back_2",
+   "source": "OM00-00145#2",
+   "pivot": "pinion_seconds",
+   "arbor": [
+    0.0,
+    8.0
+   ],
+   "span": [
+    -2.242,
+    -1.9
+   ],
+   "parallel": [
+    -2.0596,
+    -1.9057
+   ],
+   "bore_dia_now": 0.202,
+   "bore_dia_new": 0.3049,
+   "opens_by": 0.1029,
+   "wall_left_mm": 0.399,
+   "wall_thinnest_mm": 0.3743,
+   "wall_at_scale_mm": 1.3535,
+   "sink_survives": true,
+   "clashes": [],
+   "ok": true
+  }
+ ]
+}
