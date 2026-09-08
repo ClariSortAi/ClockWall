@@ -347,9 +347,13 @@ pays for that. So the bearings are bored open in the model instead:
 `tools/print_bores.py` (branch `fits-study`) opens every bearing in
 `Assets/om10-fits.json` until the gap at the chosen scale is what the
 machine holds, pivots untouched, and proves each opening breaks into
-nothing. Owed still: the print set through `gltf_export.prepared` behind
-a `--print` flag, `assembly_check.py` run against it, and the STL set
-written out at scale.
+nothing. `tools/print_export.py` writes the set: every part, ours and
+the OM10's, prepared as the wall export prepares them and with the bore
+table applied when `Assets/print-bores.json` exists, one binary STL each
+in one frame at one scale into `captures/print/<scale>x/` with a
+manifest that marks the springs and the jewels as not for printing.
+Owed still: the bore table on main, and `assembly_check.py` run against
+the bored set.
 
 **7. Cosmetic - done, with one measured and declined.** Depth of field: a
 second target carries view distance out of the watch pass and the post
