@@ -123,7 +123,12 @@ but **cannot regenerate the GLB**.
 self-contained. The reason is in `CLAUDE.md` and it is Smart App Control, not
 preference.
 
-## The one thing that needs a person
+## The licence question, asked and answered
+
+**Settled 2026-09-08: not a concern.** This is a wall clock in somebody's
+house, not a product, and it is not being distributed. The owner was asked and
+said so. Do not re-raise it; the rest of this section is kept only so that
+whoever forks this knows what changed and why the old note existed.
 
 **The licence position changes the moment this ships.**
 
@@ -136,12 +141,12 @@ The current face is safe because it ships **pictures**. A real-time renderer
 ships the **geometry** - `movement.glb` is a derived work of the OM10 STEP,
 distributed inside the application. That defence does not survive the change.
 
-Two things follow. Someone has to check openmovement's current terms before this
-is distributed, and it should happen early rather than after the renderer is
-built, because it may constrain what the GLB is allowed to contain. And note
-that `models/step/movement.step` is **already committed** and is already derived
-from the STEP, so the line may have been crossed before this work started; that
-is worth resolving in the same pass rather than treated as a new problem.
+That would matter for anything distributed, and it would want checking before
+the renderer was built rather than after, since it could constrain what the GLB
+may contain. It does not matter here. Note also that
+`models/step/movement.step` was already committed and is already derived from
+the STEP, so nothing about the real-time work is a new step in that direction.
 
-This is not a blocker and openmovement is open-source. It is a question with a
-findable answer that nobody has asked yet.
+openmovement is open-source and the download sits behind a free registration
+rather than a licence fee. Anyone forking this to redistribute should check the
+current terms; anyone building a clock for their own wall should not.
