@@ -43,7 +43,7 @@ internal readonly record struct Material(
     /// movement, which is a cooler, slightly darker grey than the case
     /// steel. Cold on purpose - the brief allows warmth only from the wheels
     /// and the two stones.</summary>
-    public static readonly Vector3 Plate = new(0.42f, 0.435f, 0.46f);
+    public static readonly Vector3 Plate = new(0.36f, 0.37f, 0.40f);
 
     /// <summary>The dial's body tone, "mid" in dial_render.py: sRGB (28, 56,
     /// 118) taken to linear. The shadow and hot tones are not colours here -

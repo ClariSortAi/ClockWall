@@ -361,7 +361,7 @@ float4 PsMain(VsOut i) : SV_Target
         float edge = max(ApertureRadius - length(P.xz - ApertureCentre.xz), 0.0);
         float depth = max(ApertureCentre.y - P.y, 0.0);
         float ao = edge / sqrt(edge * edge + depth * depth);
-        ao = lerp(0.03, 0.55, ao);
+        ao = lerp(0.03, 0.42, ao);
         ambient *= ao;
     }
 

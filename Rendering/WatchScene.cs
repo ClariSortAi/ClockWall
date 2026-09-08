@@ -65,11 +65,15 @@ internal sealed class WatchScene : IDisposable
 
     // Hand and stack heights, millimetres above the dial. Each clears the
     // one below it so they shadow each other; the crystal clears all of them.
+    // The hands sit higher than a thin watch would put them, on purpose:
+    // their shadows on the dial are what say they are ABOVE it rather than
+    // printed on it, and a shadow displaced by a millimetre reads from
+    // across a room where a third of that does not.
     private const float IndexHeight = 0.45f;
-    private const float HourBase = 0.75f, HourRidge = 0.19f;
-    private const float MinuteBase = 1.15f, MinuteRidge = 0.16f;
-    private const float SecondBase = 1.55f, SecondTop = 1.70f;
-    private const float CrystalEdge = 2.3f, CrystalPeak = 3.1f;
+    private const float HourBase = 1.05f, HourRidge = 0.19f;
+    private const float MinuteBase = 1.55f, MinuteRidge = 0.16f;
+    private const float SecondBase = 2.00f, SecondTop = 2.15f;
+    private const float CrystalEdge = 2.7f, CrystalPeak = 3.5f;
 
     // ------------------------------------------------------------ resources
 
@@ -111,8 +115,8 @@ internal sealed class WatchScene : IDisposable
 
     // ------------------------------------------------------------ materials
 
-    private static readonly Material Dial = new(Material.DialBlue, 1f, 0.30f, 0.62f, Finish.Dial, Lacquer: 0.30f);
-    private static readonly Material Polished = new(Material.Steel, 1f, 0.07f, 0.07f);
+    private static readonly Material Dial = new(Material.DialBlue, 1f, 0.30f, 0.72f, Finish.Dial, Lacquer: 0.25f);
+    private static readonly Material Polished = new(Material.Steel, 1f, 0.11f, 0.11f);
     private static readonly Material BezelSteel = new(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero);
     private static readonly Material RehautSteel = new(Material.Steel, 1f, 0.06f, 0.12f, Finish.Circular, FinishCentre: ApertureCentre);
     private static readonly Material BluedHand = new(Material.Blued, 1f, 0.10f, 0.10f);
@@ -563,7 +567,7 @@ internal sealed class WatchScene : IDisposable
             // (dial_render LIGHT_DEG = 315), high, and wandering over a
             // couple of minutes so the lobes sweep.
             var bearing = (315f + 22f * MathF.Sin(t / 29f)) * MathF.PI / 180f;
-            var elevation = (52f + 9f * MathF.Sin(t / 37f)) * MathF.PI / 180f;
+            var elevation = (46f + 8f * MathF.Sin(t / 37f)) * MathF.PI / 180f;
             LightDir = Vector3.Normalize(new Vector3(
                 MathF.Sin(bearing) * MathF.Cos(elevation),
                 MathF.Sin(elevation),

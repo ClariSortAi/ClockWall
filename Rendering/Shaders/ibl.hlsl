@@ -72,8 +72,23 @@ float4 PsEquirect(VsOut i) : SV_Target
     // A fill: the studio's dark corners lifted to a soft grey, the way a
     // watch photographer puts white card round the subject. Polished
     // steel that happens to reflect the back of the room then reads as
-    // silver rather than as a hole, which is what the hands did without it.
-    c += 0.12;
+    // silver rather than as a hole - a dauphine facet tilted a few degrees
+    // off the softbox went gunmetal at half the hours without it, and the
+    // hands are the one thing on the dial that must always be legible.
+    c += 0.30;
+
+    // A diffuser over the big softbox. The box itself is about 25 degrees
+    // across, and a dauphine facet tilted 11 degrees reflects 22 degrees
+    // off axis - just outside it - so the hands went gunmetal at half the
+    // hours while the flat indices beside them stayed white. A watch
+    // photographer hangs a metre of diffusion in front of the box for
+    // exactly this reason; this is that sheet: a soft disc of light forty
+    // degrees across, centred on the box, at a fraction of its brightness.
+    float3 boxDir = float3(sin(radians(36.0)) * cos(radians(25.0)), sin(radians(25.0)), -cos(radians(36.0)) * cos(radians(25.0)));
+    // Kept modest: the dial faces the sheet square on, and too much of
+    // it washes the soleil's dark flanks out to a flat royal blue.
+    float sheet = smoothstep(cos(radians(40.0)), cos(radians(12.0)), dot(d, boxDir));
+    c += sheet * 1.8;
     return float4(c, 1);
 }
 
