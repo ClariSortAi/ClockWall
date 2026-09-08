@@ -79,12 +79,13 @@ public sealed partial class ClockPanel : UserControl
     private const int Analogue = 0;
     private const int Mechanical = 1;
     private const int Digital = 2;
+    private const int Live = 3;
 
     /// <summary>What each face is called in <see cref="ModeFile"/>, indexed by
     /// the constants above. The name is what gets written, never the index: a
     /// face inserted in the middle later must not silently reinterpret
     /// somebody's saved choice as whichever face took over its number.</summary>
-    private static readonly string[] FaceNames = { "analogue", "mechanical", "digital" };
+    private static readonly string[] FaceNames = { "analogue", "mechanical", "digital", "live" };
 
     private DispatcherQueueTimer? _timer;
     private int _face = Analogue;
@@ -171,6 +172,7 @@ public sealed partial class ClockPanel : UserControl
         // because nobody can see it. So it gets told, here, in the one method
         // that always knows which face won.
         MechanicalFace.SetRunning(_loaded && _face == Mechanical);
+        LiveFace.SetRunning(_loaded && _face == Live);
     }
 
     /// <summary>The element for a face index. A switch rather than an array
@@ -180,6 +182,7 @@ public sealed partial class ClockPanel : UserControl
     {
         Analogue => FaceCanvas,
         Mechanical => MechanicalFace,
+        Live => LiveFace,
         _ => DigitalText,
     };
 

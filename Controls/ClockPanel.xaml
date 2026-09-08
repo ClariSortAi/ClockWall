@@ -85,8 +85,15 @@
                               HorizontalAlignment="Center"
                               Visibility="Collapsed" />
 
+        <!-- The LIVE hero: the whole watch rendered in real time, D3D into a
+             swap chain. Same start/stop contract as the openworked face and
+             more so - this one is a GPU frame loop. See MovementView. -->
+        <local:MovementView x:Name="LiveFace"
+                            HorizontalAlignment="Center"
+                            Visibility="Collapsed" />
+
         <!-- The DIGITAL hero: the original 400px HH:MM. Exactly one of the
-             three is visible; the C accelerator cycles them (see ToggleFace).
+             faces is visible; the C accelerator cycles them (see ToggleFace).
              In digital mode the line below drops its own HH:MM and reverts to
              the ":SS AM" it originally was.
 

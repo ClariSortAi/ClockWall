@@ -1,0 +1,25 @@
+<UserControl
+    x:Class="ClockWall.MovementView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        The LIVE hero: the whole watch rendered in real time by D3D11 into a
+        swap chain the XAML compositor shows here. Same 640 DIP footprint as
+        the analogue canvas and the openworked face, so the three heroes share
+        one slot and swapping them never moves the date below.
+
+        Nothing is drawn in XAML. The panel is a hole the renderer paints
+        through; every colour on it comes from the shaders, the way every
+        pixel of the openworked face came from Blender. What lives here is
+        only the size and the plumbing.
+    -->
+    <SwapChainPanel x:Name="Panel"
+                    Width="{StaticResource WatchFaceSize}"
+                    Height="{StaticResource WatchFaceSize}"
+                    HorizontalAlignment="Center" />
+
+</UserControl>

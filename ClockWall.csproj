@@ -29,6 +29,19 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.*" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.*" />
+
+    <!-- The real-time watch face. Vortice is pure P/Invoke over the system
+         d3d11.dll / dxgi.dll and ships no native binary of its own, which is
+         the reason it was chosen over the alternatives: Smart App Control is
+         enforced on the wall machine and would block an unsigned native DLL
+         the same way it blocks a self-contained publish (see CLAUDE.md).
+         D3DCompiler binds the Microsoft-signed d3dcompiler_47.dll that ships
+         in System32 since Windows 8.1, so shaders compile from source at
+         startup and there is no offline shader build step. -->
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.WinUI" Version="3.8.3" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
+    <PackageReference Include="SharpGLTF.Core" Version="1.0.6" />
   </ItemGroup>
 
 </Project>
