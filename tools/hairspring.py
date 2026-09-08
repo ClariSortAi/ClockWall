@@ -45,8 +45,12 @@ ROOT = os.path.dirname(HERE)
 # roller and collet 0.002e-9 at steel. The spring's own share is added below.
 BALANCE_INERTIA = 1.850e-9
 # The escapement error measured by running the mechanism with the impulse
-# after centre: the free period is pulled this many seconds a day slow.
-ESCAPEMENT_ERROR_S_PER_DAY = -2.9
+# after centre: the free period is pulled this many seconds a day slow. It
+# grew from -2.9 to -7.2 as the designed mainspring's torque replaced the
+# typical figure; a stronger push off-centre pulls harder. Re-measure it
+# (the fault log prints the kept rate at every launch, with this file's
+# regulation already applied) whenever the torque or the lift changes.
+ESCAPEMENT_ERROR_S_PER_DAY = -7.2
 
 # ------------------------------------------------------------------ the strip
 E = 200e9            # Pa, Nivarox-type alloy
@@ -158,8 +162,13 @@ def main():
         },
     }
     os.makedirs(os.path.join(ROOT, "Assets"), exist_ok=True)
-    with open(os.path.join(ROOT, "Assets", "mechanism.json"), "w") as f:
-        json.dump(out, f, indent=1)
+    path = os.path.join(ROOT, "Assets", "mechanism.json")
+    # Merge: mainspring.py writes its own section into the same file, and
+    # regenerating one spring must not lose the other.
+    doc = json.load(open(path)) if os.path.exists(path) else {}
+    doc.update(out)
+    with open(path, "w") as f:
+        json.dump(doc, f, indent=1)
     export_step(strip, os.path.join(ROOT, "models", "step", "hairspring.step"))
     print("  strip %.3f x %.3f mm, active length %.2f mm, %.2f coils, k = %.4g N m/rad"
           % (THICKNESS * 1e3, WIDTH * 1e3, numbers["active_length"] * 1e3, coils, numbers["stiffness"]))

@@ -191,6 +191,7 @@ internal sealed record WatchDesign
                 ["barrel_drum"] = plate,
                 ["barrel_cover"] = plate,
                 ["ratchet_wheel"] = pinion,
+                ["mainspring"] = new(Material.Blued, 1f, 0.3f, 0.3f, Recess: true),
                 ["crown_wheel"] = pinion,
                 ["winding_pinion"] = pinion,
                 ["sliding_pinion"] = pinion,

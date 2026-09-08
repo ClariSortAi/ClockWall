@@ -275,7 +275,21 @@ writes `Assets/mechanism.json` (inertia, stiffness, every strip number) and
 `models/step/hairspring.step`; the exporter puts the solid into the
 movement in place of the OM10's placeholder. `Mechanism` reads the JSON
 and types nothing. Regulated by the pins' angle for the escapement's
-measured -2.9 s/day: the watch now keeps 3.5000 Hz, +0.0 s/day.
+measured error: the watch keeps 3.5000 Hz, +0.0 s/day.
+
+**2. A mainspring that is a spring - done.** `tools/mainspring.py` measures
+the OM10's barrel cavity off its own solids by cross-section (wall 6.45 mm,
+arbor 1.36, 2.05 high - the first ray-based measurement flaked and read
+4.64; sections are repeatable) and sizes the strip into it the way a barrel
+is sized: half the annulus, 0.14 mm gauge, so 1.95 wide and 446 mm long,
+10.8 turns of which 9.3 are usable above a 1.5-turn hooked-in residual;
+13.6 N mm at full wind, a 62 h reserve at the barrel's 6.69 h a turn, and
+the train's friction (12% of full) as the torque below which the watch
+stops. The solid, coiled on the arbor, joins the movement export as a part
+of its own. The mechanism's torque curve is that strip's; the typical
+"6 N mm" is gone. The escapement error grew with the torque (-2.9 to -7.2
+s/day) and the regulator index was moved to match, which is what a
+timing machine is for.
 
 ## The licence question, asked and answered
 

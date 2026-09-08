@@ -168,6 +168,7 @@ internal sealed class WatchScene : IDisposable
         ("barrel", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_drum", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_cover", new(3.77f, 6.67f), Drive.Barrel),
+        ("mainspring", new(3.77f, 6.67f), Drive.Barrel),
         // The ratchet wheel sits on the barrel ARBOR, which turns only when
         // the watch is wound; the barrel body turns round it while it runs.
     };
@@ -236,10 +237,10 @@ internal sealed class WatchScene : IDisposable
 
         // ---- the mechanism, set to the wall clock the way a person sets a
         // watch, and measured once so its rate is on record.
-        var (inertia, stiffness) = Mechanism.LoadNumbers(assetDirectory);
-        _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now, inertia, stiffness);
-        var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, inertia, stiffness, 30.0);
-        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={inertia:0.000e0} kg m2, k={stiffness:0.000e0} N m/rad from mechanism.json)";
+        var numbers = Mechanism.LoadNumbers(assetDirectory);
+        _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now, numbers);
+        var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, numbers, 30.0);
+        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={numbers.Inertia:0.000e0} kg m2, k={numbers.Stiffness:0.000e0} N m/rad, spring {_mechanism.BarrelTorqueFull * 1e3:0.00} N mm over {numbers.TurnsUsable:0.0} turns, from mechanism.json)";
 
         // ---- shaders
         using (var vs = Gpu.Compile("watch.hlsl", "VsMain", "vs_5_0"))

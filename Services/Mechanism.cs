@@ -65,19 +65,21 @@ public sealed class Mechanism
     /// amplitude, the one constant here with no physical source.</summary>
     public double Damping { get; }
 
-    /// <summary>Mainspring torque at full wind, N m. A typical 6 N mm for a
-    /// 14 mm barrel; the STEP carries no mainspring to measure.</summary>
-    public const double BarrelTorqueFull = 6.0e-3;
-
-    /// <summary>Torque left at the end of the run, as a fraction of full.</summary>
-    public const double BarrelTorqueEmpty = 0.55;
-
-    /// <summary>Turns of the barrel from full wind to stop. With 107 teeth
-    /// on the barrel and 16 on the centre pinion the barrel turns once in
-    /// 6.69 hours, so six turns is a forty-hour reserve.</summary>
-    public const double BarrelTurns = 6.0;
+    /// <summary>The mainspring, from Assets/mechanism.json where
+    /// tools/mainspring.py designed it into the OM10's measured barrel:
+    /// torque per turn of wind, the turns it holds above its residual, and
+    /// the train's friction below which the watch stops. Nothing typed.</summary>
+    public double TorquePerTurn { get; }
+    public double BarrelTurns { get; }
+    public double TurnsResidual { get; }
+    public double FrictionTorque { get; }
     public const double BarrelTeeth = 107.0;
     public const double CentrePinionLeaves = 16.0;
+
+    /// <summary>Barrel torque at full wind, N m: the spring's per-turn
+    /// torque through all its usable turns plus the residual it is hooked
+    /// in under.</summary>
+    public double BarrelTorqueFull => TorquePerTurn * (BarrelTurns + TurnsResidual);
 
     /// <summary>The train, counted off the solids. Barrel 107 to centre
     /// pinion 16; centre wheel 75 to third pinion 10; third wheel 72 to
@@ -141,20 +143,32 @@ public sealed class Mechanism
     /// spring's stiffness. Read once; a missing or unreadable file is a
     /// build that shipped without the spring, and the watch should say so
     /// rather than quietly run on a typed-in rate.</summary>
-    public static (double Inertia, double Stiffness) LoadNumbers(string assetDirectory)
+    public readonly record struct Numbers(double Inertia, double Stiffness, double TorquePerTurn, double TurnsUsable, double TurnsResidual, double FrictionTorque);
+
+    public static Numbers LoadNumbers(string assetDirectory)
     {
         var path = Path.Combine(assetDirectory, "mechanism.json");
         using var doc = JsonDocument.Parse(File.ReadAllText(path));
         var root = doc.RootElement;
-        return (root.GetProperty("inertia").GetDouble(),
-                root.GetProperty("hairspring").GetProperty("stiffness").GetDouble());
+        var spring = root.GetProperty("mainspring");
+        return new Numbers(
+            root.GetProperty("inertia").GetDouble(),
+            root.GetProperty("hairspring").GetProperty("stiffness").GetDouble(),
+            spring.GetProperty("torque_per_turn").GetDouble(),
+            spring.GetProperty("turns_usable").GetDouble(),
+            spring.GetProperty("turns_residual").GetDouble(),
+            spring.GetProperty("friction_torque").GetDouble());
     }
 
-    public Mechanism(Caliber spec, DateTime now, double inertia, double stiffness)
+    public Mechanism(Caliber spec, DateTime now, Numbers numbers)
     {
         Spec = spec;
-        Inertia = inertia;
-        Stiffness = stiffness;
+        Inertia = numbers.Inertia;
+        Stiffness = numbers.Stiffness;
+        TorquePerTurn = numbers.TorquePerTurn;
+        BarrelTurns = numbers.TurnsUsable;
+        TurnsResidual = numbers.TurnsResidual;
+        FrictionTorque = numbers.FrictionTorque;
         _halfLift = spec.LiftAngleDegrees * Math.PI / 180.0 / 2.0;
         var omega0 = 2.0 * Math.PI * spec.Hertz;
 
@@ -211,11 +225,13 @@ public sealed class Mechanism
     /// friction. Falls with the spring.</summary>
     private double ImpulseEnergy(double unwound)
     {
-        // Past the last turn there is no torque at all: the spring is slack,
-        // the train stands, and the balance runs down on its damping.
-        if (unwound >= BarrelTurns) return 0.0;
-        var fraction = Math.Clamp(unwound / BarrelTurns, 0.0, 1.0);
-        var torque = BarrelTorqueFull * (1.0 - fraction * (1.0 - BarrelTorqueEmpty)) * TrainReduction;
+        // The spring's torque is its per-turn stiffness times the turns
+        // still wound above the residual; the train's friction comes off
+        // that, and past the point where nothing is left the wheel stands.
+        var turns = Math.Max(0.0, BarrelTurns - unwound) + TurnsResidual;
+        var barrel = TorquePerTurn * turns - FrictionTorque;
+        if (barrel <= 0.0) return 0.0;
+        var torque = barrel * TrainReduction;
         var stepRad = Spec.EscapeStepDegrees * Math.PI / 180.0;
         return torque * stepRad * EscapementEfficiency;
     }
@@ -350,9 +366,9 @@ public sealed class Mechanism
     /// being won - a rate that is the caliber's to the last digit would mean
     /// the period had been typed in after all.
     /// </summary>
-    public static (double Hertz, double AmplitudeDegrees, double SecondsPerDay) Measure(Caliber spec, double inertia, double stiffness, double seconds = 60.0)
+    public static (double Hertz, double AmplitudeDegrees, double SecondsPerDay) Measure(Caliber spec, Numbers numbers, double seconds = 60.0)
     {
-        var m = new Mechanism(spec, DateTime.Now, inertia, stiffness);
+        var m = new Mechanism(spec, DateTime.Now, numbers);
         var settle = (long)(2.0 / Step);
         var run = (long)(seconds / Step);
         for (var k = 0; k < settle; k++) m.StepOnce();

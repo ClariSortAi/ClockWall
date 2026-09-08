@@ -20,6 +20,7 @@ operational layer.
     python tools/gltf_export.py          # regenerates Assets/movement.glb + movement-parts.json (OCP + build123d)
     python tools/case_solids.py          # regenerates Assets/case.glb + models/step/case.step (build123d)
     python tools/hairspring.py           # designs the hairspring -> Assets/mechanism.json (run before gltf_export)
+    python tools/mainspring.py           # designs the mainspring into the measured barrel -> Assets/mechanism.json
     python tools/dial_print.py           # regenerates Assets/dial-print.png
 
     .\deploy.ps1 -NoRestart -Dest "$env:LOCALAPPDATA\Programs\ClockWall-dev"   # a dev install that leaves the wall's copy running

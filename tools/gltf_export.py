@@ -388,12 +388,25 @@ def main():
         parts.append((name, verts, norms, faces, steel))
         total += len(faces)
 
+    # The mainspring: the STEP has none, so the designed one is added as a
+    # part of its own, coiled on the arbor at full wind. See mainspring.py.
+    import mainspring
+    cavity = mainspring.measure_cavity()
+    strip = mainspring.build(cavity, mainspring.design(cavity)).wrapped
+    got = tessellate_shape(strip, args.deflection * COARSE_FACTOR, args.angular * 2.0)
+    if got is not None:
+        verts, norms, faces = got
+        verts, norms = om10_to_world(verts, norms)
+        parts.append(("mainspring", verts, norms, faces, steel))
+        names["mainspring"] = "designed"
+        total += len(faces)
+
     write_glb(parts, args.out)
     print("  %d parts, %s tris in %.1fs" % (len(parts), format(total, ","), time.time() - t0))
     print("  wrote %s (%.2f MB)" % (args.out, os.path.getsize(args.out) / 1048576.0))
     # The names the renderer can key on, with where each part sits.
     with open(os.path.join(ROOT, "Assets", "movement-parts.json"), "w") as f:
-        json.dump({name: {"source": tag, **catalogue[tag]} for name, tag in names.items()}, f, indent=1)
+        json.dump({name: ({"source": tag, **catalogue[tag]} if tag in catalogue else {"source": tag}) for name, tag in names.items()}, f, indent=1)
 
 
 if __name__ == "__main__":

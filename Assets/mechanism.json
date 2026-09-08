@@ -1,18 +1,44 @@
 {
- "inertia": 1.8554984704965584e-09,
+ "inertia": 1.8554979248709886e-09,
  "hairspring": {
   "youngs_modulus": 200000000000.0,
   "width": 0.00016,
   "thickness": 3.5e-05,
-  "active_length": 0.12740524198031242,
-  "stiffness": 8.973989731992418e-07,
-  "coils": 11.497602374697516,
+  "active_length": 0.12739259927216529,
+  "stiffness": 8.974880329513351e-07,
+  "coils": 11.496418757347113,
   "r_in_mm": 0.65,
   "r_out_mm": 2.75,
   "r_stud_mm": 3.1,
   "stud_angle_deg": 66.1,
-  "free_rate_hz": 3.5001174310411867,
-  "regulated_for_escapement_error_s_per_day": -2.9,
+  "free_rate_hz": 3.500291620867346,
+  "regulated_for_escapement_error_s_per_day": -7.2,
   "note": "Archimedean strip designed for the measured inertia at 3.5 Hz; the OM10 STEP's 0.020 mm spring is a placeholder and is not used."
+ },
+ "mainspring": {
+  "inner_wall": 0.0064520869302776345,
+  "arbor": 0.001356792112927397,
+  "width": 0.0019499999999999997,
+  "thickness": 0.00014,
+  "length": 0.4464263851626443,
+  "turns_total": 10.823688772149621,
+  "turns_residual": 1.5,
+  "turns_usable": 9.323688772149621,
+  "torque_per_turn": 0.001255155349946736,
+  "torque_full": 0.013585410868522016,
+  "torque_residual": 0.001882733024920104,
+  "friction_torque": 0.0016302493042226417,
+  "coil_r_on_arbor": 0.004662097735652989,
+  "coil_r_on_wall": 0.0046620977356529895,
+  "mass": 0.0009506203445653346,
+  "cavity_mm": {
+   "inner_wall": 6.452086930277634,
+   "arbor": 1.356792112927397,
+   "floor": -1.1,
+   "ceiling": 0.95
+  },
+  "youngs_modulus": 200000000000.0,
+  "friction_fraction": 0.12,
+  "note": "Designed into the OM10's measured barrel cavity; the STEP carries no mainspring."
  }
 }
