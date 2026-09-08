@@ -83,6 +83,14 @@ internal struct FrameConstants
     public float TrackRadius; public float DebugView; public Vector2 _pad;
 }
 
+/// <summary>The post pass's constants: the wall colour and the focus.</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct PostConstants
+{
+    public Vector4 Backdrop;
+    public Vector4 Focus;
+}
+
 /// <summary>Per-draw constants. Layout matches cbuffer Object in the shaders.</summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct ObjectConstants

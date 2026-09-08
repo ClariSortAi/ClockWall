@@ -82,10 +82,10 @@ internal sealed class WatchScene : IDisposable
     private readonly ID3D11ShaderResourceView _dialPrint;
 
     private int _width, _height;
-    private ID3D11Texture2D? _colourMsaa, _depthMsaa, _resolved;
-    private ID3D11RenderTargetView? _colourRtv;
+    private ID3D11Texture2D? _colourMsaa, _depthMsaa, _resolved, _distanceMsaa, _distance;
+    private ID3D11RenderTargetView? _colourRtv, _distanceRtv;
     private ID3D11DepthStencilView? _depthDsv;
-    private ID3D11ShaderResourceView? _resolvedSrv;
+    private ID3D11ShaderResourceView? _resolvedSrv, _distanceSrv;
 
     private readonly Matrix4x4 _movementWorld;
     private readonly Vector3 _secondsArbor;
@@ -279,7 +279,7 @@ internal sealed class WatchScene : IDisposable
 
         _frameCb = Gpu.CreateConstantBuffer<FrameConstants>(device);
         _objectCb = Gpu.CreateConstantBuffer<ObjectConstants>(device);
-        _postCb = Gpu.CreateConstantBuffer<Vector4>(device);
+        _postCb = Gpu.CreateConstantBuffer<PostConstants>(device);
 
         // ---- states
         _linearClamp = device.CreateSamplerState(new SamplerDescription(Filter.MinMagMipLinear,
@@ -392,10 +392,31 @@ internal sealed class WatchScene : IDisposable
             Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource | BindFlags.RenderTarget,
         });
         _resolvedSrv = _device.CreateShaderResourceView(_resolved);
+
+        // View distance per pixel, for the focus pass. Half float, MSAA to
+        // match the colour target so the two resolve alike.
+        _distanceMsaa = _device.CreateTexture2D(new Texture2DDescription
+        {
+            Width = (uint)width, Height = (uint)height, MipLevels = 1, ArraySize = 1,
+            Format = Format.R16_Float, SampleDescription = new SampleDescription(4, 0),
+            Usage = ResourceUsage.Default, BindFlags = BindFlags.RenderTarget,
+        });
+        _distanceRtv = _device.CreateRenderTargetView(_distanceMsaa);
+        _distance = _device.CreateTexture2D(new Texture2DDescription
+        {
+            Width = (uint)width, Height = (uint)height, MipLevels = 1, ArraySize = 1,
+            Format = Format.R16_Float, SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource | BindFlags.RenderTarget,
+        });
+        _distanceSrv = _device.CreateShaderResourceView(_distance);
     }
 
     private void ReleaseTargets()
     {
+        _distanceSrv?.Dispose(); _distanceSrv = null;
+        _distance?.Dispose(); _distance = null;
+        _distanceRtv?.Dispose(); _distanceRtv = null;
+        _distanceMsaa?.Dispose(); _distanceMsaa = null;
         _resolvedSrv?.Dispose(); _resolvedSrv = null;
         _resolved?.Dispose(); _resolved = null;
         _depthDsv?.Dispose(); _depthDsv = null;
@@ -510,8 +531,9 @@ internal sealed class WatchScene : IDisposable
         _shadowPass = false;
 
         // ---- 2. the watch
-        ctx.OMSetRenderTargets(_colourRtv!, _depthDsv);
+        ctx.OMSetRenderTargets(new[] { _colourRtv!, _distanceRtv! }, _depthDsv);
         ctx.ClearRenderTargetView(_colourRtv!, new Color4(0f, 0f, 0f, 0f));
+        ctx.ClearRenderTargetView(_distanceRtv!, new Color4(d.CameraDistance, 0f, 0f, 0f));
         ctx.ClearDepthStencilView(_depthDsv!, DepthStencilClearFlags.Depth, 1f, 0);
         ctx.RSSetViewport(0, 0, width, height);
         ctx.RSSetState(_rasterMain);
@@ -528,6 +550,7 @@ internal sealed class WatchScene : IDisposable
         _previousBalance = reading.Balance;
 
         // ---- 3. the crystal
+        ctx.OMSetRenderTargets(_colourRtv!, _depthDsv);
         ctx.RSSetState(_rasterCrystal);
         ctx.OMSetDepthStencilState(_depthReadOnly);
         ctx.OMSetBlendState(_blendCrystal);
@@ -539,6 +562,7 @@ internal sealed class WatchScene : IDisposable
         ctx.PSSetShaderResource(3, null);
         ctx.OMSetRenderTargets((ID3D11RenderTargetView?)null);
         ctx.ResolveSubresource(_resolved!, 0, _colourMsaa!, 0, Format.R16G16B16A16_Float);
+        ctx.ResolveSubresource(_distance!, 0, _distanceMsaa!, 0, Format.R16_Float);
         ctx.OMSetRenderTargets(backBuffer);
         // Back to cull-none: the crystal pass left the back-culling state
         // set, and the post pass's full-screen triangle winds clockwise -
@@ -550,12 +574,27 @@ internal sealed class WatchScene : IDisposable
         ctx.IASetInputLayout(null);
         ctx.VSSetShader(_vsPost);
         ctx.PSSetShader(_psPost);
-        ctx.UpdateSubresource(new Vector4(Backdrop, 1f), _postCb);
+        // Focus a millimetre behind the dial's plane, toward the movement,
+        // with a pixel of blur per four millimetres out of it, capped at a
+        // pixel and a half: the bezel's rim, 3.3mm nearer the camera than
+        // the dial, goes a hair soft, and the balance 5mm down stays
+        // readable. Twice this (a pixel per 2mm, cap 3) turned the open
+        // heart to mush and showed the taps as blocks; the art direction
+        // says "barely", and it means it.
+        var post = new PostConstants
+        {
+            Backdrop = new Vector4(Backdrop, 1f),
+            Focus = new Vector4(d.CameraDistance + 1f, height / (d.ViewHeightMm * 4f), 1.5f, 0f),
+        };
+        ctx.UpdateSubresource(post, _postCb);
         ctx.PSSetConstantBuffer(0, _postCb);
         ctx.PSSetShaderResource(0, _resolvedSrv);
+        ctx.PSSetShaderResource(1, _distanceSrv);
         ctx.PSSetSampler(0, _point);
+        ctx.PSSetSampler(1, _linearClamp);
         ctx.Draw(3, 0);
         ctx.PSSetShaderResource(0, null);
+        ctx.PSSetShaderResource(1, null);
     }
 
     /// <summary>Every opaque surface, in an order that is only about

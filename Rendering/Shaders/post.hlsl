@@ -15,10 +15,13 @@
 cbuffer Post : register(b0)
 {
     float4 Backdrop;   // sRGB wall colour behind the panel
+    float4 Focus;      // x: distance in focus (mm), y: blur radius in pixels per mm out of focus, z: max radius px
 };
 
 Texture2D<float4> Frame  : register(t0);
+Texture2D<float>  Depth  : register(t1);
 SamplerState      Point  : register(s0);
+SamplerState      Linear : register(s1);
 
 struct VsOut { float4 clip : SV_Position; float2 uv : TEXCOORD0; };
 
@@ -54,9 +57,44 @@ float3 ToSrgb(float3 c)
     return c <= 0.0031308 ? c * 12.92 : 1.055 * pow(c, 1 / 2.4) - 0.055;
 }
 
+// Depth of field, barely (ART-DIRECTION item 7). A macro photograph of a
+// watch has its focus on the dial and the near edge of the bezel a hair
+// soft. The circle of confusion here grows with distance from the dial's
+// plane, capped small - a few pixels at most on the case's rim, nothing
+// on the dial. A gathered disc of taps weighted by how much each tap's own
+// depth would blur it, which keeps a sharp hand from bleeding into a soft
+// bezel behind it. Enough to feel like a photograph, never enough to
+// notice as an effect.
+float4 Focused(float2 uv)
+{
+    float2 texel;
+    { uint w, h; Frame.GetDimensions(w, h); texel = 1.0 / float2(w, h); }
+    float d0 = Depth.Sample(Point, uv);
+    float coc0 = min(Focus.z, abs(d0 - Focus.x) * Focus.y);
+    if (coc0 < 0.5) return Frame.Sample(Point, uv);
+
+    static const float2 taps[12] = {
+        float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1),
+        float2(0.707, 0.707), float2(-0.707, 0.707), float2(0.707, -0.707), float2(-0.707, -0.707),
+        float2(0.5, 0), float2(-0.5, 0), float2(0, 0.5), float2(0, -0.5) };
+    float4 sum = Frame.Sample(Point, uv);
+    float wsum = 1.0;
+    [unroll] for (int k = 0; k < 12; k++)
+    {
+        float2 p = uv + taps[k] * coc0 * texel;
+        float dk = Depth.Sample(Point, p);
+        float cock = min(Focus.z, abs(dk - Focus.x) * Focus.y);
+        // A tap only contributes if its own blur reaches this pixel.
+        float w = saturate(cock - length(taps[k]) * coc0 + 0.5);
+        sum += Frame.Sample(Linear, p) * w;
+        wsum += w;
+    }
+    return sum / wsum;
+}
+
 float4 PsMain(VsOut i) : SV_Target
 {
-    float4 s = Frame.Sample(Point, i.uv);
+    float4 s = Focused(i.uv);
     float a = saturate(s.a);
     // Colour was written premultiplied by coverage at resolve time (the
     // cleared samples are black), so un-premultiply before the curve and

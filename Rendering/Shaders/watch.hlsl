@@ -224,8 +224,16 @@ float Shadow(float3 P, float3 N, float NoL)
 
 // ------------------------------------------------------------- pixel
 
-float4 PsMain(VsOut i) : SV_Target
+struct PsOut
 {
+    float4 colour : SV_Target0;
+    float  depth  : SV_Target1;   // distance from the camera, mm, for the focus pass
+};
+
+PsOut PsMain(VsOut i)
+{
+    PsOut result;
+    result.depth = length(CameraPos - i.world);
     float3 P = i.world;
     float3 N = normalize(i.nrm);
     float3 V = normalize(CameraPos - P);
@@ -238,7 +246,8 @@ float4 PsMain(VsOut i) : SV_Target
     if (DebugView > 0.5)
     {
         float3 dbg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 0).rgb;
-        return float4(dbg * Exposure, 1);
+        result.colour = float4(dbg * Exposure, 1);
+        return result;
     }
 
     float ripple;
@@ -416,5 +425,6 @@ float4 PsMain(VsOut i) : SV_Target
         colour = lerp(colour, inkLit, max(onMark, print));
     }
 
-    return float4(colour * Exposure, Opacity);
+    result.colour = float4(colour * Exposure, Opacity);
+    return result;
 }
