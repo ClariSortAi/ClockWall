@@ -75,6 +75,56 @@ Measuring them also turned up an interference: the intermediate wheel's pivot is
 0.0096 mm too big for its upper bearing, a leftover from the revision that
 enlarged those pivots from 0.167 to 0.190. `docs/om10-fits.md` has it.
 
+## Boring it open
+
+The conclusion above is only worth having if somebody can act on it, so
+`tools/print_bores.py` does the acting: pick a machine and a scale, and it
+opens every bearing in `Assets/om10-fits.json` until the gap at that scale is
+what the machine can hold, writing the result to `Assets/print-bores.json`.
+
+    python tools/print_bores.py                     # MSLA at the study's scale
+    python tools/print_bores.py --printer FDM
+
+At 3.4x on a 50 µm machine, the model needs a 0.059 mm gap for the printed one
+to come out at 0.20. That opens the escapement jewels from 0.101 to 0.211, the
+train bushes from 0.301 to 0.406, and the barrel bearings from 1.401 to 1.506.
+Every bore grows by about a tenth of a millimetre, and the thinnest wall left
+anywhere is 0.84 mm at 3.4x against a 0.30 mm minimum, so nothing ends up
+fragile.
+
+The pivots are not touched. Opening a bore costs a bearing some wall; turning a
+pivot down costs the arbor its stiffness, moves the wheel's seat and changes the
+depthing. Given two ways to buy the same clearance, take the one that only moves
+a hole.
+
+The whole bore is opened rather than only its narrow band. `tools/om10_fits.py`
+had to learn that these holes are parallel with an oil sink on one side, and the
+same fact matters in reverse here: opening only the narrow section would leave a
+step partway down the hole for the pivot to catch on. Where the sink is already
+wider than the new bore, it survives as a chamfer.
+
+The `intermediate_bearing` interference comes out in the wash. Its new bore is
+calculated from the pivot rather than from its own bore, so the bush that was
+never opened when the pivots were enlarged gets opened here like every other.
+
+### Proving the cuts
+
+Opening a 0.10 mm hole to 0.21 mm is a large relative change, and these bearings
+sit inside other parts. Every opened bore is built as the tube of material it
+removes and intersected against all 166 solids. All sixteen come back clean at
+both scales tested: the wall holds and nothing is broken into.
+
+Two failures showed up first and both were mine rather than the geometry's. The
+test solid was a full cylinder, which contains the old hole, so the barrel
+arbor's own screw registered as a part the opening ate into when the opening
+never reaches it; only the annulus is new material. And the cut runs past both
+faces so it leaves no skin, which meant every part merely touching a bearing's
+face counted as a collision, condemning the two balance cap stones for sitting
+flat against the hole jewels they close. That is what a cap stone is for.
+
+The cuts were then checked by doing them and measuring again: bore `jewel` open
+and it sections at 0.2108, which is what was asked for.
+
 ## The thinnest parts
 
 | Part | 2V/A | bbox min | 2A/P | |
