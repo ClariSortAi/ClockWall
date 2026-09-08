@@ -196,7 +196,8 @@ public sealed class WatchRenderer : IDisposable
                 // The one place the face is chosen. A second design is a
                 // second WatchDesign and this line; see FACE-RECIPE.md.
                 _scene = new WatchScene(_device!, context, assets, WatchDesign.BlueSoleil);
-                LogLine($"scene built in {started.ElapsedMilliseconds} ms: {WatchDesign.BlueSoleil.Name}; panel {_width}x{_height}");
+                _scene.Log = LogLine;
+                LogLine($"scene built in {started.ElapsedMilliseconds} ms: {WatchDesign.BlueSoleil.Name}; panel {_width}x{_height}; {_scene.StartupReport}");
             }
             catch (Exception ex)
             {

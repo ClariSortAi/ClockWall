@@ -66,7 +66,10 @@ acceptance test.
   `OpenworkedFace` (the sprite face), `MovementView` (the live face's panel).
 - `Services/` — `SessionWatcher` (finds sessions + subagents), `AgentSession` (model),
   `TranscriptTokens` (tail-follows transcripts by byte offset), `Caliber` (the
-  movement's physics; every angle from one beat count).
+  movement's specification and its kinematic form: every angle from one beat count
+  read off the wall clock), `Mechanism` (the running watch: an integrated balance,
+  an event-based escapement, a mainspring; the beat count is its own, the wall
+  clock only sets it. The live face uses this; the sprite face still uses Caliber).
 - `Rendering/` — the live face. `WatchDesign` is the FACE (palette, materials,
   movement placement, light rig); `WatchScene` is the ENGINE (passes, arbors,
   transforms) and builds no geometry; `WatchRenderer` the device and swap chain;
@@ -77,10 +80,10 @@ acceptance test.
   process for producing a new face.
 - **Direction of travel.** This is meant to become an object that could be made and
   whose time comes from its own mechanism, not the system clock. Every part is a
-  solid; hands sit on real arbors (centre wheel under the dial centre, seconds on the
-  fourth wheel). `Services/Caliber.cs`'s header names the seam where the wall clock
-  will be replaced by a simulated oscillator. Do not add geometry that is not a solid,
-  or motion that could not come from the train.
+  solid; the hands sit on the OM10's own arbors; the live face's time comes from
+  `Services/Mechanism.cs`, which keeps its own rate (measured at start-up and written
+  to the fault log, with hourly drift). Do not add geometry that is not a solid, or
+  motion that could not come from the train, or a number the solids could have given.
 - `Themes/Theme.xaml` — the entire design system.
 - `tools/` — the Python pipeline: CAD extraction, the glTF exporter, the dial print
   mask, and the retired Blender sprite renders.

@@ -33,11 +33,13 @@ namespace ClockWall;
 ///
 /// The seam for that change is this record's contract, not its body. One
 /// beat count in, every angle out, is what the sprite face and the live face
-/// both consume; the count's source is what will change. Keep the contract,
-/// replace the source, and both faces follow. Do not let the argument in the
-/// paragraph above - that reading the hands off the clock is "correct" -
-/// stand in the way when the time comes; it is correct for a description and
-/// wrong for a mechanism.
+/// both consume; the count's source is what changes. <see cref="Mechanism"/>
+/// is that change: the same <see cref="Reading"/> out, but the beat count is
+/// a count of unlock events from an integrated balance, and the live face
+/// reads it. This record stays as the specification and as the kinematic
+/// form the sprite face still draws. The argument in the paragraph above -
+/// that reading the hands off the clock is "correct" - is correct for a
+/// description and wrong for a mechanism.
 /// </summary>
 /// <param name="Name">Shown under the dial. A caliber's own name, never a
 /// brand's - see the header of <see cref="OpenworkedFace"/>.</param>

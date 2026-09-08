@@ -77,7 +77,24 @@ internal sealed class WatchScene : IDisposable
     private readonly Matrix4x4 _movementWorld;
     private readonly Vector3 _secondsArbor;
     private readonly Material _fallbackMaterial;
-    private readonly Caliber _caliber = Caliber.Swiss4Hz;
+
+    /// <summary>The running watch. Its beat count is what every angle in
+    /// the window hangs off, and the time on the hands is that count over
+    /// the beat rate. The wall clock set it once, at start-up.</summary>
+    private readonly Mechanism _mechanism;
+
+    /// <summary>What the mechanism measured of itself at start-up: the rate
+    /// it keeps and the amplitude it settles at. Logged by the renderer so
+    /// the bet's number is on record every launch.</summary>
+    public string StartupReport { get; }
+
+    /// <summary>Where a line of text goes when the scene has something worth
+    /// recording: the renderer points it at the fault log. Once an hour the
+    /// mechanism reports its drift against the wall clock, its amplitude and
+    /// its reserve, which is the bet's running score and bounded at
+    /// twenty-four lines a day.</summary>
+    public Action<string>? Log { get; set; }
+    private double _nextReportAt = 3600.0;
 
     /// <summary>Set CLOCKWALL_DEBUG_VIEW=1 in the environment to render every
     /// surface as a mirror of the studio by its normal. See watch.hlsl.</summary>
@@ -123,9 +140,15 @@ internal sealed class WatchScene : IDisposable
         ("cannon_pinion", new(0f, 0f), Drive.Minute),
         ("cannon_wheel", new(0f, 0f), Drive.Minute),
         ("hour_wheel", new(0f, 0f), Drive.Hour),
+        ("minute_wheel", new(3.32f, -2.72f), Drive.MinuteWheel),
+        ("minute_wheel_pinion", new(3.32f, -2.72f), Drive.MinuteWheel),
+        ("barrel", new(3.77f, 6.67f), Drive.Barrel),
+        ("barrel_drum", new(3.77f, 6.67f), Drive.Barrel),
+        ("barrel_cover", new(3.77f, 6.67f), Drive.Barrel),
+        ("mainspring", new(3.77f, 6.67f), Drive.Barrel),
     };
 
-    private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour }
+    private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour, MinuteWheel, Barrel }
 
     /// <summary>How far the pallet lever banks either side of centre, in
     /// degrees, for a full swing of the fork. Real, not exaggerated: the
@@ -154,6 +177,12 @@ internal sealed class WatchScene : IDisposable
     private const double ThirdPerSeconds = 9.0 / 72.0;
     private const double CentrePerSeconds = 1.0 / 60.0;
     private const double IntermediatePerSeconds = 3.0 / 60.0;
+    /// <summary>The barrel (107 teeth) drives the centre pinion (16), so it
+    /// turns 16/107 times an hour, against the centre wheel; the minute
+    /// wheel (48) is driven by the cannon pinion (18 leaves, the count the
+    /// 12:1 motion works require with a 12-leaf minute pinion into 54).</summary>
+    private const double BarrelPerSeconds = (16.0 / 107.0) / 60.0;
+    private const double MinuteWheelPerMinute = 18.0 / 48.0;
 
     // ------------------------------------------------------------ construction
 
@@ -180,6 +209,12 @@ internal sealed class WatchScene : IDisposable
                 throw new InvalidDataException($"movement.glb has no part named '{required}'; re-run tools/gltf_export.py");
         }
         _fallbackMaterial = design.PlateMetal;
+
+        // ---- the mechanism, set to the wall clock the way a person sets a
+        // watch, and measured once so its rate is on record.
+        _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now);
+        var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, 30.0);
+        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz";
 
         // ---- shaders
         using (var vs = Gpu.Compile("watch.hlsl", "VsMain", "vs_5_0"))
@@ -362,7 +397,13 @@ internal sealed class WatchScene : IDisposable
         var ctx = _context;
         var d = _design;
         var rig = new Rig(d, seconds, (float)width / height);
-        var reading = _caliber.Read(now);
+        _mechanism.Advance();
+        var reading = _mechanism.Read();
+        if (seconds >= _nextReportAt)
+        {
+            _nextReportAt += 3600.0;
+            Log?.Invoke($"mechanism after {seconds / 3600.0:0.0} h: {_mechanism.DriftSeconds:+0.00;-0.00} s against the wall clock, amplitude {_mechanism.AmplitudeDegrees:0.0} deg, reserve {_mechanism.ReserveTurns:0.00} turns");
+        }
 
         // ---- frame constants
         var frame = new FrameConstants
@@ -482,6 +523,8 @@ internal sealed class WatchScene : IDisposable
                     // hand. Read off the same clock as the hands, exactly.
                     Drive.Minute => reading.Minute,
                     Drive.Hour => reading.Hour,
+                    Drive.MinuteWheel => -reading.Minute * MinuteWheelPerMinute,
+                    Drive.Barrel => -reading.Train * BarrelPerSeconds,
                     _ => 0.0,
                 };
                 world = ScreenClockwiseAbout((float)degrees, new Vector3(arbor.X, 0f, arbor.Y)) * _movementWorld;

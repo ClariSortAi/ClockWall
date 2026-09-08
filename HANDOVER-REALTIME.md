@@ -185,17 +185,56 @@ pinion `00161` at 4.68mm; third `00162` (72) to the seconds pinion `00164`
 wheel at the plate centre back to one. The minute wheel `00159` and the
 barrel's tooth count are not counted yet, so both are drawn static.
 
+## Status, evening: the mechanism keeps its own time
+
+`Services/Mechanism.cs`. A balance with the inertia integrated off the OM10
+solids (1.864e-9 kg m^2), a hairspring stiffness, viscous damping, an
+escapement that unlocks when the pin enters the fork slot, takes an
+unlocking loss, delivers the impulse from a quarter of the half-lift before
+centre to the slot's far edge, and locks on drop; a mainspring whose torque
+falls linearly over six barrel turns. The beat count is the count of unlock
+events; the hands show the set time plus beats over the beat rate. The wall
+clock sets it at start-up and again after a five-second stall.
+
+Measured by running it (`Mechanism.Measure`, logged at every launch):
+**3.4999 Hz at 285.1 degrees, losing 2.9 s/day** against the caliber's
+3.5 Hz. The rate is not typed anywhere; it is the free period pulled slow
+by an impulse after centre, which is the escapement error a real lever
+shows. It will change as the amplitude falls with the spring. The fault log
+gets a line an hour with drift, amplitude and reserve.
+
+What is measured off the solids: the inertia, every tooth and leaf count
+(barrel 107, centre pinion 16, third pinion 10, seconds pinion 9,
+intermediate 25 with a 20-leaf pinion into the 60-tooth cannon wheel, minute
+wheel 48 with 12 into the 54-tooth hour wheel; the cannon pinion is 18 by
+the 12:1 the motion works require), the lift angle. What is not: the
+hairspring's stiffness - the STEP's strip is a 0.020 mm placeholder that
+would beat at 1.5 Hz, so the stiffness is the train's 3.5 Hz against the
+measured inertia; the mainspring's torque - the STEP's spring is a ring -
+so 6 N mm, typical; the damping, set to give 285 degrees at full wind; the
+escapement's efficiency and unlocking loss, ordinary Swiss-lever figures.
+Every one of those is named in the class header with its source.
+
+Everything under the dial now turns too: barrel group at 16/107 of the
+centre wheel, minute wheel at 18/48 against the cannon pinion.
+
 Not done, in the order they are worth doing:
 
-1. **The oscillator.** Replace the wall clock in `Caliber.Read` with an
-   integrated balance and an event-based escapement. The contract stays.
-   The torque curve can now come from the real barrel and mainspring.
-2. **Count the barrel and the minute wheel** and drive them.
+1. **Winding.** The spring runs down in forty hours and nothing turns the
+   crown. `Mechanism.Wind()` exists and is not wired. A wall clock either
+   winds itself (an automatic would need a rotor the OM10 does not have)
+   or is wound by a keypress standing in for the owner; the honest wall
+   behaviour is the second, with the drift log recording the stop.
+2. **Setting.** The five-second stall rule re-sets from the wall clock.
+   That is the owner setting it; it is not recorded anywhere but the log.
 3. **Name the rest of the 166.** `Assets/movement-parts.json` carries every
    part's position; about half still go by their source id.
-4. **The balance strobes** at speed; a sub-step additive draw gated on
+4. **Mesh phase.** Each wheel turns at the right rate about the right
+   arbor; whether tooth sits in gap between any two at a given instant has
+   not been checked against the geometry.
+5. **The balance strobes** at speed; a sub-step additive draw gated on
    `BalanceSpeed` is the cheap fix.
-5. **Depth of field, barely**; the crystal's edge refraction; the hairspring
+6. **Depth of field, barely**; the crystal's edge refraction; the hairspring
    still turns rigidly.
 
 ## The licence question, asked and answered
