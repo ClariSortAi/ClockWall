@@ -18,7 +18,7 @@
         only the size and the plumbing.
     -->
     <SwapChainPanel x:Name="Panel"
-                    Width="{StaticResource WatchFaceSize}"
+                    Width="{StaticResource WatchFaceWidth}"
                     Height="{StaticResource WatchFaceSize}"
                     HorizontalAlignment="Center" />
 

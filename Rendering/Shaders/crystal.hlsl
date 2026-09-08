@@ -16,7 +16,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
-    float    DialRadius;  float TrackRadius; float DebugView; float _pad0;
+    float    TrackRadius; float DebugView; float2 _pad0;
 };
 
 cbuffer Object : register(b1)

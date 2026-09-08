@@ -159,11 +159,12 @@ The UI is WinUI 3 (Windows App SDK) on .NET 10, unpackaged, in C# and XAML, targ
 Everything is themed from one file, `Themes/Theme.xaml`. No panel hardcodes a color or font, so a reskin means editing that one file.
 
 The live watch face is a D3D11 scene in a `SwapChainPanel`: the OM10 movement
-as geometry, a procedural case and dial, anisotropic materials so the sunburst's
-lobes sweep as the light drifts, and the offline render's studio HDRI as the
-light. `ART-DIRECTION.md` is what it is meant to look like, `FACE-RECIPE.md`
-is how to make another one, and `Rendering/WatchDesign.cs` is the one file a
-new design edits.
+and a case, dial, hands and crown that are all watertight solids from
+`tools/case_solids.py`, anisotropic materials so the sunburst's lobes sweep as
+the light drifts, and the offline render's studio HDRI as the light. The hands
+sit on the movement's real arbors. `ART-DIRECTION.md` is what it is meant to
+look like, `FACE-RECIPE.md` is how to make another one and where the project is
+heading, and `Rendering/WatchDesign.cs` is the file a new design edits.
 
 Mica is not used, and that's deliberate rather than an oversight. A full-bleed wall display has no desktop behind it, and Mica's backdrop falls back to a solid fill whenever the window isn't in the foreground, which for a wall panel is the normal state. That fallback made the background lighter than the cards sitting on it, inverting the intended elevation. A flat dark background sidesteps the problem.
 

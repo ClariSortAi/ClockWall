@@ -17,7 +17,10 @@ operational layer.
     ClockWall.exe --fullscreen           # Esc exits, F11 toggles
 
     python tools/gltf_export.py          # regenerates Assets/movement.glb (needs OCP + build123d)
+    python tools/case_solids.py          # regenerates Assets/case.glb + models/step/case.step (build123d)
     python tools/dial_print.py           # regenerates Assets/dial-print.png
+
+    .\deploy.ps1 -NoRestart -Dest "$env:LOCALAPPDATA\Programs\ClockWall-dev"   # a dev install that leaves the wall's copy running
 
 No test suite. Verify a change by building and taking a screenshot. `captures/` is
 gitignored for exactly that. For the live face, judge the full 1080x1920 screenshot
@@ -57,11 +60,20 @@ acceptance test.
 - `Services/` — `SessionWatcher` (finds sessions + subagents), `AgentSession` (model),
   `TranscriptTokens` (tail-follows transcripts by byte offset), `Caliber` (the
   movement's physics; every angle from one beat count).
-- `Rendering/` — the live face. `WatchDesign` is the FACE (palette, dimensions,
-  materials, light rig: the only file a new design edits); `WatchScene` is the
-  ENGINE (passes, geometry builders, transforms); `WatchRenderer` the device and
-  swap chain; `Environment` the HDRI bake; `Shaders/*.hlsl` embedded and compiled at
-  start-up. `FACE-RECIPE.md` is the repeatable process for producing a new face.
+- `Rendering/` — the live face. `WatchDesign` is the FACE (palette, materials,
+  movement placement, light rig); `WatchScene` is the ENGINE (passes, arbors,
+  transforms) and builds no geometry; `WatchRenderer` the device and swap chain;
+  `Environment` the HDRI bake; `Shaders/*.hlsl` embedded and compiled at start-up.
+  Shapes come from two GLBs: `Assets/movement.glb` (the OM10, `tools/gltf_export.py`)
+  and `Assets/case.glb` (everything else as watertight solids, `tools/case_solids.py`,
+  which also writes `models/step/case.step`). `FACE-RECIPE.md` is the repeatable
+  process for producing a new face.
+- **Direction of travel.** This is meant to become an object that could be made and
+  whose time comes from its own mechanism, not the system clock. Every part is a
+  solid; hands sit on real arbors (centre wheel under the dial centre, seconds on the
+  fourth wheel). `Services/Caliber.cs`'s header names the seam where the wall clock
+  will be replaced by a simulated oscillator. Do not add geometry that is not a solid,
+  or motion that could not come from the train.
 - `Themes/Theme.xaml` — the entire design system.
 - `tools/` — the Python pipeline: CAD extraction, the glTF exporter, the dial print
   mask, and the retired Blender sprite renders.

@@ -123,7 +123,17 @@ def tessellate(path, deflection, angular):
     reader = STEPControl_Reader()
     reader.ReadFile(path)
     reader.TransferRoots()
-    shape = reader.OneShape()
+    return tessellate_shape(reader.OneShape(), deflection, angular)
+
+
+def tessellate_shape(shape, deflection=0.004, angular=0.10):
+    """An OCP shape -> (vertices, normals, faces), normals off the surface.
+
+    Shared with tools/case_solids.py, which builds the case in build123d and
+    hands over `.wrapped` - so the case and the movement go through one
+    tessellator and one normal rule, and a chamfer on the bezel is lit exactly
+    the way a chamfer on the bridge is.
+    """
     BRepMesh_IncrementalMesh(shape, deflection, False, angular, True)
 
     verts, norms, faces = [], [], []
@@ -166,6 +176,32 @@ def tessellate(path, deflection, angular):
     if not faces:
         return None
     return np.array(verts), np.array(norms), np.array(faces)
+
+
+def to_yup(verts, norms):
+    """CAD is Z-up; glTF is Y-up BY SPEC. Rotate -90 about X: (x, y, z) -> (x, z, -y)."""
+    verts = np.column_stack((verts[:, 0], verts[:, 2], -verts[:, 1]))
+    norms = np.column_stack((norms[:, 0], norms[:, 2], -norms[:, 1]))
+    return verts, norms
+
+
+def write_glb(parts, out):
+    """parts: list of (name, verts, norms, faces, (colour, metal, rough)) in
+    Z-up millimetres, already placed. Writes one Y-up GLB with a named node per
+    part. The renderer keys materials on the node name; the PBR values here are
+    a courtesy for any other viewer."""
+    scene = trimesh.Scene()
+    for name, verts, norms, faces, (colour, metal, rough) in parts:
+        verts, norms = to_yup(np.asarray(verts, float), np.asarray(norms, float))
+        mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=norms, process=False)
+        mesh.visual = trimesh.visual.TextureVisuals(
+            material=trimesh.visual.material.PBRMaterial(
+                name=name, baseColorFactor=[colour[0], colour[1], colour[2], 1.0],
+                metallicFactor=metal, roughnessFactor=rough))
+        scene.add_geometry(mesh, geom_name=name, node_name=name)
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    scene.export(out)
+    return scene
 
 
 def main():

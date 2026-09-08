@@ -12,24 +12,31 @@
 # output loads the runtime from Program Files, where it is Microsoft-signed, so it runs.
 # See README "Deploying to a wall machine" before changing this.
 
-param([switch]$NoRestart)
+# -Dest installs somewhere other than the wall's own copy. Development of the
+# next face happens on a branch while the wall keeps running the last good
+# build, so a dev build goes to ClockWall-dev and only a process running FROM
+# that directory is stopped; the wall's ClockWall.exe is left alone.
+param([switch]$NoRestart, [string]$Dest)
 
 $ErrorActionPreference = "Stop"
 $env:PATH = "C:\Program Files\dotnet;" + $env:PATH
 
 $root = $PSScriptRoot
 $src  = Join-Path $root "bin\Release\net10.0-windows10.0.19041.0\win-x64"
-$dest = Join-Path $env:LOCALAPPDATA "Programs\ClockWall"
+$dest = if ($Dest) { $Dest } else { Join-Path $env:LOCALAPPDATA "Programs\ClockWall" }
 
 dotnet build (Join-Path $root "ClockWall.csproj") -c Release -r win-x64
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
-$running = @(Get-Process ClockWall -ErrorAction SilentlyContinue)
+$running = @(Get-Process ClockWall -ErrorAction SilentlyContinue |
+             Where-Object { $_.Path -and $_.Path.StartsWith($dest, [System.StringComparison]::OrdinalIgnoreCase) })
 if ($running) {
     # Close politely so the window position is saved, then make sure it is gone.
     $running | ForEach-Object { $_.CloseMainWindow() | Out-Null }
     Start-Sleep -Seconds 2
-    Get-Process ClockWall -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process ClockWall -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -and $_.Path.StartsWith($dest, [System.StringComparison]::OrdinalIgnoreCase) } |
+        Stop-Process -Force
     Start-Sleep -Seconds 1
 }
 

@@ -75,7 +75,7 @@ internal struct FrameConstants
     public Vector3 LightDir; public float ShadowTexel;
     public Vector3 LightColour; public float Time;
     public Vector3 ApertureCentre; public float ApertureRadius;
-    public float DialRadius; public float TrackRadius; public float DebugView; public float _pad;
+    public float TrackRadius; public float DebugView; public Vector2 _pad;
 }
 
 /// <summary>Per-draw constants. Layout matches cbuffer Object in the shaders.</summary>

@@ -240,8 +240,11 @@
     <!-- ==================== AGENT CARD METRICS ==================== -->
     <!-- The square every hero clock face is drawn in, in DIPs. The analogue
          canvas and the openworked face are hard 640s in their own XAML for
-         historical reasons; the live face reads it from here. -->
+         historical reasons; the live face reads it from here. The live face
+         is WIDER than it is tall: the watch is 640 tall and the extra width
+         is where the crown sits at three o'clock. -->
     <x:Double x:Key="WatchFaceSize">640</x:Double>
+    <x:Double x:Key="WatchFaceWidth">720</x:Double>
 
     <x:Double x:Key="AgentCardMinHeight">150</x:Double>
     <x:Double x:Key="AgentCardGutter">16</x:Double>

@@ -1,7 +1,5 @@
 // Depth-only pass from the key light. Same vertex layout and the same
-// Object constants as watch.hlsl, because the dial has to cut its aperture
-// here too - a hole the shadow map does not know about is a hole that casts
-// a shadow, and the movement would sit in the dark.
+// constant buffers as watch.hlsl so one Object upload serves both passes.
 #pragma pack_matrix(row_major)
 
 cbuffer Frame : register(b0)
@@ -13,7 +11,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
-    float    DialRadius;  float TrackRadius; float DebugView; float _pad0;
+    float    TrackRadius; float DebugView; float2 _pad0;
 };
 
 cbuffer Object : register(b1)
@@ -43,10 +41,4 @@ VsOut VsMain(VsIn v)
 
 void PsMain(VsOut i)
 {
-    if (Finish == 5)   // FINISH_DIAL
-    {
-        float2 rel = i.world.xz - ApertureCentre.xz;
-        if (dot(rel, rel) < ApertureRadius * ApertureRadius) discard;
-        if (dot(i.world.xz, i.world.xz) > DialRadius * DialRadius) discard;
-    }
 }

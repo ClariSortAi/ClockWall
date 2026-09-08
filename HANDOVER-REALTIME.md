@@ -142,18 +142,50 @@ exists, where, and what the next session should know:
 - Measured on the deployed build: about 35% GPU at idle clocks and 33 W;
   about 12% of one CPU core above the digital face; working set flat.
 
+## Status, later the same day: solids and real arbors (branch `mechanism`)
+
+The direction changed: this is to become an object that could be made,
+whose time comes from its own mechanism. `main` still runs the face above;
+`mechanism` has:
+
+- Every non-movement part as a watertight solid in `tools/case_solids.py`
+  (build123d), exported to `Assets/case.glb` and `models/step/case.step`.
+  The renderer builds no geometry; `MeshBuilder` is gone.
+- Hands on real arbors. The placement puts the OM10's centre wheel
+  (`wheel_a`, 75 teeth, once an hour by the derived train) under the dial
+  centre and turns the assembly 272.70 degrees so the balance sits straight
+  below at 15.10mm. The hour and minute hands are on tubes at that arbor;
+  the seconds hand is on an extension of the fourth wheel's arbor, 8mm out
+  at seven o'clock, inside a 9.6mm aperture pulled 30% of the way from the
+  balance toward it. The seconds arbor's world position is derived through
+  the placement, never typed.
+- A crown and stem at three on the case band, a caseback, tubes for the
+  cannon pinion and hour wheel. The panel is 720 wide so the crown shows.
+- `Caliber.cs`'s header names the seam where the wall clock will become an
+  oscillator.
+
+What the train analysis established, from the manifest's arbors and radii
+(the original STEP is on no machine here, so this is all the evidence there
+is): `wheel_c` (84) is the fourth wheel driven by `epinion`; `wheel_b` (72)
+is the third, driving `pinion_b` (9); `wheel_a` (75) drives the third's
+pinion at 4.68mm and is the centre wheel; `pinion_a` (25 leaves, full
+height) meshes `wheel_a` at 5.50mm and its role is not known. The barrel is
+not among the parts and, by the centre wheel's position, would have been
+near the plate centre, 8.2mm from it.
+
 Not done, in the order they are worth doing:
 
-1. **The balance strobes.** At 3.5 Hz and 285 degrees it moves 60-100
-   degrees between frames and the rim's spokes alias, the same complaint
-   the sprite face drew. The sprite face cross-faded to a rotational smear
-   on `BalanceSpeed`; the live face has no equivalent yet. The cheap form is
-   to draw the balance N times per frame at sub-step angles with additive
-   weights, gated on `BalanceSpeed`.
-2. **Depth of field, barely** (ART-DIRECTION item 7). Not implemented.
-3. **The crystal's edge refraction.** Skipped; a wrong one is worse than none.
-4. **The hairspring** still turns rigidly by 5% of the balance's swing.
-5. The `Rotations` table is the OM10's. A different movement is a project.
+1. **The oscillator.** Replace the wall clock in `Caliber.Read` with an
+   integrated balance and an event-based escapement. The contract stays.
+2. **The missing parts, if the direction holds:** motion works, cannon
+   pinion and hour wheel with teeth, barrel and mainspring, keyless works.
+   None is visible from the front; all are needed for a thing that runs.
+3. **Whether the OM10's stem slot is at three** after the placement. The
+   plate's rim has a 36 degree opening at CAD azimuth 264 that may be it.
+4. **The balance strobes** at speed; a sub-step additive draw gated on
+   `BalanceSpeed` is the cheap fix.
+5. **Depth of field, barely**; the crystal's edge refraction; the hairspring
+   still turns rigidly.
 
 ## The licence question, asked and answered
 

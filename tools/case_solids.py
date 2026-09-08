@@ -1,0 +1,327 @@
+"""The case, dial, hands and crown as watertight solids.
+
+    python tools/case_solids.py        # -> Assets/case.glb, models/step/case.step
+
+WHAT THIS IS. Everything on the watch that is not the OM10 movement, modelled
+in build123d as closed solids - the same kernel and the same tessellator as
+the movement - rather than as the single-sided render meshes the live face was
+first built with. A solid can be exported to STEP, checked for interference
+against the movement, scaled and printed. A render mesh can only be looked at.
+
+THE DIRECTION OF TRAVEL. This watch is meant to become an object that works:
+every part a solid that could be made, and the time driven by the mechanism
+rather than the system clock. So the hands here sit on real arbors. The hour
+and minute hands are on tubes at the dial centre where the OM10's centre wheel
+(wheel_a, 75 teeth, once an hour) is placed by tools/om10_layout.py's new
+placement; the seconds hand is on an extension of the fourth wheel's arbor
+inside the aperture. Nothing turns about a point where there is no axle.
+
+WHAT IS STILL MISSING, in the order it would be visible: the cannon pinion and
+hour wheel are plain tubes with no teeth; the motion works, barrel, mainspring
+and keyless works are not modelled at all - none of them is visible from the
+front, and the OM10's originals were not extracted before the source STEP was
+lost. The crown and stem are placed at three o'clock on the CASE; whether the
+OM10's own stem slot falls there after the placement is unknown (the plate's
+rim has a 36 degree opening at CAD azimuth 264, which may or may not be it).
+
+FRAME. CAD is Z-up, millimetres, the dial's top face at z = 0. x runs to the
+right of the dial and y UP the dial toward twelve, so a point that is (x, y)
+on the screen with y down is (x, -y) here. tools/gltf_export.write_glb turns
+this into the renderer's Y-up world, where +Z runs down the dial.
+"""
+
+import math
+import os
+import sys
+
+from build123d import (Axis, Circle, Compound, Cylinder, Line, Location, Plane,
+                       Polyline, Shell, Solid, ThreePointArc, chamfer, extrude,
+                       make_face, revolve)
+from build123d import export_step
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+import gltf_export as G                                       # noqa: E402
+
+U = 1.0 / 11.780018          # mm per face unit: case_geometry.py's numbers carried over
+
+# ------------------------------------------------------------------ dimensions
+# Rendering/WatchDesign.cs holds the same numbers; when the design moves, both
+# move, and the STEP is the one that can be measured.
+DIAL_R = 288 * U
+BEZEL_IN = 289 * U
+CASE_R = 314 * U
+CRYSTAL_EDGE = 2.7
+CRYSTAL_PEAK = 3.5
+
+INDEX_IN, INDEX_OUT, INDEX_HALF_W = 246 * U, 279 * U, 7.5 * U
+INDEX_H, INDEX_CHAMFER = 0.45, 0.12
+TWELVE_HALF_W, TWELVE_OFFSET = 4.4 * U, 6.2 * U
+
+# The opening, from the real-arbor placement: balance straight below the
+# centre at 15.10 mm, the aperture pulled 30% of the way from the balance
+# toward the fourth wheel so the escapement and the seconds arbor are inside.
+APERTURE = (-1.23, -12.63)     # CAD x, y (y up)
+APERTURE_R = 9.6
+REHAUT_OUT = APERTURE_R + 0.6
+WELL_DEPTH = 3.0
+
+# The fourth wheel's arbor after placement, where the seconds hand lives.
+SECONDS_ARBOR = (-4.10, -6.84)
+
+MOVEMENT_Z = -3.6              # the movement's own z = 0 plane, below the dial
+CENTRE_WHEEL_TOP = 1.65 + MOVEMENT_Z    # wheel_a z_hi in the CAD, placed
+FOURTH_PINION_TOP = 2.16 + MOVEMENT_Z   # pinion_b z_hi, placed
+
+HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=1.05, ridge=0.19)
+MINUTE = dict(length=214 * U, half_w=9 * U, shoulder=54 * U, tail=40 * U, base=1.55, ridge=0.16)
+CAP_R = 13 * U
+
+# ------------------------------------------------------------------ materials
+# Courtesy PBR for other viewers; the renderer keys its own on the node name.
+STEEL = ((0.680, 0.700, 0.740), 1.0, 0.11)
+BLUED = ((0.035, 0.075, 0.300), 1.0, 0.10)
+DIAL = ((0.0116, 0.0395, 0.181), 1.0, 0.40)
+GLASS = ((0.9, 0.92, 1.0), 0.0, 0.02)
+
+
+def profile(points_and_arcs):
+    """A closed planar wire in (r, z) from a mix of points and ('arc', mid)
+    markers, as a face on the XZ plane ready to revolve about Z."""
+    edges = []
+    prev = points_and_arcs[0]
+    for item in points_and_arcs[1:]:
+        if isinstance(item, tuple) and item and item[0] == "arc":
+            _, mid, end = item
+            edges.append(ThreePointArc(prev, mid, end))
+            prev = end
+        else:
+            edges.append(Line(prev, item))
+            prev = item
+    if prev != points_and_arcs[0]:
+        edges.append(Line(prev, points_and_arcs[0]))
+    wire = edges[0]
+    for e in edges[1:]:
+        wire = wire + e
+    return Plane.XZ * make_face(wire)
+
+
+def case():
+    """Bezel, rehaut wall, case band and the flange the dial sits on, one
+    solid of revolution. Same profile the render lathe had, closed."""
+    ri, ro, seat = BEZEL_IN, CASE_R, CRYSTAL_EDGE
+    x0, x1 = ri + 0.9, ro - 0.55
+    top = seat + 0.62
+    dome_r = 22.0
+    dome_c = ((x0 + x1) / 2, top - dome_r)
+    def on_dome(x):
+        return (x, dome_c[1] + math.sqrt(dome_r ** 2 - (x - dome_c[0]) ** 2))
+    edge_r = 0.55
+    edge_c = (ro - edge_r, on_dome(x1)[1] - edge_r)
+    pts = [
+        (ri - 0.8, -0.05), (ri, -0.05), (ri, seat), (ri + 0.35, seat), on_dome(x0),
+        ("arc", on_dome((x0 + x1) / 2), on_dome(x1)),
+        ("arc", (edge_c[0] + edge_r * math.cos(math.radians(45)), edge_c[1] + edge_r * math.sin(math.radians(45))), (ro, edge_c[1])),
+        (ro, -6.5), (ro - 1.5, -7.0), (ri - 0.8, -7.0),
+    ]
+    return revolve(profile(pts), Axis.Z)
+
+
+def caseback():
+    """A snap back closing the band. Not visible from the front; here so the
+    case is a vessel and not a ring."""
+    return Cylinder(BEZEL_IN - 0.8 - 0.05, 1.4, align=(None, None, None)).moved(Location((0, 0, -8.4)))
+
+
+def crystal():
+    """A domed sapphire: spherical top from the seat to the peak, 0.8 mm thick
+    at the edge, flat underneath."""
+    chord = BEZEL_IN - 0.05
+    sag = CRYSTAL_PEAK - CRYSTAL_EDGE
+    sphere_r = (chord ** 2 + sag ** 2) / (2 * sag)
+    cz = CRYSTAL_PEAK - sphere_r
+    mid_x = chord * 0.5
+    mid = (mid_x, cz + math.sqrt(sphere_r ** 2 - mid_x ** 2))
+    pts = [(0, CRYSTAL_EDGE - 0.8), (chord, CRYSTAL_EDGE - 0.8), (chord, CRYSTAL_EDGE),
+           ("arc", mid, (0, CRYSTAL_PEAK))]
+    return revolve(profile(pts), Axis.Z)
+
+
+def dial():
+    """The dial plate, 0.4 mm, with the opening and the centre bore cut clean
+    through. The printing and the minute track are ink, in the shader."""
+    sk = Circle(BEZEL_IN + 0.6) - Circle(0.95) - Circle(APERTURE_R).moved(Location(APERTURE))
+    return extrude(sk, 0.4).moved(Location((0, 0, -0.4)))
+
+
+def rehaut():
+    """The polished ring standing in the opening, with the well wall inside it."""
+    ri, ro = APERTURE_R, REHAUT_OUT
+    pts = [(ro, -0.2), (ro, 0.22), (ro - 0.14, 0.36), (ri + 0.16, 0.36), (ri, 0.20),
+           (ri, -WELL_DEPTH), (ri + 0.5, -WELL_DEPTH), (ri + 0.5, -0.2)]
+    return revolve(profile(pts), Axis.Z).moved(Location(APERTURE))
+
+
+def baton(deg, half_w, offset):
+    a = math.radians(deg)
+    ux, uy = math.sin(a), math.cos(a)        # toward the rim, y up
+    vx, vy = uy, -ux
+    def at(r, w):
+        return (ux * r + vx * (w + offset), uy * r + vy * (w + offset))
+    outline = [at(INDEX_IN, -half_w), at(INDEX_OUT, -half_w), at(INDEX_OUT, half_w), at(INDEX_IN, half_w)]
+    prism = extrude(make_face(Polyline(*outline, outline[0])), INDEX_H)
+    top_edges = prism.edges().group_by(Axis.Z)[-1]
+    return chamfer(top_edges, INDEX_CHAMFER)
+
+
+def indices():
+    parts = []
+    for hour in range(1, 13):
+        if hour == 6:
+            continue
+        if hour == 12:
+            parts.append(baton(0, TWELVE_HALF_W, -TWELVE_OFFSET))
+            parts.append(baton(0, TWELVE_HALF_W, TWELVE_OFFSET))
+        else:
+            parts.append(baton(hour * 30, INDEX_HALF_W, 0))
+    out = parts[0]
+    for p in parts[1:]:
+        out = out + p
+    return out
+
+
+def polyhedron(faces):
+    """A closed solid from planar polygon faces given as point lists."""
+    shell = Shell([make_face(Polyline(*f, f[0])) for f in faces])
+    solid = Solid(shell)
+    if not solid.is_valid:
+        raise SystemExit("polyhedron is not a valid solid")
+    if solid.volume < 0:
+        solid = Solid(Shell([make_face(Polyline(*reversed(f), f[-1])) for f in faces]))
+    return solid
+
+
+def dauphine(length, half_w, shoulder, tail, base, ridge):
+    """A faceted kite, tip at +y (twelve), pivot at the origin. Two top facets
+    meet at a ridge down the length; the ridge drops toward the tip because
+    the facets converge before the point does."""
+    z0 = base - 0.11
+    tip_z = base + ridge * 0.25
+    tip, lsh, rsh = (0, length), (-half_w, shoulder), (half_w, shoulder)
+    ltl, rtl, ctl = (-0.34 * half_w, -tail), (0.34 * half_w, -tail), (0, -tail)
+    P = lambda p, z: (p[0], p[1], z)
+    faces = [
+        # facets
+        [P(tip, tip_z), P(lsh, base), P(ctl, base + ridge)],
+        [P(lsh, base), P(ltl, base), P(ctl, base + ridge)],
+        [P(tip, tip_z), P(ctl, base + ridge), P(rsh, base)],
+        [P(rsh, base), P(ctl, base + ridge), P(rtl, base)],
+        # walls
+        [P(tip, z0), P(tip, tip_z), P(lsh, base), P(lsh, z0)],
+        [P(lsh, z0), P(lsh, base), P(ltl, base), P(ltl, z0)],
+        [P(ltl, z0), P(ltl, base), P(ctl, base + ridge), P(rtl, base), P(rtl, z0)],
+        [P(rtl, z0), P(rtl, base), P(rsh, base), P(rsh, z0)],
+        [P(rsh, z0), P(rsh, base), P(tip, tip_z), P(tip, z0)],
+        # underside
+        [P(tip, z0), P(rsh, z0), P(rtl, z0), P(ltl, z0), P(lsh, z0)],
+    ]
+    return polyhedron(faces)
+
+
+def hour_hand():
+    h = HOUR
+    hand = dauphine(**h)
+    # The hour wheel's tube: rides on the cannon pinion, through the dial.
+    tube = Cylinder(0.80, (h["base"] + h["ridge"]) - (-1.0), align=(None, None, None)).moved(Location((0, 0, -1.0)))
+    return hand + tube
+
+
+def minute_hand():
+    m = MINUTE
+    hand = dauphine(**m)
+    # The cannon pinion's tube: pressed onto the centre wheel arbor.
+    top = m["base"] + m["ridge"]
+    tube = Cylinder(0.45, top - CENTRE_WHEEL_TOP, align=(None, None, None)).moved(Location((0, 0, CENTRE_WHEEL_TOP)))
+    return hand + tube
+
+
+def seconds_hand():
+    """A needle with a counterweight on the fourth wheel's arbor, inside the
+    aperture and below the dial's surface. Short, because it is a small
+    seconds now and its tip must clear the rehaut at every angle."""
+    length, tail, w, z_lo, z_hi = 2.9, 1.0, 0.11, -0.60, -0.48
+    outline = [(-w, length), (w, length), (w * 1.6, -tail), (-w * 1.6, -tail)]
+    needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
+    weight = extrude(Circle(0.42) - Circle(0.18), z_hi - z_lo).moved(Location((0, -tail - 0.1, z_lo)))
+    arbor = Cylinder(0.24, z_hi - FOURTH_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, FOURTH_PINION_TOP)))
+    return (needle + weight + arbor).moved(Location(SECONDS_ARBOR))
+
+
+def cap():
+    """The hand nut over the pivots, a low dome."""
+    r = CAP_R
+    top = MINUTE["base"] + MINUTE["ridge"] + 0.35
+    pts = [(0, 0.4), (r, 0.4), (r, top - 0.5), ("arc", (r * 0.7, top - 0.5 + (r - math.sqrt(r * r - (r * 0.7) ** 2))), (0, top))]
+    # a plain dome: centre (0, top - r)
+    cz = top - r
+    mid_x = r * 0.7
+    pts = [(0, 0.4), (r, 0.4), (r, cz + math.sqrt(r * r - r * r * 0.999)),
+           ("arc", (mid_x, cz + math.sqrt(r * r - mid_x * mid_x)), (0, top))]
+    return revolve(profile(pts), Axis.Z)
+
+
+def crown():
+    """Stem and crown at three o'clock on the case band, at the movement's
+    mid height. Sixteen flutes cut round the crown so it catches light."""
+    z = MOVEMENT_Z + 0.3
+    stem = Cylinder(0.45, 4.0, align=(None, None, None)).moved(Location((0, 0, 0)))
+    body = Cylinder(1.65, 1.7, align=(None, None, None)).moved(Location((0, 0, 3.4)))
+    body = chamfer(body.edges().group_by(Axis.Z)[-1], 0.25)
+    for k in range(16):
+        a = math.radians(k * 360 / 16)
+        flute = Cylinder(0.22, 1.9, align=(None, None, None)).moved(Location((1.65 * math.cos(a), 1.65 * math.sin(a), 3.3)))
+        body = body - flute
+    part = stem + body
+    # Built along +Z; lay it along +X at the rim.
+    return part.moved(Location((CASE_R - 1.9, 0, z), (0, 90, 0)))
+
+
+def main():
+    parts = [
+        ("case", case(), STEEL),
+        ("caseback", caseback(), STEEL),
+        ("crystal", crystal(), GLASS),
+        ("dial", dial(), DIAL),
+        ("rehaut", rehaut(), STEEL),
+        ("indices", indices(), STEEL),
+        ("hour_hand", hour_hand(), STEEL),
+        ("minute_hand", minute_hand(), STEEL),
+        ("seconds_hand", seconds_hand(), BLUED),
+        ("cap", cap(), STEEL),
+        ("crown", crown(), STEEL),
+    ]
+    glb_parts = []
+    for name, solid, mat in parts:
+        if not solid.is_valid:
+            raise SystemExit(f"{name} is not a valid solid")
+        solid.label = name
+        got = G.tessellate_shape(solid.wrapped, 0.004, 0.10)
+        if got is None:
+            raise SystemExit(f"{name} has no triangles")
+        verts, norms, faces = got
+        glb_parts.append((name, verts, norms, faces, mat))
+        print("  %-13s volume %8.2f mm3  %6d tris  z %+.2f..%+.2f" % (
+            name, solid.volume, len(faces), solid.bounding_box().min.Z, solid.bounding_box().max.Z))
+
+    out_glb = os.path.join(ROOT, "Assets", "case.glb")
+    G.write_glb(glb_parts, out_glb)
+    print("  wrote", out_glb, "(%.2f MB)" % (os.path.getsize(out_glb) / 1048576))
+
+    out_step = os.path.join(ROOT, "models", "step", "case.step")
+    export_step(Compound(children=[p[1] for p in parts]), out_step)
+    print("  wrote", out_step)
+
+
+if __name__ == "__main__":
+    main()

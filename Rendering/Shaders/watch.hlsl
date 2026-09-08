@@ -17,7 +17,7 @@ static const int FINISH_RADIAL   = 1;  // grain runs outward from FinishCentre: 
 static const int FINISH_CIRCULAR = 2;  // grain runs around FinishCentre: circular graining
 static const int FINISH_STRAIGHT = 3;  // grain along FinishDir, with scalloped stripes: cotes de Geneve
 static const int FINISH_PERLAGE  = 4;  // small circular grains on a hex grid, overlapping
-static const int FINISH_DIAL     = 5;  // radial, plus the aperture cut and the printed track
+static const int FINISH_DIAL     = 5;  // radial, plus the printed track and lettering (the hole is in the solid)
 static const int FINISH_BLACK    = 6;  // black polish: a mirror so flat it reads dark
 
 cbuffer Frame : register(b0)
@@ -29,7 +29,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;   // unit vector TOWARD the light
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
-    float    DialRadius;  float TrackRadius; float DebugView; float _pad0;
+    float    TrackRadius; float DebugView; float2 _pad0;
 };
 
 cbuffer Object : register(b1)
@@ -203,16 +203,6 @@ float4 PsMain(VsOut i) : SV_Target
     float3 P = i.world;
     float3 N = normalize(i.nrm);
     float3 V = normalize(CameraPos - P);
-
-    // The dial is one disc with the opening and its own rim cut here rather
-    // than modelled, which keeps the triangle count of a hole at zero and
-    // the edge exactly circular at any zoom.
-    if (Finish == FINISH_DIAL)
-    {
-        float2 rel = P.xz - ApertureCentre.xz;
-        if (dot(rel, rel) < ApertureRadius * ApertureRadius) discard;
-        if (dot(P.xz, P.xz) > DialRadius * DialRadius) discard;
-    }
 
     // CLOCKWALL_DEBUG_VIEW=1: every surface is a mirror of the environment
     // by its own normal, so the dial shows exactly what world +Y is aimed at

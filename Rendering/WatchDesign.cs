@@ -3,121 +3,91 @@ using System.Numerics;
 
 namespace ClockWall.Rendering;
 
-/// <summary>A dauphine hand's outline, in millimetres from the pivot.</summary>
-internal sealed record HandShape(float Length, float HalfWidth, float Shoulder, float Tail);
-
 /// <summary>
-/// THE FACE, as data. Everything that makes this watch this watch and not
-/// another one lives here: the palette, every dimension, what each surface
-/// is made of and how it was finished, where the camera stands and where
-/// the lights are. <see cref="WatchScene"/> is the engine that draws
-/// whatever design it is handed and contains no number of its own.
+/// THE FACE, as data: the palette, what each part is made of and how it was
+/// finished, where the movement sits, where the camera stands and where the
+/// lights are. <see cref="WatchScene"/> is the engine that draws whatever
+/// design it is handed and contains no number of its own.
+///
+/// WHERE THE SHAPES ARE. Not here. Every part that is not the movement is a
+/// watertight solid built by tools/case_solids.py and exported to
+/// Assets/case.glb (and models/step/case.step, which can be measured, checked
+/// against the movement, and printed). This record names those parts and
+/// says what they are made of; it does not know how long the minute hand is.
+/// That split is the direction of travel: an object that could be made, whose
+/// time will one day come from its own mechanism rather than the system clock.
 ///
 /// A new face is a new instance of this record - usually
-/// <c>BlueSoleil with { ... }</c> - and nothing else. FACE-RECIPE.md is the
-/// process: reference photographs first, then the palette, then the
-/// dimensions, then the finishes, then the rig, each checked on the wall
-/// before the next. The order matters more than any value here.
+/// <c>BlueSoleil with { ... }</c> - plus, if its shapes differ, a new set of
+/// dimensions in case_solids.py. FACE-RECIPE.md is the process.
 ///
 /// UNITS. Millimetres, in the world frame the scene uses: X to the right,
-/// Y toward the viewer, Z down the dial toward six. The sprite face and
-/// case_geometry.py drew everything in "face units", 640 across the panel,
-/// and those numbers are carried over through <see cref="FaceUnit"/> so
-/// the two faces stay the same object. Colours are linear.
+/// Y toward the viewer, Z down the dial toward six. Colours are linear.
 /// </summary>
 internal sealed record WatchDesign
 {
     /// <summary>Millimetres per face unit: tools/om10_layout.py places the
-    /// movement at 11.78 face units per millimetre, so this is what turns
-    /// every number in case_geometry.py into a real size.</summary>
+    /// movement at 11.78 face units per millimetre, and the dial's printing
+    /// mask is drawn in face units.</summary>
     public const float FaceUnit = 1f / 11.780018f;
 
     public string Name { get; init; } = "";
 
-    // ------------------------------------------------------------ the case
-
-    public float DialRadius { get; init; }
-    public float BezelInner { get; init; }
-    public float CaseRadius { get; init; }
-    public float TrackRadius { get; init; }
-
-    /// <summary>The bezel's domed top and rounded outer edge, and the height
-    /// of the rehaut wall the crystal sits on.</summary>
-    public float CrystalEdge { get; init; }
-    public float CrystalPeak { get; init; }
-
     // ------------------------------------------------------------ the dial
 
-    public float IndexInner { get; init; }
-    public float IndexOuter { get; init; }
-    public float IndexHalfWidth { get; init; }
-    public float IndexHeight { get; init; }
-    public float IndexChamfer { get; init; }
-    /// <summary>The double baton at twelve: each half's width and its
-    /// sideways offset from the radius.</summary>
-    public float TwelveHalfWidth { get; init; }
-    public float TwelveOffset { get; init; }
+    /// <summary>Radius of the printed minute track, for the shader.</summary>
+    public float TrackRadius { get; init; }
 
-    /// <summary>The opening. Centre in the world frame; the well is the
-    /// wall dropping from the dial to the movement, and the rehaut the
-    /// polished ring standing round the opening.</summary>
+    /// <summary>The opening: centre in the world frame and radius. The dial
+    /// solid has the hole; the shader uses these for the recess occlusion of
+    /// whatever sits in the well.</summary>
     public Vector3 ApertureCentre { get; init; }
     public float ApertureRadius { get; init; }
-    public float RehautOuter { get; init; }
-    public float WellDepth { get; init; }
-
-    // ------------------------------------------------------------ the hands
-
-    public HandShape Hour { get; init; } = new(0, 0, 0, 0);
-    public HandShape Minute { get; init; } = new(0, 0, 0, 0);
-    public float HourBase { get; init; }
-    public float HourRidge { get; init; }
-    public float MinuteBase { get; init; }
-    public float MinuteRidge { get; init; }
-    public float SecondBase { get; init; }
-    public float SecondTop { get; init; }
-    public float SecondLength { get; init; }
-    public float SecondHalfWidth { get; init; }
-    public float SecondTail { get; init; }
-    public float SecondRingOffset { get; init; }
-    public float SecondRingRadius { get; init; }
-    public float SecondHoleRadius { get; init; }
-    public float CapRadius { get; init; }
 
     // ------------------------------------------------------------ the movement
 
     /// <summary>Where the movement's own Y=0 plane sits under the dial.</summary>
     public float MovementY { get; init; }
-    /// <summary>tools/om10_layout.py's placement: the CAD arbor that is
-    /// carried to <see cref="BalanceFaceUnits"/>, and the clockwise turn
-    /// applied to the whole assembly on the way.</summary>
-    public Vector2 BalanceArborCad { get; init; }
-    public Vector2 BalanceFaceUnits { get; init; }
+
+    /// <summary>The placement: one arbor of the movement, in the CAD's (x, y),
+    /// is carried to a point on the dial, and the whole assembly is turned
+    /// clockwise about it. For a face with hands on real arbors the arbor is
+    /// the centre wheel's and the point is the dial centre.</summary>
+    public Vector2 PlacedArborCad { get; init; }
+    public Vector2 PlacedArborWorldXZ { get; init; }
     public float MovementRotationDeg { get; init; }
+
+    /// <summary>The arbor the seconds hand turns about, in the CAD's (x, y):
+    /// the fourth wheel's. Its world position is derived through the
+    /// placement, and case_solids.py must have put the hand there.</summary>
+    public Vector2 SecondsArborCad { get; init; }
+
     /// <summary>Direction of the cotes de Geneve across the bridges, in the
     /// movement's own frame.</summary>
     public Vector3 CotesDirection { get; init; }
 
     // ------------------------------------------------------------ materials
 
-    public Material Dial { get; init; }
-    public Material Polished { get; init; }
-    public Material Bezel { get; init; }
-    public Material Rehaut { get; init; }
-    public Material SecondHand { get; init; }
-    public Material Floor { get; init; }
-    /// <summary>Per OM10 part, by the exporter's name. Parts not listed are
-    /// drawn polished.</summary>
+    /// <summary>Per part of Assets/case.glb, by node name. The crystal is
+    /// listed for completeness; it is drawn by its own shader.</summary>
+    public IReadOnlyDictionary<string, Material> Case { get; init; } = new Dictionary<string, Material>();
+
+    /// <summary>Per OM10 part of Assets/movement.glb, by node name. Parts not
+    /// listed are drawn polished.</summary>
     public IReadOnlyDictionary<string, Material> Movement { get; init; } = new Dictionary<string, Material>();
+
+    public Material Polished { get; init; }
 
     // ------------------------------------------------------------ the rig
 
     /// <summary>A long lens: the distance sets the perspective, the tilt
-    /// gives the case a side, and both breathe so the reflections move.</summary>
+    /// gives the case a side, and both breathe so the reflections move.
+    /// The view is <see cref="ViewHeightMm"/> tall at the dial.</summary>
     public float CameraDistance { get; init; }
     public float CameraTiltDeg { get; init; }
     public float CameraTiltSwingDeg { get; init; }
     public float CameraSwingDeg { get; init; }
+    public float ViewHeightMm { get; init; }
 
     /// <summary>The key light: bearing clockwise from twelve, elevation
     /// above the dial, each with the amplitude of its slow wander.</summary>
@@ -140,76 +110,59 @@ internal sealed record WatchDesign
     // ------------------------------------------------------------ the blue soleil
 
     /// <summary>The face ART-DIRECTION.md describes: a blue soleil dial in a
-    /// polished steel case, the OM10 turning behind an open heart at six.</summary>
+    /// polished steel case, the OM10 turning behind an open heart at six -
+    /// now with the hands on the centre wheel and the seconds on the fourth.</summary>
     public static WatchDesign BlueSoleil { get; } = MakeBlueSoleil();
 
     private static WatchDesign MakeBlueSoleil()
     {
         const float U = FaceUnit;
-        var aperture = new Vector3(0f, 0f, 130f * U);   // escapement_geometry.APERTURE
+        // tools/case_solids.py APERTURE, in CAD (x, y up) -> world (x, z down).
+        var aperture = new Vector3(-1.23f, 0f, 12.63f);
+
+        var steel = new Material(Material.Steel, 1f, 0.11f, 0.11f);
+        var bezel = new Material(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero);
 
         return new WatchDesign
         {
-            Name = "Blue soleil, open heart",
+            Name = "Blue soleil, open heart, real arbors",
 
-            DialRadius = 288f * U,      // case_geometry.DIAL_R
-            BezelInner = 289f * U,      // BEZEL_IN
-            CaseRadius = 314f * U,      // CASE_R
             TrackRadius = 268f * U,     // dial_render.CHAPTER_R
-            CrystalEdge = 2.7f,
-            CrystalPeak = 3.5f,
-
-            IndexInner = 246f * U,
-            IndexOuter = 279f * U,
-            IndexHalfWidth = 7.5f * U,
-            IndexHeight = 0.45f,
-            IndexChamfer = 0.12f,
-            TwelveHalfWidth = 4.4f * U,
-            TwelveOffset = 6.2f * U,
-
             ApertureCentre = aperture,
-            ApertureRadius = 126f * U,
-            RehautOuter = 133f * U,
-            // The number that makes the aperture a recess: the wall it
-            // draws, and the depth the shader's occlusion term works against.
-            WellDepth = 3.0f,
-
-            // case_geometry.build_hands, in millimetres. The hands sit
-            // higher than a thin watch would put them, on purpose: their
-            // shadows on the dial are what say they are ABOVE it rather than
-            // printed on it, and a shadow displaced by a millimetre reads
-            // from across a room where a third of that does not. The facets
-            // are shallow - 11 degrees - because a steeper ridge reflected
-            // outside the studio's softbox and went gunmetal at half the hours.
-            Hour = new HandShape(150f * U, 11f * U, 44f * U, 34f * U),
-            Minute = new HandShape(214f * U, 9f * U, 54f * U, 40f * U),
-            HourBase = 1.05f, HourRidge = 0.19f,
-            MinuteBase = 1.55f, MinuteRidge = 0.16f,
-            SecondBase = 2.00f, SecondTop = 2.15f,
-            SecondLength = 232f * U,
-            SecondHalfWidth = 2f * U,
-            SecondTail = 40f * U,
-            SecondRingOffset = 54f * U,
-            SecondRingRadius = 13f * U,
-            SecondHoleRadius = 5.4f * U,
-            CapRadius = 13f * U,
+            ApertureRadius = 9.6f,
 
             // The highest part (a bridge screw head, Z=2.30 in the CAD)
             // lands 1.3mm below the dial's surface, the balance rim about 3mm.
             MovementY = -3.6f,
-            BalanceArborCad = new Vector2(-8.06f, 3.51f),         // om10_layout.AXIS["balance"]
-            BalanceFaceUnits = new Vector2(296.2238f, 464.2443f), // escapement_geometry.BALANCE
-            MovementRotationDeg = 6.595f,                          // om10_layout ROT_DEG
+            // The centre wheel (wheel_a, 75 teeth, once an hour) under the
+            // dial centre, and the assembly turned so the balance sits
+            // straight below it at 15.10mm. Derived in the session notes from
+            // the manifest's arbors; case_solids.py carries the same numbers.
+            PlacedArborCad = new Vector2(7.028f, 4.223f),
+            PlacedArborWorldXZ = Vector2.Zero,
+            MovementRotationDeg = 272.70f,
+            SecondsArborCad = new Vector2(0.016f, 7.999f),   // pinion_b, the fourth's arbor
             CotesDirection = new Vector3(0.94f, 0f, 0.34f),
+
+            Polished = steel,
 
             // ART-DIRECTION.md's palette. The dial's lobe width is the
             // along-grain roughness; its darkness across the grain the other.
-            Dial = new Material(Material.DialBlue, 1f, 0.30f, 0.72f, Finish.Dial, Lacquer: 0.25f),
-            Polished = new Material(Material.Steel, 1f, 0.11f, 0.11f),
-            Bezel = new Material(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero),
-            Rehaut = new Material(Material.Steel, 1f, 0.06f, 0.12f, Finish.Circular, FinishCentre: aperture),
-            SecondHand = new Material(Material.Blued, 1f, 0.10f, 0.10f),
-            Floor = new Material(new Vector3(0.25f, 0.26f, 0.28f), 1f, 0.55f, 0.55f, Recess: true),
+            Case = new Dictionary<string, Material>
+            {
+                ["case"] = bezel,
+                ["caseback"] = new(new Vector3(0.25f, 0.26f, 0.28f), 1f, 0.55f, 0.55f, Recess: true),
+                ["dial"] = new(Material.DialBlue, 1f, 0.30f, 0.72f, Finish.Dial, Lacquer: 0.25f),
+                ["rehaut"] = new(Material.Steel, 1f, 0.06f, 0.12f, Finish.Circular, FinishCentre: aperture),
+                ["indices"] = steel,
+                ["hour_hand"] = steel,
+                ["minute_hand"] = steel,
+                // Steel rather than blued: it lives in the well now, over
+                // a dark movement, and a blued needle there vanished.
+                ["seconds_hand"] = steel with { Recess = true },
+                ["cap"] = steel,
+                ["crown"] = new(Material.Steel, 1f, 0.10f, 0.22f, Finish.Circular, FinishCentre: new Vector3(28.5f, 0f, 0f)),
+            },
 
             // The two-tier rule from render_lib, kept: almost everything
             // quiet, a few things bright, and the escapement the dimmest
@@ -242,11 +195,14 @@ internal sealed record WatchDesign
             },
 
             // A long lens from 300mm, tilted a few degrees so the case has a
-            // side, breathing by a degree or two.
+            // side, breathing by a degree or two. 640 face units tall at the
+            // dial, so the watch is the size the sprite face was; the panel is
+            // wider than it is tall so the crown is not cut off at three.
             CameraDistance = 300f,
             CameraTiltDeg = 4.0f,
             CameraTiltSwingDeg = 1.5f,
             CameraSwingDeg = 1.2f,
+            ViewHeightMm = 640f * U,
 
             // From the upper left like the sprite face's key (dial_render
             // LIGHT_DEG = 315), lowish so the hands throw a shadow that
@@ -259,10 +215,9 @@ internal sealed record WatchDesign
 
             // studio_small_09, measured off the panorama in radiance: the
             // one broad bright source is a gridded softbox at azimuth +36,
-            // 25 degrees up. World +Y is aimed at it; the white cyclorama
-            // that LOOKS bright in a preview is radiance 1 and gave
-            // gunmetal. Yaw is negative because the panorama's longitude
-            // runs the other way from a rotation about Y.
+            // 25 degrees up. World +Y is aimed at it. Yaw is negative because
+            // the panorama's longitude runs the other way from a rotation
+            // about Y.
             EnvPitchDeg = -65f,
             EnvYaw = -0.63f,
             EnvYawSwing = 0.22f,

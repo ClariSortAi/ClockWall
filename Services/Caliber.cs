@@ -17,6 +17,27 @@ namespace ClockWall;
 /// counting releases and multiplying out gives the same answer the wheels do,
 /// and it cannot drift out of step with itself the way three independent
 /// clocks could.
+///
+/// WHERE THE BEAT COUNT COMES FROM, AND WHERE IT IS GOING. Today
+/// <see cref="Read"/> takes the wall clock and turns it into beats: the
+/// balance is a sine of that count, the lever a clamp on it, and nothing
+/// here pushes anything. That is KINEMATICS - a description of where the
+/// parts are - standing in for an oscillator that does not exist yet. The
+/// direction of travel for this project is a watch whose time is driven by
+/// its own mechanism: a balance with inertia and a hairspring with a
+/// stiffness, integrated; an escapement that delivers impulse at the real
+/// unlock, impulse and drop angles; a mainspring whose falling torque lets
+/// the amplitude sag. The period then EMERGES and the watch gains or loses
+/// like a real one, and the system clock is demoted to what a person does:
+/// set the hands once, wind it.
+///
+/// The seam for that change is this record's contract, not its body. One
+/// beat count in, every angle out, is what the sprite face and the live face
+/// both consume; the count's source is what will change. Keep the contract,
+/// replace the source, and both faces follow. Do not let the argument in the
+/// paragraph above - that reading the hands off the clock is "correct" -
+/// stand in the way when the time comes; it is correct for a description and
+/// wrong for a mechanism.
 /// </summary>
 /// <param name="Name">Shown under the dial. A caliber's own name, never a
 /// brand's - see the header of <see cref="OpenworkedFace"/>.</param>

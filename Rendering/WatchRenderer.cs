@@ -174,6 +174,9 @@ public sealed class WatchRenderer : IDisposable
             // call - all of them land here, and all of them mean the same
             // thing to a wall display: try again next frame.
             Debug.WriteLine($"[ClockWall] render fault, rebuilding device: {ex.Message}");
+            // Once per rebuild, not per frame: a fault that recurs every
+            // frame would otherwise write the log at 60 Hz.
+            if (!_deviceLost) LogFault("render fault, rebuilding device", ex);
             _deviceLost = true;
         }
     }
@@ -189,9 +192,11 @@ public sealed class WatchRenderer : IDisposable
             try
             {
                 var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+                var started = Stopwatch.StartNew();
                 // The one place the face is chosen. A second design is a
                 // second WatchDesign and this line; see FACE-RECIPE.md.
                 _scene = new WatchScene(_device!, context, assets, WatchDesign.BlueSoleil);
+                LogLine($"scene built in {started.ElapsedMilliseconds} ms: {WatchDesign.BlueSoleil.Name}; panel {_width}x{_height}");
             }
             catch (Exception ex)
             {
@@ -354,14 +359,16 @@ public sealed class WatchRenderer : IDisposable
     /// reason has to be somewhere a person can read it the next morning.
     /// Faults only - never per frame - so the file cannot grow unattended.
     /// </summary>
-    private static void LogFault(string what, Exception ex)
+    private static void LogLine(string what) => LogFault(what, null);
+
+    private static void LogFault(string what, Exception? ex)
     {
         try
         {
             var dir = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "ClockWall");
             Directory.CreateDirectory(dir);
             File.AppendAllText(Path.Combine(dir, "render-log.txt"),
-                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {what}: {ex}{System.Environment.NewLine}");
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {what}{(ex is null ? "" : ": " + ex)}{System.Environment.NewLine}");
         }
         catch
         {
