@@ -89,6 +89,17 @@ operation a manufacturer performs to make an open-heart version of a stock
 movement, and it is recorded here so that nobody mistakes the cut plate for
 openmovement's design.
 
+## One bore opened, 2026-09-08
+
+The same export opens the intermediate wheel's upper bearing `OM00-00123`
+from 0.1812 to 0.2012 mm. The OM10's 2021/02/01 release note enlarges the
+seconds and intermediate pivots from 0.167 to 0.190; the lower bearing was
+opened to match and this one was not, an interference of 0.0096 mm on the
+diameter that `tools/om10_fits.py` measured off the file itself
+(`docs/om10-fits.md`). It is a correction to a derived copy, not to the OM10
+files, and it is recorded here so that the opened bush is not taken for
+openmovement's dimension.
+
 The source STEP (`om10-00001_20220701_va_01_3.stp`, 18.8 MB) and the release
 notes (`OM10_Release_notes.pdf`, which name the parts) are the owner's copies
 from openmovement's free registration, kept outside the repository.

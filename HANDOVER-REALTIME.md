@@ -210,8 +210,7 @@ wheel 48 with 12 into the 54-tooth hour wheel; the cannon pinion is 18 by
 the 12:1 the motion works require), the lift angle. What is not: the
 hairspring's stiffness - the STEP's strip is a 0.020 mm placeholder that
 would beat at 1.5 Hz, so the stiffness is the train's 3.5 Hz against the
-measured inertia; the mainspring's torque - the STEP's spring is a ring -
-so 6 N mm, typical; the damping, set to give 285 degrees at full wind; the
+measured inertia; the damping, set to give 285 degrees at full wind; the
 escapement's efficiency and unlocking loss, ordinary Swiss-lever figures.
 Every one of those is named in the class header with its source.
 
@@ -238,8 +237,9 @@ Not done, in the order they are worth doing:
    geometry (the shock settings both sides, the raquetterie, the bearings,
    the keyless works, the date works, the fixings). The 16 still by id are
    small keyless and cock-side pieces whose role the geometry alone does
-   not settle. One correction on the way: `00197`, first taken for the
-   mainspring, is the ratchet wheel; the STEP has no mainspring.
+   not settle. Two corrections on the way: `00197`, first taken for the
+   mainspring, is the ratchet wheel; and `00120`, catalogued as the drum,
+   is the mainspring itself.
 3. **Depth of field, barely**; the crystal's edge refraction; the hairspring
    still turns rigidly.
 
@@ -277,18 +277,22 @@ movement in place of the OM10's placeholder. `Mechanism` reads the JSON
 and types nothing. Regulated by the pins' angle for the escapement's
 measured error: the watch keeps 3.5000 Hz, +0.0 s/day.
 
-**2. A mainspring that is a spring - done.** `tools/mainspring.py` measures
-the OM10's barrel cavity off its own solids by cross-section (wall 6.45 mm,
-arbor 1.36, 2.05 high - the first ray-based measurement flaked and read
-4.64; sections are repeatable) and sizes the strip into it the way a barrel
-is sized: half the annulus, 0.14 mm gauge, so 1.95 wide and 446 mm long,
-10.8 turns of which 9.3 are usable above a 1.5-turn hooked-in residual;
-13.6 N mm at full wind, a 62 h reserve at the barrel's 6.69 h a turn, and
+**2. A mainspring that is a spring - done, twice.** The first pass designed
+a strip into the barrel's measured cavity (0.14 gauge, half the annulus,
+13.6 N mm) and added it to the export as a part of its own. Then the
+assembly check (item 5) found that strip inside another solid: `00120`,
+catalogued as the barrel drum, is the OM10's own mainspring - a 0.102 by
+1.50 mm strip drawn as an 11.75-coil Archimedean spiral from r 1.48 to
+6.21, 284 mm long. So `tools/mainspring.py` now measures rather than
+designs: the strip's thickness, height and length off its solid by exact
+point-in-solid tests, and the cavity (wall 6.626, arbor 1.354, floor -0.85,
+ceiling 0.75) off the drum, cover and arbor. That strip in that cavity gives
+12.1 turns of which 10.6 are usable above a 1.5-turn hooked-in residual,
+7.13 N mm at full wind, a 71 h reserve at the barrel's 6.69 h a turn, and
 the train's friction (12% of full) as the torque below which the watch
-stops. The solid, coiled on the arbor, joins the movement export as a part
-of its own. The mechanism's torque curve is that strip's; the typical
-"6 N mm" is gone. The escapement error grew with the torque (-2.9 to -7.2
-s/day) and the regulator index was moved to match, which is what a
+stops. The mechanism's torque curve is that strip's; the "typical 6 N mm"
+was gone before and stays gone. The escapement error moved with the torque
+each time and the regulator index was moved to match, which is what a
 timing machine is for.
 
 **3. The breathing hairspring - done.** `Finish.Hairspring` in
@@ -310,6 +314,30 @@ Shift, moving the cannon pinion on its arbor - the hands and nothing
 else, the balance swinging on, as the OM10 has no hacking lever. The
 system clock is now read exactly once, at launch: the owner setting the
 watch from a reference. Every pull, push and wind goes to the log.
+
+**5. Assembly check - done.** `tools/assembly_check.py` intersects our
+solids with the OM10's as B-reps (`BRepAlgoAPI_Common`, exact, no meshes)
+through their working ranges: each hand round the dial, the balance through
+its 285 degrees either way, the lever bank to bank, the escape wheel over a
+tooth, the intermediate in its two bearings, and the fixed parts against
+everything they could touch. Any common volume over a speck (1e-4 mm3) is
+a clash. The first run found sixteen; the fixes were the kind a number
+cannot show on the wall: the hands' collars were solid rods with the
+pinion inside them (now tubes, minute inside hour, bored to the pipes they
+press on); the dial sat 0.35 mm into the case's flange (the flange is at
+the dial's underside now); the rehaut's well wall ran through the dial and
+the plate (dial hole and plate window opened to clear it, the plate's
+retained bar stopped short of it); the stem hole began at the band and
+missed the flange it crosses first; the cap reached down through both
+collars. The second run's biggest clash, 10 mm3 of designed mainspring
+inside "barrel_drum", was the STEP telling us that `00120` IS the
+mainspring (item 2, above). The one overlap left is the OM10's own: the
+spring's inner end hooked into the arbor's hub, 0.037 mm3, a joint, and
+the check reports it as one. The peer session's fits study
+(`docs/om10-fits.md`) found the file's one interference, the intermediate's
+upper bearing left at the old pivot size; `gltf_export.BORED` opens it and
+the check turns the intermediate in it. Output is
+`captures/assembly-check-*.txt`; a clean run is `0 clashes`, exit 0.
 
 ## The licence question, asked and answered
 

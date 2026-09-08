@@ -172,6 +172,7 @@ internal sealed class WatchScene : IDisposable
         ("stone_a", new(-5.71f, -5.87f), Drive.Fork),
         ("stone_b", new(-5.71f, -5.87f), Drive.Fork),
         ("guard", new(-5.71f, -5.87f), Drive.Fork),
+        ("lever_staff", new(-5.71f, -5.87f), Drive.Fork),
         ("wheel_seconds", new(-8.00f, 0.00f), Drive.Seconds),
         ("pinion_seconds", new(-8.00f, 0.00f), Drive.Seconds),
         ("wheel_third", new(-8.12f, 4.45f), Drive.Third),
@@ -186,7 +187,6 @@ internal sealed class WatchScene : IDisposable
         ("minute_wheel", new(3.32f, -2.72f), Drive.MinuteWheel),
         ("minute_wheel_pinion", new(3.32f, -2.72f), Drive.MinuteWheel),
         ("barrel", new(3.77f, 6.67f), Drive.Barrel),
-        ("barrel_drum", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_cover", new(3.77f, 6.67f), Drive.Barrel),
         ("mainspring", new(3.77f, 6.67f), Drive.Barrel),
         // The ratchet wheel sits on the barrel ARBOR, which turns only when

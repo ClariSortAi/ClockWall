@@ -46,11 +46,12 @@ ROOT = os.path.dirname(HERE)
 BALANCE_INERTIA = 1.850e-9
 # The escapement error measured by running the mechanism with the impulse
 # after centre: the free period is pulled this many seconds a day slow. It
-# grew from -2.9 to -7.2 as the designed mainspring's torque replaced the
-# typical figure; a stronger push off-centre pulls harder. Re-measure it
+# went -2.9, -8.6, -2.8 as the torque went typical, designed (16.3 N mm),
+# then measured off the OM10's own spring (7.13 N mm): a stronger push
+# off-centre pulls harder, and the error follows the torque. Re-measure it
 # (the fault log prints the kept rate at every launch, with this file's
 # regulation already applied) whenever the torque or the lift changes.
-ESCAPEMENT_ERROR_S_PER_DAY = -7.2
+ESCAPEMENT_ERROR_S_PER_DAY = -2.8
 
 # ------------------------------------------------------------------ the strip
 E = 200e9            # Pa, Nivarox-type alloy

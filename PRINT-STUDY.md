@@ -86,7 +86,7 @@ enlarged those pivots from 0.167 to 0.190. `docs/om10-fits.md` has it.
 | `escape` | 0.088 | 0.151 | 0.214 | prints |
 | `shock_capstone_dial` | 0.089 | 0.221 | 0.185 | bought |
 | `OM10-00234` | 0.090 | 0.170 | 0.192 | prints |
-| `barrel_drum` | 0.098 | 1.500 | 0.107 | prints |
+| `mainspring` | 0.098 | 1.500 | 0.107 | prints |
 
 The first run of this let the shock springs govern every machine, which is the
 right answer to the wrong question. An Incabloc-type setting is bought as an

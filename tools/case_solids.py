@@ -68,6 +68,13 @@ TWELVE_HALF_W, TWELVE_OFFSET = 4.4 * U, 6.2 * U
 APERTURE = (-4.83, 6.75)
 APERTURE_R = 10.2
 REHAUT_OUT = APERTURE_R + 0.6
+WELL_WALL = 0.5                      # the well wall's thickness, outside APERTURE_R
+# The dial's opening clears the well wall's OUTSIDE by a twentieth; the
+# rehaut's flat top covers the joint. Same for the plate's window in
+# gltf_export.OPEN_HEART_R. The first cut had the wall pass through both.
+DIAL_HOLE_R = APERTURE_R + WELL_WALL + 0.05
+DIAL_T = 0.4
+DIAL_CLEARANCE = 0.05                # the dial's edge inside the case's rehaut wall
 # The balance sits 5.2 mm under the dial's face in the OM10's stack; the well
 # wall drops most of that way.
 WELL_DEPTH = 4.6
@@ -82,6 +89,10 @@ MOVEMENT_Z = -4.81
 CANNON_PINION_TOP = 4.15 + MOVEMENT_Z    # OM10-00127
 HOUR_WHEEL_TOP = 3.60 + MOVEMENT_Z       # OM10-00206
 SECONDS_PINION_TOP = 2.94 + MOVEMENT_Z   # OM10-00164
+CANNON_PIPE_R = 0.60                     # the cannon pinion's pipe where the hands press on: r 0.600 up to y 4.05, measured off OM10-00127
+MINUTE_COLLAR_R = 0.85                   # the minute hand's pipe, over the cannon pinion
+HOUR_COLLAR_R = 1.10                     # the hour hand's pipe, over the minute hand's
+DIAL_BORE_R = HOUR_COLLAR_R + 0.05       # the dial's centre hole clears the outer collar
 STEM_Z = MOVEMENT_Z                      # the OM10's stem lies in its y = 0 plane
 
 HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=1.05, ridge=0.19)
@@ -129,16 +140,21 @@ def case():
         return (x, dome_c[1] + math.sqrt(dome_r ** 2 - (x - dome_c[0]) ** 2))
     edge_r = 0.55
     edge_c = (ro - edge_r, on_dome(x1)[1] - edge_r)
+    # The flange the dial rests on is at the dial's UNDERSIDE, so the dial
+    # sits on it rather than in it; the assembly check found the dial
+    # buried 0.35 mm into the band the first time.
     pts = [
-        (ri - 0.8, -0.05), (ri, -0.05), (ri, seat), (ri + 0.35, seat), on_dome(x0),
+        (ri - 0.8, -DIAL_T), (ri, -DIAL_T), (ri, seat), (ri + 0.35, seat), on_dome(x0),
         ("arc", on_dome((x0 + x1) / 2), on_dome(x1)),
         ("arc", (edge_c[0] + edge_r * math.cos(math.radians(45)), edge_c[1] + edge_r * math.sin(math.radians(45))), (ro, edge_c[1])),
         (ro, -6.5), (ro - 1.5, -7.0), (ri - 0.8, -7.0),
     ]
     band = revolve(profile(pts), Axis.Z)
     # The stem hole: the OM10's stem (OM10-00225) runs out at three in its
-    # y = 0 plane, 1.5 mm across at the case.
-    hole = Cylinder(0.85, 8.0, align=(None, None, None)).moved(Location((ro - 2.0, 0, STEM_Z), (0, 90, 0)))
+    # y = 0 plane, 1.5 mm across at the case. It starts inside the flange
+    # the dial sits on, which the stem crosses first; the assembly check
+    # found the stem in the flange when the hole began at the band.
+    hole = Cylinder(0.95, 8.0, align=(None, None, None)).moved(Location((ri - 1.5, 0, STEM_Z), (0, 90, 0)))
     return band - hole
 
 
@@ -165,15 +181,15 @@ def crystal():
 def dial():
     """The dial plate, 0.4 mm, with the opening and the centre bore cut clean
     through. The printing and the minute track are ink, in the shader."""
-    sk = Circle(BEZEL_IN + 0.6) - Circle(0.95) - Circle(APERTURE_R).moved(Location(APERTURE))
-    return extrude(sk, 0.4).moved(Location((0, 0, -0.4)))
+    sk = Circle(BEZEL_IN - DIAL_CLEARANCE) - Circle(DIAL_BORE_R) - Circle(DIAL_HOLE_R).moved(Location(APERTURE))
+    return extrude(sk, DIAL_T).moved(Location((0, 0, -DIAL_T)))
 
 
 def rehaut():
     """The polished ring standing in the opening, with the well wall inside it."""
     ri, ro = APERTURE_R, REHAUT_OUT
-    pts = [(ro, -0.2), (ro, 0.22), (ro - 0.14, 0.36), (ri + 0.16, 0.36), (ri, 0.20),
-           (ri, -WELL_DEPTH), (ri + 0.5, -WELL_DEPTH), (ri + 0.5, -0.2)]
+    pts = [(ro, 0.0), (ro, 0.22), (ro - 0.14, 0.36), (ri + 0.16, 0.36), (ri, 0.20),
+           (ri, -WELL_DEPTH), (ri + WELL_WALL, -WELL_DEPTH), (ri + WELL_WALL, 0.0)]
     return revolve(profile(pts), Axis.Z).moved(Location(APERTURE))
 
 
@@ -246,18 +262,27 @@ def dauphine(length, half_w, shoulder, tail, base, ridge):
 def hour_hand():
     h = HOUR
     hand = dauphine(**h)
-    # The hour hand's collar: sits on the OM10's hour wheel, through the dial.
-    tube = Cylinder(0.80, (h["base"] + h["ridge"]) - HOUR_WHEEL_TOP, align=(None, None, None)).moved(Location((0, 0, HOUR_WHEEL_TOP)))
-    return hand + tube
+    # The hour hand's collar: a TUBE on the OM10's hour wheel, through the
+    # dial, bored to clear the cannon pinion that passes up its middle. It
+    # was a solid rod once and the assembly check found the pinion inside it.
+    # Bored to clear the MINUTE hand's collar, which runs up its middle on
+    # the cannon pinion; the assembly check found the two collars sharing
+    # the same space until the bore was widened past the inner one.
+    top = h["base"] + h["ridge"]
+    tube = Cylinder(HOUR_COLLAR_R, top - HOUR_WHEEL_TOP, align=(None, None, None)).moved(Location((0, 0, HOUR_WHEEL_TOP)))
+    bore = Cylinder(MINUTE_COLLAR_R + 0.05, top - HOUR_WHEEL_TOP + 0.2, align=(None, None, None)).moved(Location((0, 0, HOUR_WHEEL_TOP - 0.1)))
+    return (hand + tube) - bore
 
 
 def minute_hand():
     m = MINUTE
     hand = dauphine(**m)
-    # The minute hand's collar: pressed onto the OM10's cannon pinion.
+    # The minute hand's collar: pressed over the OM10's cannon pinion's
+    # pipe, so a tube bored to the pipe, reaching down over its top.
     top = m["base"] + m["ridge"]
-    tube = Cylinder(0.45, top - CANNON_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP)))
-    return hand + tube
+    tube = Cylinder(MINUTE_COLLAR_R, top - (CANNON_PINION_TOP - 0.3), align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP - 0.3)))
+    bore = Cylinder(CANNON_PIPE_R + 0.01, top - 0.15 - (CANNON_PINION_TOP - 0.4), align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP - 0.4)))
+    return (hand + tube) - bore
 
 
 def seconds_hand():
@@ -274,14 +299,17 @@ def seconds_hand():
 
 def cap():
     """The hand nut over the pivots, a low dome."""
-    r = CAP_R
-    top = MINUTE["base"] + MINUTE["ridge"] + 0.35
-    pts = [(0, 0.4), (r, 0.4), (r, top - 0.5), ("arc", (r * 0.7, top - 0.5 + (r - math.sqrt(r * r - (r * 0.7) ** 2))), (0, top))]
-    # a plain dome: centre (0, top - r)
-    cz = top - r
-    mid_x = r * 0.7
-    pts = [(0, 0.4), (r, 0.4), (r, cz + math.sqrt(r * r - r * r * 0.999)),
-           ("arc", (mid_x, cz + math.sqrt(r * r - mid_x * mid_x)), (0, top))]
+    # A low dome over the minute hand's boss: from the boss's top to a
+    # hair under the crystal's underside. It used to reach down through
+    # both hands' collars, and the assembly check said so.
+    r = CAP_R * 0.85
+    base = MINUTE["base"] + MINUTE["ridge"]
+    top = CRYSTAL_EDGE - 0.8 - 0.05
+    sag = top - base
+    sphere_r = (r * r + sag * sag) / (2 * sag)
+    cz = top - sphere_r
+    mid_x = r * 0.6
+    pts = [(0, base), (r, base), ("arc", (mid_x, cz + math.sqrt(sphere_r ** 2 - mid_x ** 2)), (0, top))]
     return revolve(profile(pts), Axis.Z)
 
 

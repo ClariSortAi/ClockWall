@@ -29,11 +29,12 @@ namespace ClockWall;
 /// wide and 133 mm long, which with a 200 GPa alloy gives 1.5 Hz against a
 /// train that only keeps time at 3.5 Hz, so the STEP's spring is a
 /// placeholder and the stiffness here is the one the train demands - what a
-/// 0.036 mm strip of the same width and length would give. The STEP has no
-/// mainspring at all (the disc first taken for one is the ratchet wheel),
-/// so its torque is a typical figure for a barrel this size. Damping is set so the full-wind amplitude comes
-/// out at the caliber's 285 degrees; it is the one constant with no
-/// physical source.
+/// 0.036 mm strip of the same width and length would give. The mainspring
+/// IS measured: OM10-00120, a 0.103 by 1.50 mm strip, 275 mm long, in the
+/// barrel's measured cavity; its torque per turn and its usable turns come
+/// from that (tools/mainspring.py, Assets/mechanism.json). Damping is set
+/// so the full-wind amplitude comes out at the caliber's 285 degrees; it
+/// is the one constant with no physical source.
 ///
 /// THE PERIOD IS NOT TYPED IN. It comes out of I and k, and it is pulled
 /// off that by the escapement: an impulse delivered off-centre advances or

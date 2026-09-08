@@ -82,7 +82,8 @@ NAMES = {
     "OM10-00106": "stone_a",         # entry pallet
     "OM10-00106#2": "stone_b",       # exit pallet
     "OM10-00105": "guard",           # dart
-    "OM10-00107": "impulse_pin",
+    "OM10-00107": "lever_staff",    # runs in the fork's own two jewels (docs/om10-fits.md); was taken for the impulse pin
+    "OM10-00111": "impulse_pin",    # 0.32 across, on the roller's underside, half a millimetre off the balance axis
     "OM00-00101": "escape",
     "OM10-00146": "epinion",
     "OM10-00150": "wheel_centre",    # grande moyenne: barrel drives it, once an hour
@@ -99,12 +100,12 @@ NAMES = {
     "OM10-00159": "minute_wheel",    # planche de minuterie
     "OM10-00158": "minute_wheel_pinion",
     "OM10-00121": "barrel",
-    "OM10-00120": "barrel_drum",
+    "OM10-00120": "mainspring",      # the strip itself, 0.103 x 1.50, 11.8 coils; was taken for a drum
     "OM10-00119": "barrel_cover",
     "OM10-00118": "barrel_arbor",
     # 00197 was first taken for the mainspring. It is a 5.9 mm disc, 0.48
     # thick, on the BACK, meshing the crown wheel 00195 at 8.5 mm: the
-    # ratchet wheel. The STEP has no mainspring at all.
+    # ratchet wheel. The mainspring is 00120, above.
     "OM10-00197": "ratchet_wheel",
     "OM10-00225": "stem",
     "OM10-00217": "date_plate",      # plaque quantieme
@@ -145,7 +146,8 @@ NAMES = {
     "OM00-00140": "centre_bearing",
     "OM00-00122": "train_bearing",
     "OM00-00145": "train_bearing_back",
-    "OM00-00123": "intermediate_bearing",
+    "OM00-00123": "intermediate_bearing",   # bored open on export: see BORED
+    "OM00-00138": "centre_post",             # the cannon pinion turns on it, 0.011 clear (docs/om10-unnamed.md)
     # The keyless works and setting train, on the stem's axis and beside it.
     "OM10-00194": "winding_pinion",
     "OM10-00242": "sliding_pinion",
@@ -259,15 +261,42 @@ def tessellate(path, deflection, angular):
 #
 # Everything in the OM10's own frame: (x, z) is the plate, y the thickness.
 OPEN_HEART_CENTRE = (-6.75, 4.83)      # cad (x, z): world (-4.83, -6.75)
-OPEN_HEART_R = 10.2                    # matches case_solids.APERTURE_R
+OPEN_HEART_R = 10.75                   # case_solids.DIAL_HOLE_R: clears the well wall's outside
 OPEN_HEART_FLOOR_Y = -0.05             # just above the balance rim (y -0.13)
 OPEN_HEART_TOP_Y = 5.0                 # above the plate's dial face (4.41)
 LINE_OF_CENTRES = ((-8.06, 3.51), (-3.68, 7.90))   # staff, escape wheel
 BAR_WIDTH = 1.6
 BAR_TOP_Y = 1.85                       # the jewel seats end at 1.65
+BAR_CLEAR_OF_WALL = 0.60               # the well wall is 0.5 thick inside the window's edge, plus clearance
 # The parts the window is cut through: the plate and the two dial-side plates
 # over it. Nothing that moves, nothing that is a jewel.
 OPEN_HEART_CUT = {"mainplate", "date_plate", "dial_rest"}
+
+# Bores opened on export: a defect in the STEP itself. The 2021/02/01
+# release note enlarges the seconds and intermediate pivots from 0.167 to
+# 0.190; the intermediate's lower bearing was opened to match (0.2012) and
+# its upper one was not (0.1812), an interference of 0.0096 mm on the
+# diameter (docs/om10-fits.md). Opened here to the lower bearing's bore, on
+# the intermediate's axis, CAD (x, z) with the bore along y.
+BORED = {"intermediate_bearing": ((1.53, 4.125), 0.2012 / 2)}
+
+
+def bore_open(shape, axis_xz, radius):
+    from OCP.BRepAlgoAPI import BRepAlgoAPI_Cut
+    from OCP.BRepPrimAPI import BRepPrimAPI_MakeCylinder
+    from OCP.gp import gp_Ax2, gp_Dir, gp_Pnt
+    cyl = BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(axis_xz[0], -10.0, axis_xz[1]), gp_Dir(0, 1, 0)), radius, 20.0).Shape()
+    return BRepAlgoAPI_Cut(shape, cyl).Shape()
+
+
+def prepared(name, shape):
+    """Every change made to an OM10 solid on its way out: the open-heart
+    cut and the opened bore. The assembly check uses the same one."""
+    if name in OPEN_HEART_CUT:
+        shape = open_heart(shape)
+    if name in BORED:
+        shape = bore_open(shape, *BORED[name])
+    return shape
 
 
 def open_heart(shape):
@@ -286,6 +315,12 @@ def open_heart(shape):
     angle = math.degrees(math.atan2(z1 - z0, x1 - x0))
     bar = Box(length, BAR_TOP_Y - OPEN_HEART_FLOOR_Y, BAR_WIDTH, align=(None, None, None))
     bar = bar.moved(Location(((x0 + x1) / 2, (BAR_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, (z0 + z1) / 2), (0, -angle, 0)))
+    # The bar stops short of the well wall, which stands in the outer half
+    # millimetre of the window; the assembly check found the bar's end
+    # inside the wall.
+    inside = Cylinder(OPEN_HEART_R - BAR_CLEAR_OF_WALL, height, align=(None, None, None))
+    inside = inside.moved(Location((cx, (OPEN_HEART_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, cz), (90, 0, 0)))
+    bar = bar & inside
     return (part - (window - bar)).wrapped
 
 
@@ -327,7 +362,7 @@ def write_glb(parts, out):
 # a 39 MB asset and a 12 MB one at no visible cost.
 VISIBLE = {
     "mainplate", "bridge", "cock", "balance", "hairspring", "roller", "staff", "collet",
-    "lever", "stone_a", "stone_b", "guard", "impulse_pin", "escape", "epinion",
+    "lever", "lever_staff", "stone_a", "stone_b", "guard", "impulse_pin", "escape", "epinion",
     "wheel_seconds", "pinion_seconds", "wheel_third", "pinion_third", "jewel",
 }
 COARSE_FACTOR = 5.0
@@ -373,8 +408,7 @@ def main():
             shape = hairspring.build(hairspring.design())[0].wrapped
         else:
             shape = read_step(path)
-        if name in OPEN_HEART_CUT:
-            shape = open_heart(shape)
+        shape = prepared(name, shape)
         got = tessellate_shape(shape, args.deflection if fine else args.deflection * COARSE_FACTOR,
                                args.angular if fine else args.angular * 2.0)
         if got is None:
@@ -386,19 +420,6 @@ def main():
             raise SystemExit("duplicate name %s for %s and %s" % (name, names[name], tag))
         names[name] = tag
         parts.append((name, verts, norms, faces, steel))
-        total += len(faces)
-
-    # The mainspring: the STEP has none, so the designed one is added as a
-    # part of its own, coiled on the arbor at full wind. See mainspring.py.
-    import mainspring
-    cavity = mainspring.measure_cavity()
-    strip = mainspring.build(cavity, mainspring.design(cavity)).wrapped
-    got = tessellate_shape(strip, args.deflection * COARSE_FACTOR, args.angular * 2.0)
-    if got is not None:
-        verts, norms, faces = got
-        verts, norms = om10_to_world(verts, norms)
-        parts.append(("mainspring", verts, norms, faces, steel))
-        names["mainspring"] = "designed"
         total += len(faces)
 
     write_glb(parts, args.out)

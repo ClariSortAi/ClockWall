@@ -188,7 +188,6 @@ internal sealed record WatchDesign
                 ["stone_b"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
                 ["stem"] = steel,
                 ["barrel"] = plate,
-                ["barrel_drum"] = plate,
                 ["barrel_cover"] = plate,
                 ["ratchet_wheel"] = pinion,
                 ["mainspring"] = new(Material.Blued, 1f, 0.3f, 0.3f, Recess: true),

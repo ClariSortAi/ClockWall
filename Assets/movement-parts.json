@@ -1924,7 +1924,7 @@
    3.514
   ]
  },
- "OM00-00138": {
+ "centre_post": {
   "source": "OM00-00138",
   "axis": [
    0.0,
@@ -2424,7 +2424,7 @@
    7.209
   ]
  },
- "impulse_pin": {
+ "lever_staff": {
   "source": "OM10-00107",
   "axis": [
    -5.871,
@@ -2474,7 +2474,7 @@
    3.497
   ]
  },
- "OM10-00111": {
+ "impulse_pin": {
   "source": "OM10-00111",
   "axis": [
    -7.576,
@@ -2649,7 +2649,7 @@
    -3.765
   ]
  },
- "barrel_drum": {
+ "mainspring": {
   "source": "OM10-00120",
   "axis": [
    6.507,
@@ -4148,8 +4148,5 @@
    -0.193,
    -13.62
   ]
- },
- "mainspring": {
-  "source": "designed"
  }
 }

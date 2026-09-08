@@ -20,7 +20,8 @@ operational layer.
     python tools/gltf_export.py          # regenerates Assets/movement.glb + movement-parts.json (OCP + build123d)
     python tools/case_solids.py          # regenerates Assets/case.glb + models/step/case.step (build123d)
     python tools/hairspring.py           # designs the hairspring -> Assets/mechanism.json (run before gltf_export)
-    python tools/mainspring.py           # designs the mainspring into the measured barrel -> Assets/mechanism.json
+    python tools/mainspring.py           # measures the OM10's mainspring and barrel -> Assets/mechanism.json
+    python tools/assembly_check.py --quick   # exact interference check, our solids against the OM10's (~15 min)
     python tools/dial_print.py           # regenerates Assets/dial-print.png
 
     .\deploy.ps1 -NoRestart -Dest "$env:LOCALAPPDATA\Programs\ClockWall-dev"   # a dev install that leaves the wall's copy running
