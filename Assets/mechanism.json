@@ -1,0 +1,18 @@
+{
+ "inertia": 1.8554984704965584e-09,
+ "hairspring": {
+  "youngs_modulus": 200000000000.0,
+  "width": 0.00016,
+  "thickness": 3.5e-05,
+  "active_length": 0.12740524198031242,
+  "stiffness": 8.973989731992418e-07,
+  "coils": 11.497602374697516,
+  "r_in_mm": 0.65,
+  "r_out_mm": 2.75,
+  "r_stud_mm": 3.1,
+  "stud_angle_deg": 66.1,
+  "free_rate_hz": 3.5001174310411867,
+  "regulated_for_escapement_error_s_per_day": -2.9,
+  "note": "Archimedean strip designed for the measured inertia at 3.5 Hz; the OM10 STEP's 0.020 mm spring is a placeholder and is not used."
+ }
+}

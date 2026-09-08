@@ -236,9 +236,10 @@ internal sealed class WatchScene : IDisposable
 
         // ---- the mechanism, set to the wall clock the way a person sets a
         // watch, and measured once so its rate is on record.
-        _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now);
-        var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, 30.0);
-        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz";
+        var (inertia, stiffness) = Mechanism.LoadNumbers(assetDirectory);
+        _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now, inertia, stiffness);
+        var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, inertia, stiffness, 30.0);
+        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={inertia:0.000e0} kg m2, k={stiffness:0.000e0} N m/rad from mechanism.json)";
 
         // ---- shaders
         using (var vs = Gpu.Compile("watch.hlsl", "VsMain", "vs_5_0"))

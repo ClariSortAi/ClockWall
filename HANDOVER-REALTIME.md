@@ -263,6 +263,20 @@ as zero, and the escape wheel clears both stones (0.03 mm off the entry
 stone at rest, no vertex of either inside the other) through the first
 three half-teeth at either bank.
 
+## The road to real, in progress
+
+**1. A hairspring that is a spring - done.** `tools/hairspring.py` designs
+the strip from the measured inertia and the train's rate the way a spring
+maker does: alloy 200 GPa, width 0.16 mm (the OM10's layer), thickness
+0.035 mm (a made gauge), so the active length is 127.4 mm, wound as an
+Archimedean spiral of 11.5 coils from 0.65 to 2.75 mm with a terminal curve
+out to the OM10's stud at 3.10 mm, turning the way the OM10's does. It
+writes `Assets/mechanism.json` (inertia, stiffness, every strip number) and
+`models/step/hairspring.step`; the exporter puts the solid into the
+movement in place of the OM10's placeholder. `Mechanism` reads the JSON
+and types nothing. Regulated by the pins' angle for the escapement's
+measured -2.9 s/day: the watch now keeps 3.5000 Hz, +0.0 s/day.
+
 ## The licence question, asked and answered
 
 **Settled 2026-09-08: not a concern.** This is a wall clock in somebody's

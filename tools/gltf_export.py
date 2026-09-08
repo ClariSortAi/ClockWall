@@ -366,7 +366,13 @@ def main():
         path = os.path.join(PARTS, tag.replace("#", "_") + ".step")
         name = name_of(tag)
         fine = name in VISIBLE or name.split("_")[0] in VISIBLE
-        shape = read_step(path)
+        if name == "hairspring":
+            # The OM10's hairspring is a placeholder strip; ours is designed
+            # for the measured balance and the train's rate. See hairspring.py.
+            import hairspring
+            shape = hairspring.build(hairspring.design())[0].wrapped
+        else:
+            shape = read_step(path)
         if name in OPEN_HEART_CUT:
             shape = open_heart(shape)
         got = tessellate_shape(shape, args.deflection if fine else args.deflection * COARSE_FACTOR,

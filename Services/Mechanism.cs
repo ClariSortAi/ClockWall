@@ -1,5 +1,7 @@
 using System;
 using System.Diagnostics;
+using System.IO;
+using System.Text.Json;
 
 namespace ClockWall;
 
@@ -49,12 +51,14 @@ public sealed class Mechanism
     // ------------------------------------------------------------ the numbers
 
     /// <summary>Moment of inertia of everything on the balance staff, kg m^2.
-    /// Off the OM10 solids: balance 1.848e-9 (brass, 8.5 g/cm^3), hairspring
-    /// 0.014e-9, roller, collet and staff 0.002e-9.</summary>
-    public const double Inertia = 1.864e-9;
+    /// From Assets/mechanism.json: the balance, staff, roller and collet off
+    /// the OM10 solids, plus the designed spring's own share.</summary>
+    public double Inertia { get; }
 
-    /// <summary>Hairspring stiffness, N m / rad. See the class remarks: the
-    /// train's rate and the measured inertia, not the STEP's strip.</summary>
+    /// <summary>Hairspring stiffness, N m / rad. From Assets/mechanism.json,
+    /// where tools/hairspring.py computed it from the strip's modulus,
+    /// width, thickness and active length. Nothing about the spring is typed
+    /// here.</summary>
     public double Stiffness { get; }
 
     /// <summary>Viscous damping, N m s / rad. Set from the full-wind
@@ -133,12 +137,26 @@ public sealed class Mechanism
     /// </summary>
     public const double ImpulseStartsBeforeCentre = 0.25;
 
-    public Mechanism(Caliber spec, DateTime now)
+    /// <summary>The numbers tools/hairspring.py wrote: the inertia and the
+    /// spring's stiffness. Read once; a missing or unreadable file is a
+    /// build that shipped without the spring, and the watch should say so
+    /// rather than quietly run on a typed-in rate.</summary>
+    public static (double Inertia, double Stiffness) LoadNumbers(string assetDirectory)
+    {
+        var path = Path.Combine(assetDirectory, "mechanism.json");
+        using var doc = JsonDocument.Parse(File.ReadAllText(path));
+        var root = doc.RootElement;
+        return (root.GetProperty("inertia").GetDouble(),
+                root.GetProperty("hairspring").GetProperty("stiffness").GetDouble());
+    }
+
+    public Mechanism(Caliber spec, DateTime now, double inertia, double stiffness)
     {
         Spec = spec;
+        Inertia = inertia;
+        Stiffness = stiffness;
         _halfLift = spec.LiftAngleDegrees * Math.PI / 180.0 / 2.0;
         var omega0 = 2.0 * Math.PI * spec.Hertz;
-        Stiffness = Inertia * omega0 * omega0;
 
         // Damping from the full-wind amplitude: over one half-period at
         // amplitude A the viscous loss is c A^2 omega0 pi / 2, and it has to
@@ -332,9 +350,9 @@ public sealed class Mechanism
     /// being won - a rate that is the caliber's to the last digit would mean
     /// the period had been typed in after all.
     /// </summary>
-    public static (double Hertz, double AmplitudeDegrees, double SecondsPerDay) Measure(Caliber spec, double seconds = 60.0)
+    public static (double Hertz, double AmplitudeDegrees, double SecondsPerDay) Measure(Caliber spec, double inertia, double stiffness, double seconds = 60.0)
     {
-        var m = new Mechanism(spec, DateTime.Now);
+        var m = new Mechanism(spec, DateTime.Now, inertia, stiffness);
         var settle = (long)(2.0 / Step);
         var run = (long)(seconds / Step);
         for (var k = 0; k < settle; k++) m.StepOnce();
