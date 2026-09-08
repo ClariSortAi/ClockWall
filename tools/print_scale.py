@@ -111,8 +111,8 @@ PRINTERS = [
 # small" and "wrong material" are different problems and only the first one
 # is fixed by scaling.
 SUBSTITUTES = {
-    "hairspring": "wind it. 0.035 mm blued steel or Nivarox strip; a printed spiral has no elastic limit and so no rate.",
-    "mainspring": "buy it. 0.14 mm strip steel, coiled into the barrel; the energy store is the material, not the shape.",
+    "hairspring": "wind it. Blued steel or Nivarox strip; a printed spiral has no elastic limit and so no rate.",
+    "mainspring": "buy it. Strip steel, coiled into the barrel; the energy store is the material, not the shape.",
     "staff": "turn it. The pivots are the running fit; printed, they are a rough cone sitting in a rough hole.",
     "jewel": "buy them. Synthetic ruby; the bearing is the reason a watch runs for years rather than weeks.",
     # The shock settings came out governing every machine on the first run,
@@ -131,6 +131,13 @@ SUBSTITUTES = {
     "shock_jewel_cock": "buy the setting. Ruby hole jewel.",
     "shock_jewel_dial": "buy the setting. Ruby hole jewel.",
 }
+
+# Springs the export replaces with a designed one, so the design rather
+# than the STEP's solid is what the study should describe. Kept as a set
+# next to the substitution it mirrors in gltf_export: if that list ever
+# grows, this one has to grow with it, and a stale entry here shows up as
+# a spring reported at the placeholder's gauge.
+SUBSTITUTED_ON_EXPORT = {"hairspring"}
 
 # What the movement measures across the plate, in the exporter's own frame.
 MOVEMENT_SPAN_MM = 30.78
@@ -306,12 +313,27 @@ def collect():
             rows[name] = dict(measured, name=name, source=source, count=1)
 
     for name, spring in designed_springs().items():
-        # Only where the STEP has no solid of its own. It used to overwrite
-        # unconditionally, which was right while both springs were designed
-        # and became wrong the moment 00120 turned out to BE the mainspring
-        # rather than a drum: the designed strip would have replaced a
-        # measured part with an older guess at it.
-        if name in rows:
+        # Which spring the study should describe is decided by what the
+        # EXPORT ships, not by what the catalogue happens to hold, and the
+        # two springs differ on that.
+        #
+        # The mainspring is 00120, a real solid, measured by mainspring.py.
+        # It used to be overwritten here by a designed strip, which was
+        # right while it was thought to be a drum and became wrong when it
+        # turned out to be the spring. The thickness would not have given it
+        # away, since mainspring.py measures that solid and writes the same
+        # number into mechanism.json. What went missing was the geometry: a
+        # synthetic row has no bounding box and no section, so a real part
+        # lost its size, its in-plane width and its place in the
+        # largest-part reckoning, and reported them all as "-".
+        #
+        # The hairspring is the other way round. 00115 is the OM10's 0.020
+        # placeholder, the export substitutes the designed 0.035 strip for
+        # it (gltf_export, "the OM10's hairspring is a placeholder"), and
+        # so the designed strip is the part that would be made. Skipping it
+        # here would have quietly reported the study's thinnest printable
+        # feature as 0.018 instead of 0.035.
+        if name in rows and name not in SUBSTITUTED_ON_EXPORT:
             continue
         rows[name] = {
             "name": name,
