@@ -50,8 +50,10 @@ def main():
     mask = Image.new("L", (SIZE, SIZE), 0)
     # Two strengths: the name at full ink, the signature a little lighter,
     # which is how dial_render.py tones them (232,238,250 against 198,210,230).
-    line(mask, "CW  ·  OPENWORKED", 176, 25, 2.2, 255)
-    line(mask, signature, 214, 17, 1.6, 200)
+    # Both lines in the LOWER half now: the open heart is under eleven, where
+    # the OM10 keeps its balance, so six o'clock is the quiet part of the dial.
+    line(mask, "CW  ·  OPENWORKED", 432, 25, 2.2, 255)
+    line(mask, signature, 470, 17, 1.6, 200)
     mask = mask.filter(ImageFilter.GaussianBlur(0.35 * SCALE))
 
     out = os.path.join(ROOT, "Assets", "dial-print.png")

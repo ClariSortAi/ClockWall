@@ -17,20 +17,21 @@ namespace ClockWall.Rendering;
 /// design's, and the shapes are the CAD's - only the mechanism: which arbor
 /// each part turns about, what order the passes run in.
 ///
-/// THE GEOMETRY. Two GLBs, both from tools/: movement.glb is the OM10, 23
-/// named parts; case.glb is everything else, 11 named solids from
-/// case_solids.py. Nothing is built here any more. A shape that is wrong is
-/// fixed in CAD, where it can be measured, and exported again.
+/// THE GEOMETRY. Two GLBs, both from tools/: movement.glb is the OM10, all
+/// 166 of its solids, named where the release notes and the geometry allow;
+/// case.glb is everything else, 11 named solids from case_solids.py. Nothing
+/// is built here any more. A shape that is wrong is fixed in CAD, where it
+/// can be measured, and exported again.
 ///
 /// THE WORLD. Millimetres. X to the right, Y toward the viewer, Z down the
 /// dial toward six o'clock - so the dial lies in the XZ plane at Y=0 and a
-/// clockwise turn on the dial is a rotation about -Y. The movement's own
-/// frame (Y-up glTF, millimetres, arbors in the XZ plane) drops into this
-/// with one rigid placement, <see cref="_movementWorld"/>: the centre wheel's
-/// arbor to the dial centre, the assembly turned so the balance sits at six.
-/// The hands turn about that same arbor, and the seconds hand about the
-/// fourth wheel's, DERIVED through the placement so a hand can never sit
-/// where there is no axle.
+/// clockwise turn on the dial is a rotation about -Y. The exporter has
+/// already turned the OM10 into this frame with its plate centre - the
+/// hands' arbor - at the origin and its stem running out at three, so the
+/// only placement left is how far under the dial it sits. The hands turn
+/// about the origin, where the OM10's cannon pinion and hour wheel are, and
+/// the seconds hand about the seconds wheel's arbor at nine. Nothing turns
+/// about a point where there is no axle.
 ///
 /// THE PASSES. Shadow map from the key light; the opaque watch into a 4x
 /// MSAA half-float target; the crystal over it additively; then resolve,
@@ -75,6 +76,7 @@ internal sealed class WatchScene : IDisposable
 
     private readonly Matrix4x4 _movementWorld;
     private readonly Vector3 _secondsArbor;
+    private readonly Material _fallbackMaterial;
     private readonly Caliber _caliber = Caliber.Swiss4Hz;
 
     /// <summary>Set CLOCKWALL_DEBUG_VIEW=1 in the environment to render every
@@ -84,32 +86,46 @@ internal sealed class WatchScene : IDisposable
 
     // ------------------------------------------------------------ the mechanism
 
-    /// <summary>The rotation map from HANDOVER-REALTIME.md: which arbor each
-    /// part turns about, in the movement's own XZ (CAD x, -y). Parts not
-    /// listed are static. The lever's passengers - the two stones and the
-    /// guard pin - turn about the LEVER's arbor, not their own centres, which
-    /// is the trap the handover names.</summary>
+    /// <summary>
+    /// The rotation map: which arbor each OM10 part turns about, in world XZ
+    /// millimetres, and what drives it. Arbors are the pivots
+    /// tools/om10_extract.py measured (balance, pallet, escape) and the
+    /// round parts' centres from Assets/movement-parts.json, taken through
+    /// the exporter's frame: world (X, Z) = (-cad z, cad x). Parts not listed
+    /// are static. The lever's passengers - the two stones, the guard and the
+    /// impulse pin's slot - turn about the LEVER's arbor, not their own
+    /// centres. The barrel and the minute wheel are listed static: the
+    /// barrel's tooth count and the minute wheel's ratio have not been
+    /// counted yet, and an invented rate is worse than none.
+    /// </summary>
     private static readonly (string Part, Vector2 Arbor, Drive Drive)[] Rotations =
     {
-        ("staff", new(-8.06f, -3.51f), Drive.Balance),
-        ("roller", new(-8.06f, -3.51f), Drive.Balance),
-        ("balance", new(-8.06f, -3.51f), Drive.Balance),
-        ("collet", new(-8.06f, -3.51f), Drive.Balance),
-        ("hairspring", new(-8.06f, -3.51f), Drive.Hairspring),
-        ("escape", new(-3.68f, -7.90f), Drive.Escape),
-        ("epinion", new(-3.68f, -7.90f), Drive.Escape),
-        ("lever", new(-5.87f, -5.71f), Drive.Fork),
-        ("stone_a", new(-5.87f, -5.71f), Drive.Fork),
-        ("stone_b", new(-5.87f, -5.71f), Drive.Fork),
-        ("guard", new(-5.87f, -5.71f), Drive.Fork),
-        ("wheel_c", new(0f, -8f), Drive.Fourth),
-        ("pinion_b", new(0f, -8f), Drive.Fourth),
-        ("wheel_b", new(4.453f, -8.124f), Drive.Third),
-        ("wheel_a", new(7.028f, -4.223f), Drive.Centre),
-        ("pinion_a", new(1.526f, -4.127f), Drive.CentrePinion),
+        ("staff", new(-3.51f, -8.06f), Drive.Balance),
+        ("roller", new(-3.51f, -8.06f), Drive.Balance),
+        ("balance", new(-3.51f, -8.06f), Drive.Balance),
+        ("collet", new(-3.51f, -8.06f), Drive.Balance),
+        ("impulse_pin", new(-3.51f, -8.06f), Drive.Balance),
+        ("hairspring", new(-3.51f, -8.06f), Drive.Hairspring),
+        ("escape", new(-7.90f, -3.68f), Drive.Escape),
+        ("epinion", new(-7.90f, -3.68f), Drive.Escape),
+        ("lever", new(-5.71f, -5.87f), Drive.Fork),
+        ("stone_a", new(-5.71f, -5.87f), Drive.Fork),
+        ("stone_b", new(-5.71f, -5.87f), Drive.Fork),
+        ("guard", new(-5.71f, -5.87f), Drive.Fork),
+        ("wheel_seconds", new(-8.00f, 0.00f), Drive.Seconds),
+        ("pinion_seconds", new(-8.00f, 0.00f), Drive.Seconds),
+        ("wheel_third", new(-8.12f, 4.45f), Drive.Third),
+        ("pinion_third", new(-8.12f, 4.45f), Drive.Third),
+        ("wheel_centre", new(-4.22f, 7.03f), Drive.Centre),
+        ("pinion_centre", new(-4.22f, 7.03f), Drive.Centre),
+        ("intermediate", new(-4.13f, 1.53f), Drive.Intermediate),
+        ("intermediate_pinion", new(-4.13f, 1.53f), Drive.Intermediate),
+        ("cannon_pinion", new(0f, 0f), Drive.Minute),
+        ("cannon_wheel", new(0f, 0f), Drive.Minute),
+        ("hour_wheel", new(0f, 0f), Drive.Hour),
     };
 
-    private enum Drive { Balance, Hairspring, Escape, Fork, Fourth, Third, Centre, CentrePinion }
+    private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour }
 
     /// <summary>How far the pallet lever banks either side of centre, in
     /// degrees, for a full swing of the fork. Real, not exaggerated: the
@@ -125,15 +141,19 @@ internal sealed class WatchScene : IDisposable
     private const float SpringTravel = 0.05f;
 
     /// <summary>
-    /// Train ratios beyond the fourth wheel, derived from the counts in the
-    /// manifest rather than invented - ATTRIBUTION.md exists to record that
-    /// distinction. wheel_b (72 teeth) meshes the fourth's pinion_b, counted
-    /// at 9 leaves; wheel_a (75 teeth) is the centre wheel and turns once an
-    /// hour, which with 60 = (72/9)(75/p3) fixes the third pinion at 10.
-    /// The minute hand rides that arbor, so it and the centre wheel agree.
+    /// Train ratios beyond the seconds wheel, derived from the counts
+    /// measured off the solids rather than invented - ATTRIBUTION.md exists
+    /// to record that distinction. The third wheel (72 teeth) meshes the
+    /// seconds pinion, counted at 9 leaves; the centre wheel (75 teeth)
+    /// turns once an hour, which with 60 = (72/9)(75/p3) fixes the third
+    /// pinion at 10. The intermediate (25 leaves) meshes the centre wheel at
+    /// 3 turns an hour and drives the cannon wheel at the plate centre back
+    /// down to one - which is the hands' rate, so the minute hand and the
+    /// centre wheel agree by construction.
     /// </summary>
-    private const double ThirdPerFourth = 9.0 / 72.0;
-    private const double CentrePerFourth = 1.0 / 60.0;
+    private const double ThirdPerSeconds = 9.0 / 72.0;
+    private const double CentrePerSeconds = 1.0 / 60.0;
+    private const double IntermediatePerSeconds = 3.0 / 60.0;
 
     // ------------------------------------------------------------ construction
 
@@ -154,6 +174,12 @@ internal sealed class WatchScene : IDisposable
             if (!_case.ContainsKey(required))
                 throw new InvalidDataException($"case.glb has no part named '{required}'; re-run tools/case_solids.py");
         }
+        foreach (var required in new[] { "mainplate", "balance", "escape", "lever", "wheel_seconds", "cannon_pinion", "stem" })
+        {
+            if (!_movement.ContainsKey(required))
+                throw new InvalidDataException($"movement.glb has no part named '{required}'; re-run tools/gltf_export.py");
+        }
+        _fallbackMaterial = design.PlateMetal;
 
         // ---- shaders
         using (var vs = Gpu.Compile("watch.hlsl", "VsMain", "vs_5_0"))
@@ -223,29 +249,13 @@ internal sealed class WatchScene : IDisposable
         _shadowDsv = device.CreateDepthStencilView(_shadowTex, new DepthStencilViewDescription(_shadowTex, DepthStencilViewDimension.Texture2D, Format.D32_Float));
         _shadowSrv = device.CreateShaderResourceView(_shadowTex, new ShaderResourceViewDescription(_shadowTex, ShaderResourceViewDimension.Texture2D, Format.R32_Float));
 
-        // ---- placement
-        _movementWorld = MovementPlacement(design);
-        var seconds = Vector3.Transform(new Vector3(design.SecondsArborCad.X, 0f, -design.SecondsArborCad.Y), _movementWorld);
-        _secondsArbor = new Vector3(seconds.X, 0f, seconds.Z);
-        Debug.WriteLine($"[ClockWall] watch scene '{design.Name}' ready in {sw.ElapsedMilliseconds} ms; seconds arbor at ({_secondsArbor.X:0.00}, {_secondsArbor.Z:0.00})");
-    }
-
-    /// <summary>
-    /// tools/om10_layout.py's placement, in 3D. The movement is exported
-    /// Y-up with its arbors at their real millimetre positions; one chosen
-    /// arbor is carried to a chosen point on the dial and the whole assembly
-    /// turned about it. Stated as: shift the arbor to the origin, turn, move
-    /// the origin to where it goes.
-    /// </summary>
-    private static Matrix4x4 MovementPlacement(WatchDesign d)
-    {
-        var target = new Vector3(d.PlacedArborWorldXZ.X, d.MovementY, d.PlacedArborWorldXZ.Y);
-
-        // The CAD arbor (x, y) is (x, -y) in the Y-up export, so carrying it
-        // to the origin is a translation by (-x, 0, +y).
-        return Matrix4x4.CreateTranslation(-d.PlacedArborCad.X, 0f, d.PlacedArborCad.Y)
-             * ScreenClockwise(d.MovementRotationDeg)
-             * Matrix4x4.CreateTranslation(target);
+        // ---- placement: the exporter has already put the OM10 in this
+        // frame with its plate centre at the origin; the design says only
+        // how far under the dial it sits.
+        _movementWorld = Matrix4x4.CreateTranslation(0f, design.MovementY, 0f);
+        var seconds = ArborOf("wheel_seconds");
+        _secondsArbor = new Vector3(seconds.X, 0f, seconds.Y);
+        Debug.WriteLine($"[ClockWall] watch scene '{design.Name}' ready in {sw.ElapsedMilliseconds} ms");
     }
 
     /// <summary>A turn that is clockwise as seen on the dial. Y points at the
@@ -449,7 +459,7 @@ internal sealed class WatchScene : IDisposable
         // The movement, part by part, each turned about its arbor.
         foreach (var (name, mesh) in _movement)
         {
-            var material = d.Movement.TryGetValue(name, out var m) ? m : d.Polished with { Recess = true };
+            var material = MovementMaterial(name);
             var world = _movementWorld;
             foreach (var (part, arbor, drive) in Rotations)
             {
@@ -463,10 +473,15 @@ internal sealed class WatchScene : IDisposable
                     // arbors: a point between two centres moves the opposite
                     // way about each, so the lever turns against the balance.
                     Drive.Fork => -reading.Fork * ForkBankDegrees,
-                    Drive.Fourth => reading.Train,
-                    Drive.Third => -reading.Train * ThirdPerFourth,
-                    Drive.Centre => reading.Train * CentrePerFourth,
-                    Drive.CentrePinion => -reading.Train * CentrePerFourth * 3.0,
+                    Drive.Seconds => reading.Train,
+                    Drive.Third => -reading.Train * ThirdPerSeconds,
+                    Drive.Centre => reading.Train * CentrePerSeconds,
+                    Drive.Intermediate => -reading.Train * IntermediatePerSeconds,
+                    // The hands' own arbor: the cannon pinion carries the
+                    // minute hand and turns with it, the hour wheel the hour
+                    // hand. Read off the same clock as the hands, exactly.
+                    Drive.Minute => reading.Minute,
+                    Drive.Hour => reading.Hour,
                     _ => 0.0,
                 };
                 world = ScreenClockwiseAbout((float)degrees, new Vector3(arbor.X, 0f, arbor.Y)) * _movementWorld;
@@ -506,6 +521,18 @@ internal sealed class WatchScene : IDisposable
 
     private Material CaseMaterial(string name) =>
         _design.Case.TryGetValue(name, out var m) ? m : _design.Polished;
+
+    /// <summary>A named part's material, or the rule for the unnamed: screws
+    /// are blued, jewels ruby, and the rest plate metal - because most of the
+    /// 166 are plate-side bits under the dial, and the last thing a
+    /// half-known part should be is bright.</summary>
+    private Material MovementMaterial(string name)
+    {
+        if (_design.Movement.TryGetValue(name, out var m)) return m;
+        if (name.StartsWith("screw", StringComparison.Ordinal)) return _design.Screw;
+        if (name.StartsWith("jewel", StringComparison.Ordinal)) return _design.Jewel;
+        return _fallbackMaterial;
+    }
 
     private static Vector2 ArborOf(string part)
     {

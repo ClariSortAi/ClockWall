@@ -1,47 +1,49 @@
-"""Assembles the OM10 parts into one glTF binary for a real-time renderer.
+"""Assembles the OM10 into one glTF binary for the real-time renderer.
 
-    python tools/gltf_export.py                     # -> Assets/movement.glb
-    python tools/gltf_export.py --deflection 0.02   # finer tessellation
+    python tools/om10_extract_all.py       # once: captures/om10/all/*.step + catalogue.json
+    python tools/gltf_export.py            # -> Assets/movement.glb, Assets/movement-parts.json
+    python tools/gltf_export.py --deflection 0.02   # coarser tessellation
 
-WHAT THIS IS FOR, and how it differs from everything else in tools/. The rest of
-this directory renders the watch to flat PNG layers that the XAML rotates. That
-pipeline cannot light anything it turns - see PIPELINE.md for the chain - so the
-movement in the aperture has no form. This writes the same parts out as
-GEOMETRY instead of as pictures, so that a renderer with a GPU can light them
-per frame and the constraint stops applying.
+WHAT THIS IS FOR. The live face lights the movement per frame on the GPU, so
+the movement has to be GEOMETRY rather than the flat PNG layers the sprite
+face used. This writes every solid of the OM10 out, named, world-placed, as
+one GLB the renderer keys its materials and its rotation map on.
 
-WHY IT READS THE PARTS AND NOT models/step/movement.step. That file is the
-merged, placed, scaled assembly and it is one anonymous blob of twenty solids.
-captures/om10/parts/ is the same geometry still separated and still NAMED, and a
-name is what lets a wheel be brass while the lever beside it is steel. The names
-come from om10_extract.py and the numbers beside them from openmovement's own
-drawings, which is why the material table below is the only invented thing here.
+WHICH PARTS. All of them. The first version of this file took 23 curated
+parts - the ones the aperture showed - and named them by hand; the
+direction of travel is now an object that could be made and that keeps its
+own time, which needs the barrel, the keyless works, the motion works and the
+stem too, and it needs them without anybody guessing which OM10-xxxxx is
+which. So every solid in captures/om10/all goes in, under a readable name
+where one is known (NAMES, from the release notes and the geometry) and its
+source id otherwise. Parts under the dial cost triangles and nothing else;
+the renderer draws them and the dial hides them.
 
-UNITS ARE MILLIMETRES, deliberately, and this is the one place in the repo that
-is not in face units. glTF's convention is metres and every DCC tool and engine
-assumes real scale for its lighting falloff and its depth precision; a movement
-authored in the face's own 11.78-units-per-mm space would import 11.78x too
-large and light wrongly. The face transform belongs at the other end, applied by
-whatever draws this, not baked into the asset.
+THE FRAME. In the OM10's own STEP the plate lies in the (x, z) plane and y
+is its thickness, +y toward the DIAL. The stem runs along -z, and with the
+crown at the wearer's right that makes -z three o'clock and -x twelve. The
+renderer's world is X right, Y toward the viewer, Z down the dial. So:
 
-PLACEMENT. Each part STEP is origin-centred with its Z starting at zero. The
-manifest carries where it actually goes: `axis` is the (x, y) of its arbor and
-`z_lo` the underside of the part in the stack. Translating by those three
-reassembles the movement, and the Z is the whole point - it is the dimension the
-sprite pipeline had to throw away, and it is what a contact shadow is made of.
+    world X = -cad z        (three o'clock)
+    world Y =  cad y        (toward the viewer)
+    world Z =  cad x        (six o'clock)
 
-NORMALS COME FROM THE SURFACE, never from the triangles. Recomputing a normal by
-averaging the faces around a vertex is what makes a cylinder look faceted and a
-chamfer read as a black sliver, which is a defect this face already has once
-(see HANDOVER-WALL-READ.md on the bezel). Every vertex here is handed the exact
-analytic normal of the CAD surface at its own UV, so tessellation density
-changes the silhouette and never the shading.
+which is a proper rotation (determinant +1), applied once here. No consumer
+should touch the axes; if the movement imports wrongly oriented, the
+consumer is double-converting. The plate centre (0, 0) is the hands' arbor -
+the cannon pinion and hour wheel sit there - and it lands at the world
+origin, which is the dial centre.
+
+NORMALS COME FROM THE SURFACE, never from the triangles. Every vertex is
+handed the exact analytic normal of the CAD surface at its own UV, so
+tessellation density changes the silhouette and never the shading.
+
+UNITS ARE MILLIMETRES.
 """
 
 import argparse
 import json
 import os
-import sys
 import time
 
 import numpy as np
@@ -59,71 +61,62 @@ from OCP.gp import gp_Pnt, gp_Vec
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-PARTS = os.path.join(ROOT, "captures", "om10", "parts")
-# Into Assets/, not captures/: the app loads this at run time, the build
-# copies it beside the exe, and it is committed - captures/ is gitignored and
-# a fresh clone has to be able to build the face without Python or OCP.
+PARTS = os.path.join(ROOT, "captures", "om10", "all")
 OUT = os.path.join(ROOT, "Assets", "movement.glb")
 
-# The only invented content in this file. Base colour, metalness and roughness
-# per part, keyed by the extractor's own names.
-#
-# These are first-pass values chosen to be ARGUABLE rather than tuned: a watch
-# movement is nickel-plated brass, gilt wheels, hardened steel for anything that
-# has to take an impact, and synthetic ruby where a pivot turns. Roughness is
-# where the finishing work will land later - perlage on the plate, anglage on
-# the bridge edges, a black polish on the lever - and none of that is here yet,
-# because a flat roughness is honest about being a placeholder in a way that a
-# guessed texture is not.
-#
-# glTF core cannot express anisotropy, which is what circular graining and
-# straight-grained steel actually ARE. KHR_materials_anisotropy exists and the
-# runtime should set it; this writer does not, and that is a known gap rather
-# than an oversight.
-STEEL = (0.560, 0.570, 0.580)
-BRASS = (0.780, 0.630, 0.310)
-NICKEL = (0.660, 0.650, 0.630)
-RUBY = (0.560, 0.060, 0.090)
-
-MATERIALS = {
-    "mainplate": (NICKEL, 1.0, 0.28),
-    "bridge":    (NICKEL, 1.0, 0.24),
-    "cock":      (NICKEL, 1.0, 0.24),
-    "wheel_a":   (BRASS,  1.0, 0.22),
-    "wheel_b":   (BRASS,  1.0, 0.22),
-    "wheel_c":   (BRASS,  1.0, 0.22),
-    "pinion_a":  (STEEL,  1.0, 0.12),
-    "pinion_b":  (STEEL,  1.0, 0.12),
-    "epinion":   (STEEL,  1.0, 0.12),
-    "escape":    (STEEL,  1.0, 0.14),
-    "lever":     (STEEL,  1.0, 0.10),
-    "guard":     (STEEL,  1.0, 0.10),
-    "staff":     (STEEL,  1.0, 0.08),
-    "roller":    (STEEL,  1.0, 0.10),
-    "collet":    (BRASS,  1.0, 0.20),
-    "balance":   (BRASS,  1.0, 0.18),
-    "hairspring":(STEEL,  1.0, 0.16),
-    "jewel":     (RUBY,   0.0, 0.05),
-    "stone_a":   (RUBY,   0.0, 0.05),
-    "stone_b":   (RUBY,   0.0, 0.05),
-    "screw_a":   (STEEL,  1.0, 0.06),
-    "screw_b":   (STEEL,  1.0, 0.06),
-    "screw_c":   (STEEL,  1.0, 0.06),
+# Source id -> name. From OM10_Release_notes.pdf where it names a part, and
+# from the geometry (position, size, count) where it does not. A part not
+# listed keeps its id. Instances (#2, #3...) of a listed id get the name with
+# the instance suffix.
+NAMES = {
+    "OM10-00214": "mainplate",
+    "OM10-00184": "bridge",          # pont de rouage, the train bridge
+    "OM10-00199": "barrel_bridge",
+    "OM10-00196": "cock",            # coq, the balance cock
+    "OM10-00113": "balance",
+    "OM10-00115": "hairspring",
+    "OM10-00110": "roller",
+    "OM10-00112": "staff",
+    "OM10-00116": "collet",
+    "OM10-00104": "lever",           # ancre, the pallet fork
+    "OM10-00106": "stone_a",         # entry pallet
+    "OM10-00106#2": "stone_b",       # exit pallet
+    "OM10-00105": "guard",           # dart
+    "OM10-00107": "impulse_pin",
+    "OM00-00101": "escape",
+    "OM10-00146": "epinion",
+    "OM10-00150": "wheel_centre",    # grande moyenne: barrel drives it, once an hour
+    "OM10-00149": "pinion_centre",
+    "OM10-00162": "wheel_third",
+    "OM10-00161": "pinion_third",
+    "OM10-00165": "wheel_seconds",   # roue de seconde: once a minute, small seconds at nine
+    "OM10-00164": "pinion_seconds",
+    "OM10-00152": "intermediate",    # roue intermediaire: centre wheel -> cannon pinion, 3/hour
+    "OM10-00156": "intermediate_pinion",
+    "OM10-00127": "cannon_pinion",   # chaussee, at the plate centre, once an hour
+    "OM10-00128": "cannon_wheel",    # planche de chaussee
+    "OM10-00206": "hour_wheel",
+    "OM10-00159": "minute_wheel",    # planche de minuterie
+    "OM10-00158": "minute_wheel_pinion",
+    "OM10-00121": "barrel",
+    "OM10-00120": "barrel_drum",
+    "OM10-00119": "barrel_cover",
+    "OM10-00118": "barrel_arbor",
+    "OM10-00197": "mainspring",
+    "OM10-00225": "stem",
+    "OM10-00217": "date_plate",      # plaque quantieme
+    "OM10-00138": "dial_rest",       # trottoir
+    "OM10-00222": "setting_lever",   # tirette
+    "OM10-00306": "keyless_cover",   # couvre meca
+    "OM10-00307": "keyless_bridge",  # pont de meca
+    "OM10-00308": "setting_lever_screw",
+    "OM00-00124": "jewel",
+    "OM00-00106": "screw_a",         # 1.60 x 1.96, twelve of them
+    "OM00-00107": "screw_b",
+    "OM00-00111": "screw_c",
+    "OM00-00108": "screw_d",
+    "OM00-00121": "screw_e",
 }
-FALLBACK = (STEEL, 1.0, 0.20)
-
-
-def tessellate(path, deflection, angular):
-    """One part STEP -> (vertices, normals, faces), normals off the surface.
-
-    Returns None for a file that reads but carries no triangulable face, which
-    is a corrupt or empty extraction rather than an error worth stopping for -
-    the caller reports it and carries on with the parts that did load.
-    """
-    reader = STEPControl_Reader()
-    reader.ReadFile(path)
-    reader.TransferRoots()
-    return tessellate_shape(reader.OneShape(), deflection, angular)
 
 
 def tessellate_shape(shape, deflection=0.004, angular=0.10):
@@ -178,22 +171,87 @@ def tessellate_shape(shape, deflection=0.004, angular=0.10):
     return np.array(verts), np.array(norms), np.array(faces)
 
 
-def to_yup(verts, norms):
-    """CAD is Z-up; glTF is Y-up BY SPEC. Rotate -90 about X: (x, y, z) -> (x, z, -y)."""
+def read_step(path):
+    reader = STEPControl_Reader()
+    reader.ReadFile(path)
+    reader.TransferRoots()
+    return reader.OneShape()
+
+
+def tessellate(path, deflection, angular):
+    return tessellate_shape(read_step(path), deflection, angular)
+
+
+# ---------------------------------------------------------------- the open heart
+#
+# The OM10 is not an open-heart movement: from the dial side its balance sits
+# under the plate, the date plate and the dial rest. An open heart is made by
+# CUTTING those away over the balance, which is what every maker of one does
+# to a stock movement, and it is done here to the copies we export rather
+# than to the OM10 itself. The window is the aperture's circle, straight
+# through from the dial face down to just above the balance rim.
+#
+# What is kept inside the window: a bar along the line of centres. The
+# balance staff, the pallet staff and the escape wheel all have their
+# dial-side jewels seated in the plate, and cutting the plate away would leave
+# three jewels floating. The bar carries them - it is the "thin arm over the
+# balance" the sprite face had for the same reason - and it runs from past
+# the staff to past the escape wheel, 1.6 mm wide, as tall as the seats.
+#
+# Everything in the OM10's own frame: (x, z) is the plate, y the thickness.
+OPEN_HEART_CENTRE = (-6.75, 4.83)      # cad (x, z): world (-4.83, -6.75)
+OPEN_HEART_R = 10.2                    # matches case_solids.APERTURE_R
+OPEN_HEART_FLOOR_Y = -0.05             # just above the balance rim (y -0.13)
+OPEN_HEART_TOP_Y = 5.0                 # above the plate's dial face (4.41)
+LINE_OF_CENTRES = ((-8.06, 3.51), (-3.68, 7.90))   # staff, escape wheel
+BAR_WIDTH = 1.6
+BAR_TOP_Y = 1.85                       # the jewel seats end at 1.65
+# The parts the window is cut through: the plate and the two dial-side plates
+# over it. Nothing that moves, nothing that is a jewel.
+OPEN_HEART_CUT = {"mainplate", "date_plate", "dial_rest"}
+
+
+def open_heart(shape):
+    """The window cut into one dial-side part, keeping the bar."""
+    from build123d import Axis, Box, Cylinder, Location, Part, Plane, Rotation
+    import math
+    part = Part(shape)
+    cx, cz = OPEN_HEART_CENTRE
+    height = OPEN_HEART_TOP_Y - OPEN_HEART_FLOOR_Y
+    window = Cylinder(OPEN_HEART_R, height, align=(None, None, None))
+    # A cylinder is built along Z; the plate's thickness is Y, so lay it on
+    # its side and centre it on the window at mid height.
+    window = window.moved(Location((cx, (OPEN_HEART_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, cz), (90, 0, 0)))
+    (x0, z0), (x1, z1) = LINE_OF_CENTRES
+    length = math.hypot(x1 - x0, z1 - z0) + 2 * 2.6
+    angle = math.degrees(math.atan2(z1 - z0, x1 - x0))
+    bar = Box(length, BAR_TOP_Y - OPEN_HEART_FLOOR_Y, BAR_WIDTH, align=(None, None, None))
+    bar = bar.moved(Location(((x0 + x1) / 2, (BAR_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, (z0 + z1) / 2), (0, -angle, 0)))
+    return (part - (window - bar)).wrapped
+
+
+def om10_to_world(verts, norms):
+    """The OM10's (x, y, z) -> the renderer's (X, Y, Z) = (-z, y, x)."""
+    verts = np.column_stack((-verts[:, 2], verts[:, 1], verts[:, 0]))
+    norms = np.column_stack((-norms[:, 2], norms[:, 1], norms[:, 0]))
+    return verts, norms
+
+
+def zup_to_yup(verts, norms):
+    """build123d is Z-up; glTF is Y-up. Rotate -90 about X: (x, y, z) -> (x, z, -y).
+    Used by case_solids.py, whose CAD frame is x right, y up the dial."""
     verts = np.column_stack((verts[:, 0], verts[:, 2], -verts[:, 1]))
     norms = np.column_stack((norms[:, 0], norms[:, 2], -norms[:, 1]))
     return verts, norms
 
 
 def write_glb(parts, out):
-    """parts: list of (name, verts, norms, faces, (colour, metal, rough)) in
-    Z-up millimetres, already placed. Writes one Y-up GLB with a named node per
-    part. The renderer keys materials on the node name; the PBR values here are
-    a courtesy for any other viewer."""
+    """parts: list of (name, verts, norms, faces, (colour, metal, rough)) already
+    in the renderer's Y-up world. One named node per part."""
     scene = trimesh.Scene()
     for name, verts, norms, faces, (colour, metal, rough) in parts:
-        verts, norms = to_yup(np.asarray(verts, float), np.asarray(norms, float))
-        mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=norms, process=False)
+        mesh = trimesh.Trimesh(vertices=np.asarray(verts, float), faces=faces,
+                               vertex_normals=np.asarray(norms, float), process=False)
         mesh.visual = trimesh.visual.TextureVisuals(
             material=trimesh.visual.material.PBRMaterial(
                 name=name, baseColorFactor=[colour[0], colour[1], colour[2], 1.0],
@@ -204,84 +262,73 @@ def write_glb(parts, out):
     return scene
 
 
+# What the front of the watch can see: the aperture's contents and the plate
+# they sit on. These get the fine tessellation; everything under the dial is
+# there for the mechanism and is coarsened, which is the difference between
+# a 39 MB asset and a 12 MB one at no visible cost.
+VISIBLE = {
+    "mainplate", "bridge", "cock", "balance", "hairspring", "roller", "staff", "collet",
+    "lever", "stone_a", "stone_b", "guard", "impulse_pin", "escape", "epinion",
+    "wheel_seconds", "pinion_seconds", "wheel_third", "pinion_third", "jewel",
+}
+COARSE_FACTOR = 5.0
+
+
+def name_of(tag):
+    if tag in NAMES:
+        return NAMES[tag]
+    if "#" in tag:
+        base, inst = tag.split("#")
+        if base in NAMES:
+            return "%s_%s" % (NAMES[base], inst)
+    return tag
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--deflection", type=float, default=0.004,
-                    help="linear deflection in MILLIMETRES (default 0.004 = 4um)")
-    ap.add_argument("--angular", type=float, default=0.10,
-                    help="angular deflection in radians (default 0.10)")
+    ap.add_argument("--deflection", type=float, default=0.006,
+                    help="linear deflection in MILLIMETRES (default 0.006)")
+    ap.add_argument("--angular", type=float, default=0.12,
+                    help="angular deflection in radians (default 0.12)")
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args()
 
-    manifest_path = os.path.join(PARTS, "manifest.json")
-    if not os.path.exists(manifest_path):
-        raise SystemExit(
-            "missing %s\n"
-            "This needs the extracted OM10 parts, which are gitignored. Either run\n"
-            "tools/om10_extract.py against your own copy of the openmovement STEP,\n"
-            "or copy captures/om10/parts/ from a machine that has them."
-            % manifest_path)
-    manifest = json.load(open(manifest_path))
+    catalogue_path = os.path.join(PARTS, "catalogue.json")
+    if not os.path.exists(catalogue_path):
+        raise SystemExit("missing %s - run tools/om10_extract_all.py first" % catalogue_path)
+    catalogue = json.load(open(catalogue_path))
 
-    scene = trimesh.Scene()
-    total_t = total_v = 0
-    missing, empty = [], []
+    steel = ((0.680, 0.700, 0.740), 1.0, 0.16)
+    parts, names = [], {}
+    total = 0
     t0 = time.time()
-
-    for name, meta in sorted(manifest.items()):
-        step = os.path.join(PARTS, "%s.step" % name)
-        if not os.path.exists(step):
-            missing.append(name)
-            continue
-        got = tessellate(step, args.deflection, args.angular)
+    for tag in sorted(catalogue):
+        path = os.path.join(PARTS, tag.replace("#", "_") + ".step")
+        name = name_of(tag)
+        fine = name in VISIBLE or name.split("_")[0] in VISIBLE
+        shape = read_step(path)
+        if name in OPEN_HEART_CUT:
+            shape = open_heart(shape)
+        got = tessellate_shape(shape, args.deflection if fine else args.deflection * COARSE_FACTOR,
+                               args.angular if fine else args.angular * 2.0)
         if got is None:
-            empty.append(name)
+            print("  no triangles in", tag)
             continue
         verts, norms, faces = got
+        verts, norms = om10_to_world(verts, norms)
+        if name in names:
+            raise SystemExit("duplicate name %s for %s and %s" % (name, names[name], tag))
+        names[name] = tag
+        parts.append((name, verts, norms, faces, steel))
+        total += len(faces)
 
-        # Reassemble: the arbor's (x, y) and the underside of the part in Z.
-        ax = meta.get("axis") or [0.0, 0.0]
-        verts = verts + np.array([ax[0], ax[1], meta.get("z_lo", 0.0)])
-
-        # CAD is Z-up; glTF is Y-UP BY SPEC and every consumer believes it.
-        # Emitting Z-up data makes the movement import lying on its side - which
-        # is not a subtle failure, but it is a silent one, because a renderer
-        # with an orbit camera just looks like it framed the shot badly. Convert
-        # here, once, rather than asking each consumer to correct for us.
-        # Rotate -90 about X: (x, y, z) -> (x, z, -y). Normals go with it.
-        verts = np.column_stack((verts[:, 0], verts[:, 2], -verts[:, 1]))
-        norms = np.column_stack((norms[:, 0], norms[:, 2], -norms[:, 1]))
-
-        colour, metal, rough = MATERIALS.get(name, FALLBACK)
-        mesh = trimesh.Trimesh(vertices=verts, faces=faces,
-                               vertex_normals=norms, process=False)
-        mesh.visual = trimesh.visual.TextureVisuals(
-            material=trimesh.visual.material.PBRMaterial(
-                name=name,
-                baseColorFactor=[colour[0], colour[1], colour[2], 1.0],
-                metallicFactor=metal,
-                roughnessFactor=rough))
-        scene.add_geometry(mesh, geom_name=name)
-        total_t += len(faces)
-        total_v += len(verts)
-        print("  %-12s %-12s %7d tris  z %+7.3f..%+7.3f mm"
-              % (name, meta.get("source", "?"), len(faces),
-                 meta.get("z_lo", 0.0), meta.get("z_hi", 0.0)))
-
-    if missing:
-        print("\n  no STEP for: %s" % ", ".join(missing))
-    if empty:
-        print("  no triangles in: %s" % ", ".join(empty))
-
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    scene.export(args.out)
-    lo, hi = scene.bounds
-    print("\n  %d parts, %s tris, %s verts in %.1fs"
-          % (len(scene.geometry), format(total_t, ","), format(total_v, ","),
-             time.time() - t0))
-    print("  extent  %.2f x %.2f x %.2f mm" % tuple(hi - lo))
-    print("  wrote   %s  (%.2f MB)" % (args.out, os.path.getsize(args.out) / 1048576.0))
+    write_glb(parts, args.out)
+    print("  %d parts, %s tris in %.1fs" % (len(parts), format(total, ","), time.time() - t0))
+    print("  wrote %s (%.2f MB)" % (args.out, os.path.getsize(args.out) / 1048576.0))
+    # The names the renderer can key on, with where each part sits.
+    with open(os.path.join(ROOT, "Assets", "movement-parts.json"), "w") as f:
+        json.dump({name: {"source": tag, **catalogue[tag]} for name, tag in names.items()}, f, indent=1)
 
 
 if __name__ == "__main__":

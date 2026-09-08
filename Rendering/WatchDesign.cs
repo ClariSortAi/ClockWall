@@ -5,30 +5,33 @@ namespace ClockWall.Rendering;
 
 /// <summary>
 /// THE FACE, as data: the palette, what each part is made of and how it was
-/// finished, where the movement sits, where the camera stands and where the
-/// lights are. <see cref="WatchScene"/> is the engine that draws whatever
-/// design it is handed and contains no number of its own.
+/// finished, where the camera stands and where the lights are.
+/// <see cref="WatchScene"/> is the engine that draws whatever design it is
+/// handed and contains no number of its own.
 ///
-/// WHERE THE SHAPES ARE. Not here. Every part that is not the movement is a
-/// watertight solid built by tools/case_solids.py and exported to
-/// Assets/case.glb (and models/step/case.step, which can be measured, checked
-/// against the movement, and printed). This record names those parts and
-/// says what they are made of; it does not know how long the minute hand is.
-/// That split is the direction of travel: an object that could be made, whose
-/// time will one day come from its own mechanism rather than the system clock.
+/// WHERE THE SHAPES ARE. Not here. The movement is the OM10, every one of
+/// its 166 solids, exported by tools/gltf_export.py into Assets/movement.glb
+/// in the renderer's world frame with its plate centre - the hands' arbor -
+/// at the dial centre. Every part that is not the movement is a watertight
+/// solid built by tools/case_solids.py and exported to Assets/case.glb (and
+/// models/step/case.step, which can be measured, checked against the
+/// movement, and printed). This record names those parts and says what
+/// they are made of; it does not know how long the minute hand is.
 ///
-/// A new face is a new instance of this record - usually
-/// <c>BlueSoleil with { ... }</c> - plus, if its shapes differ, a new set of
-/// dimensions in case_solids.py. FACE-RECIPE.md is the process.
+/// WHERE THE PLACEMENT IS. In the movement's own geometry. The OM10's stem
+/// fixes which way is three o'clock, and its plate centre is the hands'
+/// arbor; the exporter lands both where the dial wants them, so the only
+/// placement left to a design is how far under the dial the movement sits.
+/// That is the direction of travel: an object that could be made, whose time
+/// will one day come from its own mechanism rather than the system clock.
 ///
 /// UNITS. Millimetres, in the world frame the scene uses: X to the right,
 /// Y toward the viewer, Z down the dial toward six. Colours are linear.
 /// </summary>
 internal sealed record WatchDesign
 {
-    /// <summary>Millimetres per face unit: tools/om10_layout.py places the
-    /// movement at 11.78 face units per millimetre, and the dial's printing
-    /// mask is drawn in face units.</summary>
+    /// <summary>Millimetres per face unit: the dial's printing mask and the
+    /// sprite face's case numbers are in face units, 640 across the panel.</summary>
     public const float FaceUnit = 1f / 11.780018f;
 
     public string Name { get; init; } = "";
@@ -40,30 +43,18 @@ internal sealed record WatchDesign
 
     /// <summary>The opening: centre in the world frame and radius. The dial
     /// solid has the hole; the shader uses these for the recess occlusion of
-    /// whatever sits in the well.</summary>
+    /// whatever sits in the well. Must agree with case_solids.py.</summary>
     public Vector3 ApertureCentre { get; init; }
     public float ApertureRadius { get; init; }
 
     // ------------------------------------------------------------ the movement
 
-    /// <summary>Where the movement's own Y=0 plane sits under the dial.</summary>
+    /// <summary>Where the movement's own Y=0 plane sits under the dial's
+    /// face. The OM10's dial seat is its plate's dial face at y = 4.41; the
+    /// dial is 0.4 thick; so -4.81. Must agree with case_solids.MOVEMENT_Z.</summary>
     public float MovementY { get; init; }
 
-    /// <summary>The placement: one arbor of the movement, in the CAD's (x, y),
-    /// is carried to a point on the dial, and the whole assembly is turned
-    /// clockwise about it. For a face with hands on real arbors the arbor is
-    /// the centre wheel's and the point is the dial centre.</summary>
-    public Vector2 PlacedArborCad { get; init; }
-    public Vector2 PlacedArborWorldXZ { get; init; }
-    public float MovementRotationDeg { get; init; }
-
-    /// <summary>The arbor the seconds hand turns about, in the CAD's (x, y):
-    /// the fourth wheel's. Its world position is derived through the
-    /// placement, and case_solids.py must have put the hand there.</summary>
-    public Vector2 SecondsArborCad { get; init; }
-
-    /// <summary>Direction of the cotes de Geneve across the bridges, in the
-    /// movement's own frame.</summary>
+    /// <summary>Direction of the cotes de Geneve across the bridges.</summary>
     public Vector3 CotesDirection { get; init; }
 
     // ------------------------------------------------------------ materials
@@ -72,11 +63,15 @@ internal sealed record WatchDesign
     /// listed for completeness; it is drawn by its own shader.</summary>
     public IReadOnlyDictionary<string, Material> Case { get; init; } = new Dictionary<string, Material>();
 
-    /// <summary>Per OM10 part of Assets/movement.glb, by node name. Parts not
-    /// listed are drawn polished.</summary>
+    /// <summary>Per OM10 part of Assets/movement.glb, by node name. A part
+    /// not listed is drawn as <see cref="PlateMetal"/>, except that a name
+    /// beginning "screw" is blued and one beginning "jewel" is ruby.</summary>
     public IReadOnlyDictionary<string, Material> Movement { get; init; } = new Dictionary<string, Material>();
 
     public Material Polished { get; init; }
+    public Material PlateMetal { get; init; }
+    public Material Screw { get; init; }
+    public Material Jewel { get; init; }
 
     // ------------------------------------------------------------ the rig
 
@@ -110,55 +105,49 @@ internal sealed record WatchDesign
     // ------------------------------------------------------------ the blue soleil
 
     /// <summary>The face ART-DIRECTION.md describes: a blue soleil dial in a
-    /// polished steel case, the OM10 turning behind an open heart at six -
-    /// now with the hands on the centre wheel and the seconds on the fourth.</summary>
+    /// polished steel case, the OM10 turning behind an open heart - now
+    /// where the OM10 keeps its balance, under eleven, with the small seconds
+    /// at nine and the crown at three, because that is how it is built.</summary>
     public static WatchDesign BlueSoleil { get; } = MakeBlueSoleil();
 
     private static WatchDesign MakeBlueSoleil()
     {
         const float U = FaceUnit;
-        // tools/case_solids.py APERTURE, in CAD (x, y up) -> world (x, z down).
-        var aperture = new Vector3(-1.23f, 0f, 12.63f);
+        // tools/case_solids.py APERTURE, in its CAD (x, y up) -> world (x, z down).
+        var aperture = new Vector3(-4.83f, 0f, -6.75f);
 
         var steel = new Material(Material.Steel, 1f, 0.11f, 0.11f);
-        var bezel = new Material(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero);
+        var plate = new Material(Material.Plate, 1f, 0.30f, 0.30f, Recess: true);
+        var brass = new Material(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true);
+        var pinion = new Material(Material.Steel, 1f, 0.16f, 0.16f, Recess: true);
 
         return new WatchDesign
         {
-            Name = "Blue soleil, open heart, real arbors",
+            Name = "Blue soleil, open heart at eleven, small seconds at nine",
 
             TrackRadius = 268f * U,     // dial_render.CHAPTER_R
             ApertureCentre = aperture,
-            ApertureRadius = 9.6f,
+            ApertureRadius = 10.2f,
 
-            // The highest part (a bridge screw head, Z=2.30 in the CAD)
-            // lands 1.3mm below the dial's surface, the balance rim about 3mm.
-            MovementY = -3.6f,
-            // The centre wheel (wheel_a, 75 teeth, once an hour) under the
-            // dial centre, and the assembly turned so the balance sits
-            // straight below it at 15.10mm. Derived in the session notes from
-            // the manifest's arbors; case_solids.py carries the same numbers.
-            PlacedArborCad = new Vector2(7.028f, 4.223f),
-            PlacedArborWorldXZ = Vector2.Zero,
-            MovementRotationDeg = 272.70f,
-            SecondsArborCad = new Vector2(0.016f, 7.999f),   // pinion_b, the fourth's arbor
+            MovementY = -4.81f,
             CotesDirection = new Vector3(0.94f, 0f, 0.34f),
 
             Polished = steel,
+            PlateMetal = plate,
+            Screw = new Material(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
+            Jewel = new Material(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
 
             // ART-DIRECTION.md's palette. The dial's lobe width is the
             // along-grain roughness; its darkness across the grain the other.
             Case = new Dictionary<string, Material>
             {
-                ["case"] = bezel,
+                ["case"] = new(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero),
                 ["caseback"] = new(new Vector3(0.25f, 0.26f, 0.28f), 1f, 0.55f, 0.55f, Recess: true),
                 ["dial"] = new(Material.DialBlue, 1f, 0.30f, 0.72f, Finish.Dial, Lacquer: 0.25f),
                 ["rehaut"] = new(Material.Steel, 1f, 0.06f, 0.12f, Finish.Circular, FinishCentre: aperture),
                 ["indices"] = steel,
                 ["hour_hand"] = steel,
                 ["minute_hand"] = steel,
-                // Steel rather than blued: it lives in the well now, over
-                // a dark movement, and a blued needle there vanished.
                 ["seconds_hand"] = steel with { Recess = true },
                 ["cap"] = steel,
                 ["crown"] = new(Material.Steel, 1f, 0.10f, 0.22f, Finish.Circular, FinishCentre: new Vector3(28.5f, 0f, 0f)),
@@ -171,27 +160,37 @@ internal sealed record WatchDesign
             {
                 ["mainplate"] = new(Material.Plate, 1f, 0.34f, 0.42f, Finish.Perlage, FinishScale: 1.0f, Recess: true),
                 ["bridge"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
+                ["barrel_bridge"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
                 ["cock"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
-                ["wheel_a"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
-                ["wheel_b"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
-                ["wheel_c"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
+                ["wheel_centre"] = brass,
+                ["wheel_third"] = brass,
+                ["wheel_seconds"] = brass,
+                ["intermediate"] = brass,
+                ["cannon_wheel"] = brass,
+                ["minute_wheel"] = brass,
+                ["hour_wheel"] = brass,
                 ["balance"] = new(Material.Brass, 1f, 0.16f, 0.36f, Finish.Circular, Recess: true),
                 ["collet"] = new(Material.Brass, 1f, 0.22f, 0.22f, Recess: true),
-                ["pinion_a"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
-                ["pinion_b"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
-                ["epinion"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
+                ["pinion_centre"] = pinion,
+                ["pinion_third"] = pinion,
+                ["pinion_seconds"] = pinion,
+                ["intermediate_pinion"] = pinion,
+                ["cannon_pinion"] = pinion,
+                ["epinion"] = pinion,
                 ["escape"] = new(Material.Steel, 1f, 0.36f, 0.36f, Recess: true),
                 ["lever"] = new(new Vector3(0.55f, 0.56f, 0.58f), 1f, 0.04f, 0.04f, Finish.BlackPolish, Recess: true),
-                ["guard"] = new(Material.Steel, 1f, 0.14f, 0.14f, Recess: true),
+                ["guard"] = pinion,
+                ["impulse_pin"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
                 ["staff"] = new(Material.Steel, 1f, 0.10f, 0.10f, Recess: true),
-                ["roller"] = new(Material.Steel, 1f, 0.14f, 0.14f, Recess: true),
+                ["roller"] = pinion,
                 ["hairspring"] = new(Material.Blued, 1f, 0.22f, 0.22f, Recess: true),
-                ["jewel"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
                 ["stone_a"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
                 ["stone_b"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
-                ["screw_a"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
-                ["screw_b"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
-                ["screw_c"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
+                ["stem"] = steel,
+                ["barrel"] = plate,
+                ["barrel_drum"] = plate,
+                ["barrel_cover"] = plate,
+                ["mainspring"] = new(Material.Blued, 1f, 0.3f, 0.3f, Recess: true),
             },
 
             // A long lens from 300mm, tilted a few degrees so the case has a

@@ -10,19 +10,18 @@ against the movement, scaled and printed. A render mesh can only be looked at.
 
 THE DIRECTION OF TRAVEL. This watch is meant to become an object that works:
 every part a solid that could be made, and the time driven by the mechanism
-rather than the system clock. So the hands here sit on real arbors. The hour
-and minute hands are on tubes at the dial centre where the OM10's centre wheel
-(wheel_a, 75 teeth, once an hour) is placed by tools/om10_layout.py's new
-placement; the seconds hand is on an extension of the fourth wheel's arbor
-inside the aperture. Nothing turns about a point where there is no axle.
+rather than the system clock. So the hands here sit on the OM10's own arbors.
+The OM10 carries its cannon pinion and hour wheel at its plate centre, which
+gltf_export.py lands on the dial centre; the hour and minute hands are collars
+on those. The seconds hand sits on the seconds wheel's arbor, 8 mm out at
+nine o'clock, which is where the OM10 puts it. The stem is the OM10's own,
+running out at three; only the crown is ours. The open heart is over the
+balance, under eleven, because that is where the balance is.
 
-WHAT IS STILL MISSING, in the order it would be visible: the cannon pinion and
-hour wheel are plain tubes with no teeth; the motion works, barrel, mainspring
-and keyless works are not modelled at all - none of them is visible from the
-front, and the OM10's originals were not extracted before the source STEP was
-lost. The crown and stem are placed at three o'clock on the CASE; whether the
-OM10's own stem slot falls there after the placement is unknown (the plate's
-rim has a 36 degree opening at CAD azimuth 264, which may or may not be it).
+WHAT IS STILL OURS AND NOT THE OM10'S: the case, crystal, dial, indices, the
+hands and their collars, the crown. What is still missing: the case band has
+a hole for the stem but no case tube; the hand collars are plain tubes rather
+than the friction fit a real hand has.
 
 FRAME. CAD is Z-up, millimetres, the dial's top face at z = 0. x runs to the
 right of the dial and y UP the dial toward twelve, so a point that is (x, y)
@@ -59,20 +58,31 @@ INDEX_IN, INDEX_OUT, INDEX_HALF_W = 246 * U, 279 * U, 7.5 * U
 INDEX_H, INDEX_CHAMFER = 0.45, 0.12
 TWELVE_HALF_W, TWELVE_OFFSET = 4.4 * U, 6.2 * U
 
-# The opening, from the real-arbor placement: balance straight below the
-# centre at 15.10 mm, the aperture pulled 30% of the way from the balance
-# toward the fourth wheel so the escapement and the seconds arbor are inside.
-APERTURE = (-1.23, -12.63)     # CAD x, y (y up)
-APERTURE_R = 9.6
+# The opening, over the OM10's balance: the balance arbor is at world
+# (-3.51, -8.06) - up and to the left, under eleven - and the escapement runs
+# from it toward ten. The aperture is pulled 30% of the way from the balance
+# toward the escape wheel and made big enough to take the seconds wheel at
+# nine as well, so the one window shows the whole going end of the train:
+# balance, escapement, seconds wheel with its hand. Its far edge stays inside
+# the indices. All of it in this file's frame: x right, y UP the dial.
+APERTURE = (-4.83, 6.75)
+APERTURE_R = 10.2
 REHAUT_OUT = APERTURE_R + 0.6
-WELL_DEPTH = 3.0
+# The balance sits 5.2 mm under the dial's face in the OM10's stack; the well
+# wall drops most of that way.
+WELL_DEPTH = 4.6
 
-# The fourth wheel's arbor after placement, where the seconds hand lives.
-SECONDS_ARBOR = (-4.10, -6.84)
+# The seconds wheel's arbor: the OM10's, at nine o'clock, 8 mm out.
+SECONDS_ARBOR = (-8.0, 0.0)
 
-MOVEMENT_Z = -3.6              # the movement's own z = 0 plane, below the dial
-CENTRE_WHEEL_TOP = 1.65 + MOVEMENT_Z    # wheel_a z_hi in the CAD, placed
-FOURTH_PINION_TOP = 2.16 + MOVEMENT_Z   # pinion_b z_hi, placed
+# The OM10's dial seat (the plate's dial face, its y = 4.41) carries the
+# dial's underside; the dial is 0.4 thick, so the movement's y = 0 plane is
+# 4.81 below the dial's face. Heights from Assets/movement-parts.json.
+MOVEMENT_Z = -4.81
+CANNON_PINION_TOP = 4.15 + MOVEMENT_Z    # OM10-00127
+HOUR_WHEEL_TOP = 3.60 + MOVEMENT_Z       # OM10-00206
+SECONDS_PINION_TOP = 2.94 + MOVEMENT_Z   # OM10-00164
+STEM_Z = MOVEMENT_Z                      # the OM10's stem lies in its y = 0 plane
 
 HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=1.05, ridge=0.19)
 MINUTE = dict(length=214 * U, half_w=9 * U, shoulder=54 * U, tail=40 * U, base=1.55, ridge=0.16)
@@ -125,7 +135,11 @@ def case():
         ("arc", (edge_c[0] + edge_r * math.cos(math.radians(45)), edge_c[1] + edge_r * math.sin(math.radians(45))), (ro, edge_c[1])),
         (ro, -6.5), (ro - 1.5, -7.0), (ri - 0.8, -7.0),
     ]
-    return revolve(profile(pts), Axis.Z)
+    band = revolve(profile(pts), Axis.Z)
+    # The stem hole: the OM10's stem (OM10-00225) runs out at three in its
+    # y = 0 plane, 1.5 mm across at the case.
+    hole = Cylinder(0.85, 8.0, align=(None, None, None)).moved(Location((ro - 2.0, 0, STEM_Z), (0, 90, 0)))
+    return band - hole
 
 
 def caseback():
@@ -232,17 +246,17 @@ def dauphine(length, half_w, shoulder, tail, base, ridge):
 def hour_hand():
     h = HOUR
     hand = dauphine(**h)
-    # The hour wheel's tube: rides on the cannon pinion, through the dial.
-    tube = Cylinder(0.80, (h["base"] + h["ridge"]) - (-1.0), align=(None, None, None)).moved(Location((0, 0, -1.0)))
+    # The hour hand's collar: sits on the OM10's hour wheel, through the dial.
+    tube = Cylinder(0.80, (h["base"] + h["ridge"]) - HOUR_WHEEL_TOP, align=(None, None, None)).moved(Location((0, 0, HOUR_WHEEL_TOP)))
     return hand + tube
 
 
 def minute_hand():
     m = MINUTE
     hand = dauphine(**m)
-    # The cannon pinion's tube: pressed onto the centre wheel arbor.
+    # The minute hand's collar: pressed onto the OM10's cannon pinion.
     top = m["base"] + m["ridge"]
-    tube = Cylinder(0.45, top - CENTRE_WHEEL_TOP, align=(None, None, None)).moved(Location((0, 0, CENTRE_WHEEL_TOP)))
+    tube = Cylinder(0.45, top - CANNON_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP)))
     return hand + tube
 
 
@@ -250,11 +264,11 @@ def seconds_hand():
     """A needle with a counterweight on the fourth wheel's arbor, inside the
     aperture and below the dial's surface. Short, because it is a small
     seconds now and its tip must clear the rehaut at every angle."""
-    length, tail, w, z_lo, z_hi = 2.9, 1.0, 0.11, -0.60, -0.48
+    length, tail, w, z_lo, z_hi = 2.4, 0.9, 0.11, -0.60, -0.48
     outline = [(-w, length), (w, length), (w * 1.6, -tail), (-w * 1.6, -tail)]
     needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
     weight = extrude(Circle(0.42) - Circle(0.18), z_hi - z_lo).moved(Location((0, -tail - 0.1, z_lo)))
-    arbor = Cylinder(0.24, z_hi - FOURTH_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, FOURTH_PINION_TOP)))
+    arbor = Cylinder(0.24, z_hi - SECONDS_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, SECONDS_PINION_TOP)))
     return (needle + weight + arbor).moved(Location(SECONDS_ARBOR))
 
 
@@ -272,10 +286,12 @@ def cap():
 
 
 def crown():
-    """Stem and crown at three o'clock on the case band, at the movement's
-    mid height. Sixteen flutes cut round the crown so it catches light."""
-    z = MOVEMENT_Z + 0.3
-    stem = Cylinder(0.45, 4.0, align=(None, None, None)).moved(Location((0, 0, 0)))
+    """The crown, at three o'clock where the OM10's own stem comes out of
+    the case band. The stem is the OM10's; this is only the crown on its end,
+    with a short stub reaching in to meet it. Sixteen flutes cut round it so
+    it catches light."""
+    z = STEM_Z
+    stem = Cylinder(0.45, 1.6, align=(None, None, None)).moved(Location((0, 0, 2.4)))
     body = Cylinder(1.65, 1.7, align=(None, None, None)).moved(Location((0, 0, 3.4)))
     body = chamfer(body.edges().group_by(Axis.Z)[-1], 0.25)
     for k in range(16):
@@ -310,6 +326,7 @@ def main():
         if got is None:
             raise SystemExit(f"{name} has no triangles")
         verts, norms, faces = got
+        verts, norms = G.zup_to_yup(verts, norms)
         glb_parts.append((name, verts, norms, faces, mat))
         print("  %-13s volume %8.2f mm3  %6d tris  z %+.2f..%+.2f" % (
             name, solid.volume, len(faces), solid.bounding_box().min.Z, solid.bounding_box().max.Z))
