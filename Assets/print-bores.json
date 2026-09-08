@@ -164,7 +164,7 @@
   {
    "bearing": "jewel_2",
    "source": "OM00-00124#2",
-   "pivot": "impulse_pin",
+   "pivot": "lever_staff",
    "arbor": [
     -5.871,
     5.706
@@ -216,7 +216,7 @@
   {
    "bearing": "jewel_4",
    "source": "OM00-00124#4",
-   "pivot": "impulse_pin",
+   "pivot": "lever_staff",
    "arbor": [
     -5.871,
     5.706

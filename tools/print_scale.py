@@ -306,6 +306,13 @@ def collect():
             rows[name] = dict(measured, name=name, source=source, count=1)
 
     for name, spring in designed_springs().items():
+        # Only where the STEP has no solid of its own. It used to overwrite
+        # unconditionally, which was right while both springs were designed
+        # and became wrong the moment 00120 turned out to BE the mainspring
+        # rather than a drum: the designed strip would have replaced a
+        # measured part with an older guess at it.
+        if name in rows:
+            continue
         rows[name] = {
             "name": name,
             "source": "designed",
