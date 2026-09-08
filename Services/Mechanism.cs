@@ -27,9 +27,9 @@ namespace ClockWall;
 /// wide and 133 mm long, which with a 200 GPa alloy gives 1.5 Hz against a
 /// train that only keeps time at 3.5 Hz, so the STEP's spring is a
 /// placeholder and the stiffness here is the one the train demands - what a
-/// 0.036 mm strip of the same width and length would give. The mainspring
-/// is a ring in the STEP with no spiral, so its torque is a typical figure
-/// for a barrel this size. Damping is set so the full-wind amplitude comes
+/// 0.036 mm strip of the same width and length would give. The STEP has no
+/// mainspring at all (the disc first taken for one is the ratchet wheel),
+/// so its torque is a typical figure for a barrel this size. Damping is set so the full-wind amplitude comes
 /// out at the caliber's 285 degrees; it is the one constant with no
 /// physical source.
 ///
@@ -62,7 +62,7 @@ public sealed class Mechanism
     public double Damping { get; }
 
     /// <summary>Mainspring torque at full wind, N m. A typical 6 N mm for a
-    /// 14 mm barrel; the STEP's spring is a ring and cannot be measured.</summary>
+    /// 14 mm barrel; the STEP carries no mainspring to measure.</summary>
     public const double BarrelTorqueFull = 6.0e-3;
 
     /// <summary>Torque left at the end of the run, as a fraction of full.</summary>

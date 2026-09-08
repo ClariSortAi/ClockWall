@@ -102,7 +102,10 @@ NAMES = {
     "OM10-00120": "barrel_drum",
     "OM10-00119": "barrel_cover",
     "OM10-00118": "barrel_arbor",
-    "OM10-00197": "mainspring",
+    # 00197 was first taken for the mainspring. It is a 5.9 mm disc, 0.48
+    # thick, on the BACK, meshing the crown wheel 00195 at 8.5 mm: the
+    # ratchet wheel. The STEP has no mainspring at all.
+    "OM10-00197": "ratchet_wheel",
     "OM10-00225": "stem",
     "OM10-00217": "date_plate",      # plaque quantieme
     "OM10-00138": "dial_rest",       # trottoir
@@ -115,7 +118,63 @@ NAMES = {
     "OM00-00107": "screw_b",
     "OM00-00111": "screw_c",
     "OM00-00108": "screw_d",
-    "OM00-00121": "screw_e",
+    # Each screw family has an insert sitting at the same spot: the threaded
+    # bush the screw goes into. Same count, same positions.
+    "OM00-00112": "insert_a",
+    "OM00-00121": "insert_b",
+    "OM00-00141": "insert_d",
+    "OM10-00144": "washer",
+    # The balance's shock settings, one each side. Dial side at y 1.0-1.6,
+    # cock side at y -2.2 to -1.5; block, cap jewel, hole jewel, spring, by size.
+    "OM00-00118": "shock_block_dial",
+    "OM00-00116": "shock_capstone_dial",
+    "OM00-00115": "shock_jewel_dial",
+    "OM00-00114": "shock_spring_dial",
+    "OM00-00137": "shock_block_cock",
+    "OM00-00135": "shock_setting_cock",
+    "OM00-00134": "shock_jewel_cock",
+    "OM00-00133": "shock_capstone_cock",
+    "OM00-00132": "shock_spring_cock",
+    # The raquetterie on the cock, by the release notes' word and position.
+    "OM00-00125": "regulator",
+    "OM00-00126": "regulator_boot",
+    "OM00-00129": "stud_carrier",
+    "OM00-00127": "stud",            # at the hairspring's outer end, 3.1 mm from the staff
+    # Bearings: thin settings at each arbor, dial side and back.
+    "OM00-00120": "barrel_bearing",
+    "OM00-00140": "centre_bearing",
+    "OM00-00122": "train_bearing",
+    "OM00-00145": "train_bearing_back",
+    "OM00-00123": "intermediate_bearing",
+    # The keyless works and setting train, on the stem's axis and beside it.
+    "OM10-00194": "winding_pinion",
+    "OM10-00242": "sliding_pinion",
+    "OM10-00195": "crown_wheel",     # meshes the ratchet at 8.5 mm
+    "OM10-00220": "crown_wheel_core",
+    "OM10-00228": "setting_wheel",
+    "OM10-00235": "setting_wheel_post",
+    "OM10-00229": "setting_wheel_2",
+    "OM10-00230": "setting_wheel_2_upper",
+    "OM10-00236": "yoke",
+    "OM10-00232": "setting_lever_spring",
+    "OM10-00238": "yoke_spring",
+    "OM00-00109": "keyless_pin",
+    # The date works on the dial side, around the hour wheel: unused by this
+    # face and static, named so they are not mistaken for the going train.
+    "OM10-00207": "date_wheel",
+    "OM10-00212": "date_wheel_2",
+    "OM10-00213": "date_wheel_3",
+    "OM10-00215": "date_wheel_3_post",
+    "OM10-00204": "date_jumper",
+    "OM10-00209": "date_jumper_spring",
+    "OM10-00210": "date_jumper_spring_2",
+    "OM10-00142": "click",
+    # Fixings round the rim.
+    "OM00-00142": "case_clamp",
+    "OM00-00139": "locating_pin",
+    "OM00-00100": "pin",
+    "OM00-00110": "clamp_plate",
+    "OM00-00113": "clamp_post",
 }
 
 

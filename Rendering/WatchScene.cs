@@ -155,7 +155,8 @@ internal sealed class WatchScene : IDisposable
         ("barrel", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_drum", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_cover", new(3.77f, 6.67f), Drive.Barrel),
-        ("mainspring", new(3.77f, 6.67f), Drive.Barrel),
+        // The ratchet wheel sits on the barrel ARBOR, which turns only when
+        // the watch is wound; the barrel body turns round it while it runs.
     };
 
     private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour, MinuteWheel, Barrel }

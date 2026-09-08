@@ -190,7 +190,14 @@ internal sealed record WatchDesign
                 ["barrel"] = plate,
                 ["barrel_drum"] = plate,
                 ["barrel_cover"] = plate,
-                ["mainspring"] = new(Material.Blued, 1f, 0.3f, 0.3f, Recess: true),
+                ["ratchet_wheel"] = pinion,
+                ["crown_wheel"] = pinion,
+                ["winding_pinion"] = pinion,
+                ["sliding_pinion"] = pinion,
+                ["setting_wheel"] = brass,
+                ["setting_wheel_2"] = brass,
+                ["regulator"] = steel with { Recess = true },
+                ["stud_carrier"] = steel with { Recess = true },
             },
 
             // A long lens from 300mm, tilted a few degrees so the case has a

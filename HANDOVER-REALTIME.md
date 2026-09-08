@@ -233,8 +233,13 @@ Not done, in the order they are worth doing:
 
 1. **Setting.** The five-second stall rule re-sets from the wall clock.
    That is the owner setting it; it is not recorded anywhere but the log.
-2. **Name the rest of the 166.** `Assets/movement-parts.json` carries every
-   part's position; about half still go by their source id.
+2. **Name the last 16 of the 166.** `Assets/movement-parts.json` carries
+   every part's position; 150 are named from the release notes and the
+   geometry (the shock settings both sides, the raquetterie, the bearings,
+   the keyless works, the date works, the fixings). The 16 still by id are
+   small keyless and cock-side pieces whose role the geometry alone does
+   not settle. One correction on the way: `00197`, first taken for the
+   mainspring, is the ratchet wheel; the STEP has no mainspring.
 3. **Mesh phase.** Each wheel turns at the right rate about the right
    arbor; whether tooth sits in gap between any two at a given instant has
    not been checked against the geometry.
