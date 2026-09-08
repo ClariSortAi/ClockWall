@@ -39,19 +39,20 @@ by a factor of four to six.
 
 | Printer | Walls need | Fits need |
 |---|---|---|
-| FDM 0.4 mm | 9x | 40x |
-| MSLA 50 µm | 3x | 20x |
-| DLP 35 µm | 2x | 12x |
-| micro-SLA 2 µm | 1x | 2x |
+| FDM 0.4 mm | 9x | 128x |
+| MSLA 50 µm | 3x | 64x |
+| DLP 35 µm | 2x | 38x |
+| micro-SLA 2 µm | 1x | 6x |
 
-A watch's running clearance, a pivot in its hole, is about a hundredth of a
-millimetre. Clearances scale with the part, so scaling the movement up until its
-walls print drags every fit up with it. On a 50 µm machine a 0.010 mm fit only
-reaches 0.030 mm at 3x, well under the 0.20 mm gap that machine can resolve. The
+The OM10's tightest running fit is a 0.0031 mm gap between a pivot and its bore,
+measured at every arbor by `tools/om10_fits.py` and written up in
+`docs/om10-fits.md`. Clearances scale with the part, so scaling the movement up
+until its walls print drags every fit up with it. On a 50 µm machine that gap
+only reaches 0.009 mm at 3x, against the 0.20 mm the machine can resolve. The
 parts come off the plate looking correct and fused to their bearings.
 
-Taken literally that kills the idea. 20x for resin is a 616 mm movement, and
-nothing that size goes on a plate.
+Taken literally that kills the idea outright. 64x for resin is a movement two
+metres across, and FDM asks for 128x and very nearly four.
 
 But a clearance is a number in the model, not a consequence of the scale. Bore
 the bearing holes oversize before slicing and the fits stop driving anything,
@@ -61,10 +62,18 @@ the printer's rather than the watchmaker's, which is the right trade for
 something meant to be looked at and the wrong one for something meant to be
 worn.
 
-This is the one number in the study that does not come off the STEP. It cannot:
-that file is nominal CAD, where a pivot and its jewel are drawn the same size
-and the clearance lives on the drawing. 0.010 mm is watchmaking practice, and
-`RUNNING_FIT_MM` is where to change it.
+This number used to be assumed. The first version of the study put it at
+0.010 mm from watchmaking practice and argued it could not be measured, since
+nominal CAD draws a pivot and its jewel the same size and keeps the clearance on
+the drawing. That was wrong about this file: the OM10's STEP carries its real
+fits and `tools/om10_fits.py` reads them, sixteen bearings, 0.0063 to 0.0150 mm
+on the diameter. The measured figure is three times tighter than the guess, so
+the fits constraint is three times worse than first reported and the conclusion
+is unchanged, only louder.
+
+Measuring them also turned up an interference: the intermediate wheel's pivot is
+0.0096 mm too big for its upper bearing, a leftover from the revision that
+enlarged those pivots from 0.167 to 0.190. `docs/om10-fits.md` has it.
 
 ## The thinnest parts
 
