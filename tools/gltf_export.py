@@ -71,6 +71,25 @@ OUT = os.path.join(ROOT, "Assets", "movement.glb")
 NAMES = {
     "OM10-00214": "mainplate",
     "OM10-00184": "bridge",          # pont de rouage, the train bridge
+    # The last sixteen, named 2026-09-08. Evidence in docs/om10-unnamed.md
+    # (the peer session's measurements) and, for 00102, a distance test
+    # against every neighbour: it touches the mainplate, two screw_b and
+    # two insert_b dowels, carries jewel_4 (the lever staff's dial-side
+    # jewel, at y 0.11..0.42 inside it), is notched for the fork and bored
+    # 2.2 round the roller. That is the pallet bridge on the dial side.
+    "OM10-00102": "pallet_bridge",   # pont d'ancre, dial side: high confidence
+    "OM10-00241": "washer_d",        # 1.35 ring under screw_d, both instances: medium
+    "OM00-00130": "pin_long",        # 0.56 x 1.51 dowel beside insert_b_2: medium
+    "OM10-00234": "yoke_spring_2",   # 0.17 sprung arc by the setting lever spring: medium, role loosely held
+    "OM10-00237": "keyless_spring",  # 0.20 sprung strip by the winding pinion: medium, role loosely held
+    "OM10-00304": "keyless_plate",   # 003xx family, the 2021/09/19 keyless rework: medium
+    "OM10-00211": "date_spring",     # 0.20 arc 2 mm from the date jumper; 00209 and 00210 are the jumper springs already named: medium
+    "OM10-00136": "index_arm",       # by the cock in the raquetterie's area: a guess
+    "OM10-00200": "rim_spring",      # 0.40 plate at the plate's rim, back: a guess
+    "OM10-00231": "setting_arc",     # arc r 2.4..3.1 among the setting wheels: a guess
+    "OM10-00233": "date_drive_wheel",  # 3.3 wheel above setting_wheel_2: a guess
+    "OM10-00240": "stem_sleeve",     # on the stem between winding and sliding pinions: a guess
+    "OM10-00245": "keyless_block",   # 67 mm3 spanning the plate at the keyless works, maybe one variant's: a guess
     "OM10-00199": "barrel_bridge",
     "OM10-00196": "cock",            # coq, the balance cock
     "OM10-00113": "balance",
