@@ -232,16 +232,16 @@ Not done, in the order they are worth doing:
 
 1. **Setting.** The five-second stall rule re-sets from the wall clock.
    That is the owner setting it; it is not recorded anywhere but the log.
-2. **Name the last 16 of the 166.** `Assets/movement-parts.json` carries
-   every part's position; 150 are named from the release notes and the
-   geometry (the shock settings both sides, the raquetterie, the bearings,
-   the keyless works, the date works, the fixings). The 16 still by id are
-   small keyless and cock-side pieces whose role the geometry alone does
-   not settle. Two corrections on the way: `00197`, first taken for the
-   mainspring, is the ratchet wheel; and `00120`, catalogued as the drum,
-   is the mainspring itself.
-3. **Depth of field, barely**; the crystal's edge refraction; the hairspring
-   still turns rigidly.
+2. **Name the last 16 of the 166 - done.** 166 of 166 are named in
+   `gltf_export.NAMES`, the last sixteen with their confidence in the
+   comments and the evidence in `docs/om10-unnamed.md`. Corrections along
+   the way: `00197` is the ratchet wheel, not the mainspring; `00120`,
+   catalogued as the drum, is the mainspring itself; `00107` is the
+   lever's staff and `00111` the impulse pin; `00102` is the dial-side
+   pallet bridge.
+3. **Depth of field, barely - done** (item 7 below); the crystal's edge
+   refraction was computed at 0.27 px at the rim and left undrawn
+   (`crystal.hlsl` has the arithmetic); the hairspring breathes (item 3).
 
 Checked and closed: **the balance strobing.** When the balance has swept
 more than six degrees since the last colour frame it is drawn as a fan of
@@ -338,6 +338,29 @@ the check reports it as one. The peer session's fits study
 upper bearing left at the old pivot size; `gltf_export.BORED` opens it and
 the check turns the intermediate in it. Output is
 `captures/assembly-check-*.txt`; a clean run is `0 clashes`, exit 0.
+
+**6. Print it - in progress, with the peer session.** `PRINT-STUDY.md`
+settles the scale (3.4x on a 50 um MSLA machine, three prints of about
+104 mm) and finds that the running fits, not the walls, govern: the
+tightest is 0.0063 mm on the diameter, and no scale a printer can hold
+pays for that. So the bearings are bored open in the model instead:
+`tools/print_bores.py` (branch `fits-study`) opens every bearing in
+`Assets/om10-fits.json` until the gap at the chosen scale is what the
+machine holds, pivots untouched, and proves each opening breaks into
+nothing. Owed still: the print set through `gltf_export.prepared` behind
+a `--print` flag, `assembly_check.py` run against it, and the STL set
+written out at scale.
+
+**7. Cosmetic - done, with one measured and declined.** Depth of field: a
+second target carries view distance out of the watch pass and the post
+pass gathers a small disc weighted by each tap's own circle of confusion;
+focus a millimetre behind the dial, a pixel of blur per four millimetres,
+capped at a pixel and a half, so the bezel's rim goes a hair soft and the
+balance stays readable (twice that turned the open heart to mush). The
+last sixteen names, above. The crystal's edge refraction: the dome is a
+375 mm sphere, its rim tilts 3.75 degrees, sapphire bends the ray 1.6
+degrees for 0.8 mm, 0.023 mm of shift, 0.27 px at this rig's 11.8 px/mm.
+Not drawn; the arithmetic is in `crystal.hlsl` so nobody re-derives it.
 
 ## The licence question, asked and answered
 

@@ -2,9 +2,16 @@
 // crystal contributes is a faint specular sheet that moves independently of
 // the dial under it, and the violet-blue residual an anti-reflective coating
 // leaves at glancing angles. ART-DIRECTION.md: keep it subtle, a strong
-// reflection reads as plastic. Refraction is not modelled - at this dome
-// height and this viewing distance it moves the dial's edge by less than a
-// pixel, and a wrong refraction is worse than none.
+// reflection reads as plastic. Refraction is not modelled, and the number
+// was done rather than assumed (2026-09-08): the crystal's dome is 0.8mm
+// of sag over a 24.5mm half-chord, a 375mm sphere, so its surface tilts
+// 3.75 degrees at the rim; sapphire at n=1.77 bends the ray 1.6 degrees
+// for the 0.8mm it is inside, 0.023mm of shift, which at this rig's 11.8
+// px/mm is 0.27 px at the very edge and nothing at the centre. The
+// underside is flat, so the ray leaves parallel to how it came. Drawing
+// that would cost a resolve a frame to move nothing you can see, and a
+// wrong refraction is worse than none. The crystal's cylindrical side,
+// where a real edge refracts visibly, is inside the bezel here.
 #pragma pack_matrix(row_major)
 
 cbuffer Frame : register(b0)
