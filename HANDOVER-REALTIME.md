@@ -240,13 +240,20 @@ Not done, in the order they are worth doing:
    small keyless and cock-side pieces whose role the geometry alone does
    not settle. One correction on the way: `00197`, first taken for the
    mainspring, is the ratchet wheel; the STEP has no mainspring.
-3. **Mesh phase.** Each wheel turns at the right rate about the right
-   arbor; whether tooth sits in gap between any two at a given instant has
-   not been checked against the geometry.
-4. **The balance strobes** at speed; a sub-step additive draw gated on
-   `BalanceSpeed` is the cheap fix.
-5. **Depth of field, barely**; the crystal's edge refraction; the hairspring
+3. **The balance strobes** at speed; a sub-step draw gated on the angle
+   swept per frame is the cheap fix.
+4. **Depth of field, barely**; the crystal's edge refraction; the hairspring
    still turns rigidly.
+
+Checked and closed: **mesh phase.** Every wheel-to-pinion drive ratio in
+`WatchScene.Rotations` equals its tooth ratio with the opposite sign, so
+the STEP's assembled mesh is preserved at every angle by construction. The
+escapement, which is not a ratio, was measured: in the STEP the fork slot
+sits on the line of centres to 0.06 degrees and the impulse pin on it to
+0.16, so the STEP's pose is the mid-transit pose the drive already treats
+as zero, and the escape wheel clears both stones (0.03 mm off the entry
+stone at rest, no vertex of either inside the other) through the first
+three half-teeth at either bank.
 
 ## The licence question, asked and answered
 
