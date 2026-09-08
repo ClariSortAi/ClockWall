@@ -52,9 +52,14 @@ Gather before touching code. Missing any of these is where the time goes.
   dimensions. The blue soleil carries case_geometry.py's "face units" (640
   across the panel) through `WatchDesign.FaceUnit`; a new face should just
   use millimetres in `case_solids.py`.
-- **The movement.** If it is the OM10, `Assets/movement.glb`, the rotation
-  map in `WatchScene.Rotations` and the placement are done. A different
-  movement needs its own extraction and rotation map, and that is a project.
+- **The movement.** If it is the OM10, `Assets/movement.glb` (all 166
+  solids, `tools/gltf_export.py` from `tools/om10_extract_all.py`), the
+  rotation map in `WatchScene.Rotations` and the open-heart cut are done,
+  and the layout is the OM10's own: hands at its plate centre, small seconds
+  at nine, crown at three, balance under eleven. A different movement needs
+  its own extraction, naming and rotation map, and that is a project. Get
+  its STEP and its parts list first; every role inferred from geometry on
+  this project was wrong.
 - **The light.** `tools/hdri/*.hdr`. Measure a new panorama before using it:
   what LOOKS bright in a tone-mapped preview is often radiance 1; the
   sources that make polished metal read as metal are the ones in the tens.

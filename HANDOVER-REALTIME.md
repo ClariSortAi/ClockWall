@@ -151,37 +151,48 @@ whose time comes from its own mechanism. `main` still runs the face above;
 - Every non-movement part as a watertight solid in `tools/case_solids.py`
   (build123d), exported to `Assets/case.glb` and `models/step/case.step`.
   The renderer builds no geometry; `MeshBuilder` is gone.
-- Hands on real arbors. The placement puts the OM10's centre wheel
-  (`wheel_a`, 75 teeth, once an hour by the derived train) under the dial
-  centre and turns the assembly 272.70 degrees so the balance sits straight
-  below at 15.10mm. The hour and minute hands are on tubes at that arbor;
-  the seconds hand is on an extension of the fourth wheel's arbor, 8mm out
-  at seven o'clock, inside a 9.6mm aperture pulled 30% of the way from the
-  balance toward it. The seconds arbor's world position is derived through
-  the placement, never typed.
-- A crown and stem at three on the case band, a caseback, tubes for the
-  cannon pinion and hour wheel. The panel is 720 wide so the crown shows.
+- Hands on the OM10's own arbors - after a wrong turn. The first attempt
+  moved the movement so its centre wheel sat under the dial centre. Then
+  the original STEP turned up (owner's OneDrive, now also at
+  `captures/om10/om10-00001_20220701_va_01_3.stp`, gitignored) with the
+  release notes, which name the parts, and they showed the OM10 already
+  carries its hands at its plate centre: cannon pinion `00127`, hour wheel
+  `00206`, cannon wheel `00128`, driven indirectly from the off-centre
+  centre wheel through the intermediate `00152` (the old `pinion_a`). The
+  seconds wheel `00164`/`00165` turns once a minute 8mm out, and the stem
+  `00225` fixes three o'clock. With the crown at the wearer's right the
+  balance is under eleven and the small seconds at nine. That is the
+  layout now. `tools/gltf_export.py` exports all 166 solids into the
+  renderer's frame with the plate centre at the dial centre; the design
+  says only how deep the movement sits.
+- **The open-heart cut.** The OM10 is not an open-heart movement; from the
+  dial side its balance is under the plate, the date plate and the dial
+  rest. The exporter cuts a window through those three over the balance,
+  keeping a bar along the line of centres to carry the three dial-side
+  jewel seats. It is the operation a maker performs on a stock movement,
+  done to our exported copies; the OM10 files are untouched.
+- A crown at three on the OM10's own stem, a stem hole in the band, a
+  caseback, hand collars on the OM10's cannon pinion and hour wheel. The
+  panel is 720 wide so the crown shows.
 - `Caliber.cs`'s header names the seam where the wall clock will become an
   oscillator.
 
-What the train analysis established, from the manifest's arbors and radii
-(the original STEP is on no machine here, so this is all the evidence there
-is): `wheel_c` (84) is the fourth wheel driven by `epinion`; `wheel_b` (72)
-is the third, driving `pinion_b` (9); `wheel_a` (75) drives the third's
-pinion at 4.68mm and is the centre wheel; `pinion_a` (25 leaves, full
-height) meshes `wheel_a` at 5.50mm and its role is not known. The barrel is
-not among the parts and, by the centre wheel's position, would have been
-near the plate centre, 8.2mm from it.
+The train, now from the parts themselves: barrel `00121` at 8.0mm from the
+centre wheel `00150` (75 teeth, once an hour); centre wheel to the third's
+pinion `00161` at 4.68mm; third `00162` (72) to the seconds pinion `00164`
+(9); seconds wheel `00165` (84) to the escape pinion (8). The intermediate
+`00152` (25) takes the centre wheel to three turns an hour and the cannon
+wheel at the plate centre back to one. The minute wheel `00159` and the
+barrel's tooth count are not counted yet, so both are drawn static.
 
 Not done, in the order they are worth doing:
 
 1. **The oscillator.** Replace the wall clock in `Caliber.Read` with an
    integrated balance and an event-based escapement. The contract stays.
-2. **The missing parts, if the direction holds:** motion works, cannon
-   pinion and hour wheel with teeth, barrel and mainspring, keyless works.
-   None is visible from the front; all are needed for a thing that runs.
-3. **Whether the OM10's stem slot is at three** after the placement. The
-   plate's rim has a 36 degree opening at CAD azimuth 264 that may be it.
+   The torque curve can now come from the real barrel and mainspring.
+2. **Count the barrel and the minute wheel** and drive them.
+3. **Name the rest of the 166.** `Assets/movement-parts.json` carries every
+   part's position; about half still go by their source id.
 4. **The balance strobes** at speed; a sub-step additive draw gated on
    `BalanceSpeed` is the cheap fix.
 5. **Depth of field, barely**; the crystal's edge refraction; the hairspring

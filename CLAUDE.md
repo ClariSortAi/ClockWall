@@ -16,7 +16,8 @@ operational layer.
     ClockWall.exe --screenshot out.png   # renders a 1080x1920 PNG and exits
     ClockWall.exe --fullscreen           # Esc exits, F11 toggles
 
-    python tools/gltf_export.py          # regenerates Assets/movement.glb (needs OCP + build123d)
+    python tools/om10_extract_all.py     # once: all 166 OM10 solids -> captures/om10/all (needs the STEP, see below)
+    python tools/gltf_export.py          # regenerates Assets/movement.glb + movement-parts.json (OCP + build123d)
     python tools/case_solids.py          # regenerates Assets/case.glb + models/step/case.step (build123d)
     python tools/dial_print.py           # regenerates Assets/dial-print.png
 
@@ -46,6 +47,12 @@ acceptance test.
 - **The XAML compositor ignores the swap chain's alpha** (measured: a strip forced to
   alpha 0 stayed black). The live face composites itself over the wall colour it reads
   from `WallBackgroundBrush`; do not spend time on premultiplied alpha.
+- **The OM10 STEP is the source of truth and it exists.** It is at
+  `captures/om10/om10-00001_20220701_va_01_3.stp` (gitignored; the owner's copy is in
+  OneDrive `3dstuff`, with `OM10_Release_notes.pdf`, which names the parts in
+  French). Before inferring any part's role from radii and distances, open the file.
+  The hands' arbor, the stem direction and the seconds wheel were all inferred once
+  and all three inferences were wrong.
 - **Do not reason about the environment's orientation; look.** Run with
   `CLOCKWALL_DEBUG_VIEW=1` and every surface renders as a mirror of the studio by its
   normal. The dial then shows what world +Y is aimed at. Two sessions of arithmetic

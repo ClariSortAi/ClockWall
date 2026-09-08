@@ -76,3 +76,19 @@ then dropped: at three pixels per face unit a screw head is twelve pixels
 across and its thread cannot be seen, so it was a heavy dependency buying
 nothing. Its `build123d` dependency is still in use and is patched locally.
 HANDOVER.md explains why.
+
+## The open-heart cut, 2026-09-08
+
+The live face exports every solid of the OM10 (`tools/gltf_export.py`) and,
+for three of them - the mainplate `OM10-00214`, the date plate `OM10-00217`
+and the dial rest `OM10-00138` - cuts a window over the balance so it can be
+seen from the dial side, keeping a bar along the line of centres to carry the
+dial-side jewel seats. That is a modification of a derived copy, done at
+export time; the OM10 files themselves are not edited. It is the same
+operation a manufacturer performs to make an open-heart version of a stock
+movement, and it is recorded here so that nobody mistakes the cut plate for
+openmovement's design.
+
+The source STEP (`om10-00001_20220701_va_01_3.stp`, 18.8 MB) and the release
+notes (`OM10_Release_notes.pdf`, which name the parts) are the owner's copies
+from openmovement's free registration, kept outside the repository.
