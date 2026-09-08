@@ -41,6 +41,10 @@ public sealed partial class MovementView : UserControl
     /// <summary>The crown: winds the mechanism. From the W accelerator.</summary>
     public void Wind() => _renderer.Wind();
 
+    /// <summary>The crown pulled or pushed (S) and turned (arrows).</summary>
+    public void ToggleCrown() => _renderer.ToggleCrown();
+    public void TurnCrown(TimeSpan byHands) => _renderer.TurnCrown(byHands);
+
     /// <summary>Starts or stops the frame loop. See the class remarks for
     /// who calls it and why it is not Loaded.</summary>
     public void SetRunning(bool running)

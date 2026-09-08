@@ -300,6 +300,17 @@ the collet, outer end pinned at the stud, the turn shared out between: the
 coils open on one half of the swing and close on the other. The strip's
 normals turn with it. It is no longer in the rotation map.
 
+**4. Setting through the crown - done.** The silent re-set from the wall
+clock after a stall is gone. A watch keeps running while nobody looks at
+it, so on waking the mechanism catches up the real time that passed, ten
+minutes of beats per frame, and if the spring ran out while it slept it
+stopped then. `S` pulls the crown (it rides out 0.6mm on the stem) and
+pushes it in; out, the arrows turn it, a minute a press and an hour with
+Shift, moving the cannon pinion on its arbor - the hands and nothing
+else, the balance swinging on, as the OM10 has no hacking lever. The
+system clock is now read exactly once, at launch: the owner setting the
+watch from a reference. Every pull, push and wind goes to the log.
+
 ## The licence question, asked and answered
 
 **Settled 2026-09-08: not a concern.** This is a wall clock in somebody's

@@ -47,6 +47,15 @@
             <!-- The crown. The live face's mechanism runs down in forty hours
                  like the watch it is; W winds it, as the owner would. -->
             <KeyboardAccelerator Key="W" Invoked="OnWindAccelerator" />
+            <!-- Setting. S pulls the crown out or pushes it in; while it is
+                 out the arrows turn it, a minute a press, an hour with Shift.
+                 The live face's hands move and nothing else does, which is
+                 what setting a watch is. -->
+            <KeyboardAccelerator Key="S" Invoked="OnCrownAccelerator" />
+            <KeyboardAccelerator Key="Right" Invoked="OnCrownForwardAccelerator" />
+            <KeyboardAccelerator Key="Left" Invoked="OnCrownBackAccelerator" />
+            <KeyboardAccelerator Key="Right" Modifiers="Shift" Invoked="OnCrownForwardHourAccelerator" />
+            <KeyboardAccelerator Key="Left" Modifiers="Shift" Invoked="OnCrownBackHourAccelerator" />
         </Grid.KeyboardAccelerators>
 
         <Viewbox x:Name="DesignScaler" Stretch="Uniform" StretchDirection="Both">

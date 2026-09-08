@@ -110,8 +110,29 @@ internal sealed class WatchScene : IDisposable
     private double _nextReportAt = 3600.0;
     private bool _stopLogged;
 
-    /// <summary>The crown, turned: winds the mainspring fully and restarts
-    /// a stopped balance. Wired to the W key on the wall.</summary>
+    /// <summary>The crown pulled out or pushed in, from the S key. Out, the
+    /// arrow keys turn it; the crown itself moves 0.6mm on the stem.</summary>
+    public void ToggleCrown()
+    {
+        if (_mechanism.CrownOut)
+        {
+            _mechanism.PushCrown();
+            Log?.Invoke($"crown pushed in; the hands were set to {_mechanism.Read().Hour / 30.0:0.00} h, mechanism {_mechanism.DriftSeconds:+0.00;-0.00} s against the wall clock");
+        }
+        else
+        {
+            _mechanism.PullCrown();
+            Log?.Invoke("crown pulled out to set");
+        }
+    }
+
+    /// <summary>The crown turned while out: the arrow keys, a minute a
+    /// press, an hour with Shift. Nothing happens with the crown in, as
+    /// nothing happens on a watch.</summary>
+    public void TurnCrown(TimeSpan byHands) => _mechanism.TurnCrown(byHands);
+
+    /// <summary>The crown, turned in the winding position: winds the
+    /// mainspring fully and restarts a stopped balance. The W key.</summary>
     public void Wind()
     {
         Log?.Invoke($"wound by hand; it had {_mechanism.ReserveTurns:0.00} turns left and was {(_mechanism.Stopped ? "stopped" : "running")}, {_mechanism.DriftSeconds:+0.00;-0.00} s against the wall clock");
@@ -618,7 +639,9 @@ internal sealed class WatchScene : IDisposable
         foreach (var (name, mesh) in _case)
         {
             if (name is "crystal" or "hour_hand" or "minute_hand" or "seconds_hand") continue;
-            Draw(mesh, CaseMaterial(name), Matrix4x4.Identity);
+            // The crown rides out 0.6mm on the stem when it is pulled to set.
+            var placement = name == "crown" && _mechanism.CrownOut ? Matrix4x4.CreateTranslation(0.6f, 0f, 0f) : Matrix4x4.Identity;
+            Draw(mesh, CaseMaterial(name), placement);
         }
         Draw(_case["hour_hand"], CaseMaterial("hour_hand"), ScreenClockwise((float)reading.Hour));
         Draw(_case["minute_hand"], CaseMaterial("minute_hand"), ScreenClockwise((float)reading.Minute));

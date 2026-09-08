@@ -401,6 +401,36 @@ public sealed partial class MainWindow : Window
         HeroClock.WindWatch();
     }
 
+    private void OnCrownAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.ToggleCrown();
+    }
+
+    private void OnCrownForwardAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.TurnCrown(TimeSpan.FromMinutes(1));
+    }
+
+    private void OnCrownBackAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.TurnCrown(TimeSpan.FromMinutes(-1));
+    }
+
+    private void OnCrownForwardHourAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.TurnCrown(TimeSpan.FromHours(1));
+    }
+
+    private void OnCrownBackHourAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.TurnCrown(TimeSpan.FromHours(-1));
+    }
+
     private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;

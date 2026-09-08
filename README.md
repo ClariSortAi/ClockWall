@@ -144,10 +144,13 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
 - `C` cycles the clock faces: analogue, mechanical (sprites), digital, live. The
   choice persists by name in `%LOCALAPPDATA%\ClockWall\clock-mode.txt` and survives
   every rebuild - a stale value looks exactly like a build that did nothing.
-- `W` winds the live face. Its movement is simulated, not read off the system
-  clock: it keeps its own rate, runs down in about forty hours and stops, and the
-  crown is the W key. The fault log records its rate at launch, its drift hourly,
-  and every wind and stop.
+- The live face's movement is simulated, not read off the system clock: it keeps
+  its own rate, runs down in about sixty hours and stops, and keeps running while
+  the machine sleeps. The crown is the keyboard: `W` winds; `S` pulls the crown
+  out or pushes it in; with it out, `Left`/`Right` turn it a minute a press and
+  `Shift+Left`/`Shift+Right` an hour. The system clock is consulted exactly once,
+  when the app starts, which is the owner setting the watch. The fault log records
+  its rate at launch, its drift hourly, and every wind, set and stop.
 - `CLOCKWALL_DEBUG_VIEW=1` in the environment renders the live face as a mirror of
   its studio, for checking where the light is.
 - The live face logs any failure to build its scene to

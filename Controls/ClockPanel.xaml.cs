@@ -166,6 +166,17 @@ public sealed partial class ClockPanel : UserControl
         if (_face == Live) LiveFace.Wind();
     }
 
+    /// <summary>S: the live face's crown out or in. Arrows: turn it.</summary>
+    public void ToggleCrown()
+    {
+        if (_face == Live) LiveFace.ToggleCrown();
+    }
+
+    public void TurnCrown(TimeSpan byHands)
+    {
+        if (_face == Live) LiveFace.TurnCrown(byHands);
+    }
+
     private void ApplyMode()
     {
         for (var i = 0; i < FaceNames.Length; i++)

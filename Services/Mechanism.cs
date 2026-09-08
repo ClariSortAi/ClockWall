@@ -101,10 +101,14 @@ public sealed class Mechanism
     /// unlock instant honest to a twentieth of a beat.</summary>
     public const double Step = 0.0005;
 
-    /// <summary>A gap longer than this is a watch that stopped - the
-    /// process was suspended, the machine slept - and a person sets it
-    /// again rather than the mechanism catching up a night's beats.</summary>
-    private const double StoppedAfterSeconds = 5.0;
+    /// <summary>How much mechanism time one frame will integrate at most.
+    /// A watch keeps running while nobody looks at it - the machine slept,
+    /// the process was suspended - so on waking the mechanism catches up
+    /// the real time that passed, in slices this long per frame so the
+    /// wall never freezes: ten minutes of beats is about twelve
+    /// milliseconds of work, and a night is caught up in a second or two.
+    /// If the spring ran out while it slept, it stopped then, as it should.</summary>
+    private const double CatchUpPerFrame = 600.0;
 
     // ------------------------------------------------------------ the state
 
@@ -308,17 +312,31 @@ public sealed class Mechanism
     /// integrates whatever real time has passed since the last call.</summary>
     public void Advance()
     {
-        var target = _clock.Elapsed.TotalSeconds;
-        if (target - _simulated > StoppedAfterSeconds)
-        {
-            Set(DateTime.Now);   // left stopped; the owner sets it again
-            return;
-        }
-
+        var target = Math.Min(_clock.Elapsed.TotalSeconds, _simulated + CatchUpPerFrame);
         while (_simulated + Step <= target)
         {
             StepOnce();
         }
+    }
+
+    /// <summary>True while the crown is pulled out to set. The OM10 has no
+    /// hacking lever, so the balance keeps swinging while the hands are
+    /// moved, as it does on the real movement.</summary>
+    public bool CrownOut { get; private set; }
+
+    public void PullCrown() => CrownOut = true;
+    public void PushCrown() => CrownOut = false;
+
+    /// <summary>Turning the crown in the setting position: the sliding
+    /// pinion drives the setting wheels, which drive the minute wheel,
+    /// which turns the cannon pinion - slipping on the centre wheel's
+    /// arbor - and the hands move while the train does not. Only the time
+    /// the hands show changes; the beat count and the escapement are
+    /// untouched.</summary>
+    public void TurnCrown(TimeSpan byHands)
+    {
+        if (!CrownOut) return;
+        _setAt = _setAt.Add(byHands);
     }
 
     /// <summary>The escapement's state, in the shape every face consumes.
