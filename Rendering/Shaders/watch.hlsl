@@ -19,6 +19,7 @@ static const int FINISH_STRAIGHT = 3;  // grain along FinishDir, with scalloped 
 static const int FINISH_PERLAGE  = 4;  // small circular grains on a hex grid, overlapping
 static const int FINISH_DIAL     = 5;  // radial, plus the printed track and lettering (the hole is in the solid)
 static const int FINISH_BLACK    = 6;  // black polish: a mirror so flat it reads dark
+static const int FINISH_HAIRSPRING = 7; // blued strip that winds with the balance (see VsMain)
 
 cbuffer Frame : register(b0)
 {
@@ -44,7 +45,8 @@ cbuffer Object : register(b1)
     float3   FinishDir;       // world space, unit
     float    Lacquer;         // clear-coat weight on top (the dial's lacquer)
     float    Opacity;         // 1 for a solid draw; a fraction for one copy of a smear
-    float3   _pad1;
+    float    Breathe;         // the balance's angle, radians clockwise, for FINISH_HAIRSPRING
+    float2   _pad1;
 };
 
 TextureCube<float4> EnvSpecular  : register(t0);   // GGX-prefiltered, mips by roughness
@@ -73,6 +75,28 @@ VsOut VsMain(VsIn v)
     // Rigid transforms only, so the normal takes the same 3x3 - no inverse
     // transpose needed, and none is computed.
     o.nrm = mul(v.nrm, (float3x3)World);
+
+    // THE HAIRSPRING BREATHES. Its inner end is pinned to the collet and
+    // turns with the balance; its outer end is pinned to the stud and does
+    // not turn at all; along the strip the turn is shared out evenly. On an
+    // Archimedean spiral the radius says how far along the strip a point
+    // is, so each vertex is turned about the staff by the balance's angle
+    // times one minus that fraction. The coils then open on one half of
+    // the swing and close on the other, which is what a watchmaker sees and
+    // what a rigidly turned spiral - the sprite face's stand-in - never
+    // showed. The strip's own normals turn with it.
+    if (Finish == FINISH_HAIRSPRING)
+    {
+        float3 rel = o.world - FinishCentre;
+        float r = length(rel.xz);
+        float s = saturate((r - FinishDir.x) / (FinishDir.y - FinishDir.x));
+        float ang = -Breathe * (1.0 - s);          // clockwise on the dial is a negative turn about +Y
+        float c = cos(ang), sn = sin(ang);
+        float3x3 turn = float3x3(c, 0, -sn, 0, 1, 0, sn, 0, c);
+        o.world = FinishCentre + mul(rel, turn);
+        o.nrm = mul(o.nrm, turn);
+        w = float4(o.world, 1);
+    }
     o.clip = mul(w, ViewProj);
     o.light = mul(w, LightViewProj);
     return o;

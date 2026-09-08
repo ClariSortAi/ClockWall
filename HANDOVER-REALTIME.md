@@ -291,6 +291,15 @@ of its own. The mechanism's torque curve is that strip's; the typical
 s/day) and the regulator index was moved to match, which is what a
 timing machine is for.
 
+**3. The breathing hairspring - done.** `Finish.Hairspring` in
+`watch.hlsl`: the vertex shader turns each point of the strip about the
+staff by the balance's angle times one minus the point's fraction along
+the strip, which on an Archimedean spiral is read off its radius (the
+design's inner and outer radii come from `mechanism.json`). Inner end with
+the collet, outer end pinned at the stud, the turn shared out between: the
+coils open on one half of the swing and close on the other. The strip's
+normals turn with it. It is no longer in the rotation map.
+
 ## The licence question, asked and answered
 
 **Settled 2026-09-08: not a concern.** This is a wall clock in somebody's

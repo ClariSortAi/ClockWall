@@ -145,7 +145,6 @@ internal sealed class WatchScene : IDisposable
         ("balance", new(-3.51f, -8.06f), Drive.Balance),
         ("collet", new(-3.51f, -8.06f), Drive.Balance),
         ("impulse_pin", new(-3.51f, -8.06f), Drive.Balance),
-        ("hairspring", new(-3.51f, -8.06f), Drive.Hairspring),
         ("escape", new(-7.90f, -3.68f), Drive.Escape),
         ("epinion", new(-7.90f, -3.68f), Drive.Escape),
         ("lever", new(-5.71f, -5.87f), Drive.Fork),
@@ -238,6 +237,7 @@ internal sealed class WatchScene : IDisposable
         // ---- the mechanism, set to the wall clock the way a person sets a
         // watch, and measured once so its rate is on record.
         var numbers = Mechanism.LoadNumbers(assetDirectory);
+        (_hairspringInnerRadius, _hairspringOuterRadius) = Mechanism.LoadHairspringRadii(assetDirectory);
         _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now, numbers);
         var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, numbers, 30.0);
         StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={numbers.Inertia:0.000e0} kg m2, k={numbers.Stiffness:0.000e0} N m/rad, spring {_mechanism.BarrelTorqueFull * 1e3:0.00} N mm over {numbers.TurnsUsable:0.0} turns, from mechanism.json)";
@@ -548,6 +548,11 @@ internal sealed class WatchScene : IDisposable
         foreach (var (name, mesh) in _movement)
         {
             var material = MovementMaterial(name);
+            if (name == "hairspring")
+            {
+                DrawBreathing(mesh, material, reading.Balance);
+                continue;
+            }
             var world = _movementWorld;
             foreach (var (part, arbor, drive) in Rotations)
             {
@@ -663,6 +668,26 @@ internal sealed class WatchScene : IDisposable
         _context.UpdateSubresource(constants, _objectCb);
         mesh.Draw(_context);
     }
+
+    /// <summary>The hairspring: not turned as a body but wound by the vertex
+    /// shader from the balance's angle. Staff and coil radii come from the
+    /// spring's own design numbers.</summary>
+    private void DrawBreathing(Mesh mesh, Material material, double balanceDegrees)
+    {
+        var staff = ArborOf("balance");
+        var mat = material with
+        {
+            Finish = Finish.Hairspring,
+            FinishCentre = Vector3.Transform(new Vector3(staff.X, 0f, staff.Y), _movementWorld),
+            FinishDir = new Vector3(_hairspringInnerRadius, _hairspringOuterRadius, 0f),
+        };
+        var constants = mat.ToConstants(_movementWorld);
+        constants.Breathe = (float)(balanceDegrees * Math.PI / 180.0);
+        _context.UpdateSubresource(constants, _objectCb);
+        mesh.Draw(_context);
+    }
+
+    private readonly float _hairspringInnerRadius, _hairspringOuterRadius;
 
     private Material CaseMaterial(string name) =>
         _design.Case.TryGetValue(name, out var m) ? m : _design.Polished;

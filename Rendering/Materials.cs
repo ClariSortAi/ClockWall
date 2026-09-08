@@ -13,6 +13,10 @@ internal enum Finish
     Perlage = 4,
     Dial = 5,
     BlackPolish = 6,
+    /// <summary>The hairspring: blued steel, and the vertex shader winds it
+    /// with the balance - see watch.hlsl. FinishCentre is the staff,
+    /// FinishDir.xy the inner and outer coil radii.</summary>
+    Hairspring = 7,
 }
 
 /// <summary>
@@ -88,5 +92,5 @@ internal struct ObjectConstants
     public Vector2 Roughness; public int Finish; public float FinishScale;
     public Vector3 FinishCentre; public float Recess;
     public Vector3 FinishDir; public float Lacquer;
-    public float Opacity; public Vector3 _pad;
+    public float Opacity; public float Breathe; public Vector2 _pad;
 }

@@ -143,6 +143,15 @@ public sealed class Mechanism
     /// spring's stiffness. Read once; a missing or unreadable file is a
     /// build that shipped without the spring, and the watch should say so
     /// rather than quietly run on a typed-in rate.</summary>
+    /// <summary>The designed spring's inner and outer coil radii, mm, for
+    /// the shader that winds it on screen.</summary>
+    public static (float Inner, float Outer) LoadHairspringRadii(string assetDirectory)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(assetDirectory, "mechanism.json")));
+        var hs = doc.RootElement.GetProperty("hairspring");
+        return ((float)hs.GetProperty("r_in_mm").GetDouble(), (float)hs.GetProperty("r_out_mm").GetDouble());
+    }
+
     public readonly record struct Numbers(double Inertia, double Stiffness, double TorquePerTurn, double TurnsUsable, double TurnsResidual, double FrictionTorque);
 
     public static Numbers LoadNumbers(string assetDirectory)
