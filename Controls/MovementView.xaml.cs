@@ -38,6 +38,9 @@ public sealed partial class MovementView : UserControl
         Unloaded += (_, _) => SetRunning(false);
     }
 
+    /// <summary>The crown: winds the mechanism. From the W accelerator.</summary>
+    public void Wind() => _renderer.Wind();
+
     /// <summary>Starts or stops the frame loop. See the class remarks for
     /// who calls it and why it is not Loaded.</summary>
     public void SetRunning(bool running)

@@ -159,6 +159,13 @@ public sealed partial class ClockPanel : UserControl
         }
     }
 
+    /// <summary>The W key: winds the live face's mechanism. The other faces
+    /// have nothing to wind and ignore it.</summary>
+    public void WindWatch()
+    {
+        if (_face == Live) LiveFace.Wind();
+    }
+
     private void ApplyMode()
     {
         for (var i = 0; i < FaceNames.Length; i++)

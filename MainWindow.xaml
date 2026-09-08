@@ -44,6 +44,9 @@
             <KeyboardAccelerator Key="Escape" Invoked="OnExitAccelerator" />
             <KeyboardAccelerator Key="F11" Invoked="OnFullScreenAccelerator" />
             <KeyboardAccelerator Key="C" Invoked="OnClockModeAccelerator" />
+            <!-- The crown. The live face's mechanism runs down in forty hours
+                 like the watch it is; W winds it, as the owner would. -->
+            <KeyboardAccelerator Key="W" Invoked="OnWindAccelerator" />
         </Grid.KeyboardAccelerators>
 
         <Viewbox x:Name="DesignScaler" Stretch="Uniform" StretchDirection="Both">

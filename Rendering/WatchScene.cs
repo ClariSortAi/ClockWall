@@ -95,6 +95,16 @@ internal sealed class WatchScene : IDisposable
     /// twenty-four lines a day.</summary>
     public Action<string>? Log { get; set; }
     private double _nextReportAt = 3600.0;
+    private bool _stopLogged;
+
+    /// <summary>The crown, turned: winds the mainspring fully and restarts
+    /// a stopped balance. Wired to the W key on the wall.</summary>
+    public void Wind()
+    {
+        Log?.Invoke($"wound by hand; it had {_mechanism.ReserveTurns:0.00} turns left and was {(_mechanism.Stopped ? "stopped" : "running")}, {_mechanism.DriftSeconds:+0.00;-0.00} s against the wall clock");
+        _mechanism.Wind();
+        _stopLogged = false;
+    }
 
     /// <summary>Set CLOCKWALL_DEBUG_VIEW=1 in the environment to render every
     /// surface as a mirror of the studio by its normal. See watch.hlsl.</summary>
@@ -399,6 +409,11 @@ internal sealed class WatchScene : IDisposable
         var rig = new Rig(d, seconds, (float)width / height);
         _mechanism.Advance();
         var reading = _mechanism.Read();
+        if (_mechanism.Stopped && !_stopLogged)
+        {
+            _stopLogged = true;
+            Log?.Invoke($"mechanism stopped: the spring is spent after {seconds / 3600.0:0.0} h; {_mechanism.DriftSeconds:+0.00;-0.00} s against the wall clock at the stop. W winds it.");
+        }
         if (seconds >= _nextReportAt)
         {
             _nextReportAt += 3600.0;

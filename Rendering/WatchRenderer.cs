@@ -83,6 +83,9 @@ public sealed class WatchRenderer : IDisposable
         _panel = panel;
     }
 
+    /// <summary>The crown. Nothing happens if the scene is not up.</summary>
+    public void Wind() => _scene?.Wind();
+
     /// <summary>The wall colour behind the panel, sRGB 0..1. The control
     /// reads it off its themed Background so the renderer never names a
     /// colour; see post.hlsl for why the panel composites itself.</summary>

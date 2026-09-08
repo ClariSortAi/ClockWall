@@ -395,6 +395,12 @@ public sealed partial class MainWindow : Window
         HeroClock.ToggleFace();
     }
 
+    private void OnWindAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        HeroClock.WindWatch();
+    }
+
     private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;

@@ -220,21 +220,27 @@ centre wheel, minute wheel at 18/48 against the cannon pinion.
 
 Not done, in the order they are worth doing:
 
-1. **Winding.** The spring runs down in forty hours and nothing turns the
-   crown. `Mechanism.Wind()` exists and is not wired. A wall clock either
-   winds itself (an automatic would need a rotor the OM10 does not have)
-   or is wound by a keypress standing in for the owner; the honest wall
-   behaviour is the second, with the drift log recording the stop.
-2. **Setting.** The five-second stall rule re-sets from the wall clock.
+Winding is wired: past the sixth barrel turn the impulse is zero, the
+balance dies down on its damping, and once its swing is inside the lift
+angle the pin cannot reach the fork - no unlocks, no beats, the hands
+stand. `W` winds the spring and, if the watch had stopped, shakes the
+balance to 60% amplitude to start it. Both the stop and each wind go to
+the fault log with the drift at that moment. A wall that nobody winds will
+show a stopped watch after forty hours, which is the honest behaviour and
+the reason the sprite face is still there under C.
+
+Not done, in the order they are worth doing:
+
+1. **Setting.** The five-second stall rule re-sets from the wall clock.
    That is the owner setting it; it is not recorded anywhere but the log.
-3. **Name the rest of the 166.** `Assets/movement-parts.json` carries every
+2. **Name the rest of the 166.** `Assets/movement-parts.json` carries every
    part's position; about half still go by their source id.
-4. **Mesh phase.** Each wheel turns at the right rate about the right
+3. **Mesh phase.** Each wheel turns at the right rate about the right
    arbor; whether tooth sits in gap between any two at a given instant has
    not been checked against the geometry.
-5. **The balance strobes** at speed; a sub-step additive draw gated on
+4. **The balance strobes** at speed; a sub-step additive draw gated on
    `BalanceSpeed` is the cheap fix.
-6. **Depth of field, barely**; the crystal's edge refraction; the hairspring
+5. **Depth of field, barely**; the crystal's edge refraction; the hairspring
    still turns rigidly.
 
 ## The licence question, asked and answered

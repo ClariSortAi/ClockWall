@@ -167,15 +167,35 @@ public sealed class Mechanism
         _impulseSign = -1.0;
     }
 
-    /// <summary>Winds the spring fully. Not wired to anything yet: a watch
-    /// that runs down after forty hours on a wall needs a crown to turn.</summary>
-    public void Wind() => _unwound = 0;
+    /// <summary>Winds the spring fully, and if the watch had stopped, gives
+    /// the balance the shake a person gives a watch to start it. The W key
+    /// on the wall stands in for the crown.</summary>
+    public void Wind()
+    {
+        _unwound = 0;
+        if (Stopped)
+        {
+            _theta = Spec.BalanceAmplitudeDegrees * Math.PI / 180.0 * 0.6;
+            _omega = 0;
+            _lastPeak = _theta;
+            _inImpulse = false;
+        }
+    }
+
+    /// <summary>True once the spring is spent and the balance has died
+    /// down below the lift angle, where the pin no longer reaches the fork:
+    /// no more unlocks, no more beats, the hands stand. A real watch does
+    /// exactly this, and so does this one, forty hours after its last wind.</summary>
+    public bool Stopped => _unwound >= BarrelTurns && _lastPeak < _halfLift;
 
     /// <summary>Energy one impulse hands the balance, joules: the escape
     /// wheel's torque through its half-tooth step, less the escapement's
     /// friction. Falls with the spring.</summary>
     private double ImpulseEnergy(double unwound)
     {
+        // Past the last turn there is no torque at all: the spring is slack,
+        // the train stands, and the balance runs down on its damping.
+        if (unwound >= BarrelTurns) return 0.0;
         var fraction = Math.Clamp(unwound / BarrelTurns, 0.0, 1.0);
         var torque = BarrelTorqueFull * (1.0 - fraction * (1.0 - BarrelTorqueEmpty)) * TrainReduction;
         var stepRad = Spec.EscapeStepDegrees * Math.PI / 180.0;
@@ -194,7 +214,11 @@ public sealed class Mechanism
         // drop, and the wheel locks on the other pallet.
         var towardCentre = _theta * _omega < 0;
         var inSlot = Math.Abs(_theta) < _halfLift;
-        if (!_inImpulse && inSlot && towardCentre)
+        // A balance swinging less than the lift angle never carries the pin
+        // clear of the slot: it cannot unlock the wheel. That is how a
+        // watch stops, and it is why one that has stopped needs a shake.
+        var canUnlock = _lastPeak >= _halfLift;
+        if (!_inImpulse && inSlot && towardCentre && canUnlock)
         {
             _inImpulse = true;
             _impulseSign = Math.Sign(_omega);
