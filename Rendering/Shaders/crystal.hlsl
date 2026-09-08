@@ -30,6 +30,8 @@ cbuffer Object : register(b1)
     float    Recess;
     float3   FinishDir;
     float    Lacquer;
+    float    Opacity;
+    float3   _pad1;
 };
 
 TextureCube<float4> EnvSpecular : register(t0);

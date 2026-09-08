@@ -240,10 +240,18 @@ Not done, in the order they are worth doing:
    small keyless and cock-side pieces whose role the geometry alone does
    not settle. One correction on the way: `00197`, first taken for the
    mainspring, is the ratchet wheel; the STEP has no mainspring.
-3. **The balance strobes** at speed; a sub-step draw gated on the angle
-   swept per frame is the cheap fix.
-4. **Depth of field, barely**; the crystal's edge refraction; the hairspring
+3. **Depth of field, barely**; the crystal's edge refraction; the hairspring
    still turns rigidly.
+
+Checked and closed: **the balance strobing.** When the balance has swept
+more than six degrees since the last colour frame it is drawn as a fan of
+copies across that sweep - one per five degrees, up to twenty-four - each
+a fraction opaque, deferred to after every opaque part so nothing lands on
+top of them. The rim, which maps onto itself, comes out solid; the spokes
+come out as the translucent sweep a real balance shows; near the reversals
+it is drawn once and sharp, which is the only moment an eye gets one in
+focus. The first attempt drew the copies in place and the plate under the
+balance, drawn later with depth, wiped them to a ghost. Measured, fixed.
 
 Checked and closed: **mesh phase.** Every wheel-to-pinion drive ratio in
 `WatchScene.Rotations` equals its tooth ratio with the opposite sign, so

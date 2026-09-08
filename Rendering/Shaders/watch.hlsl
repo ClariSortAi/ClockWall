@@ -43,6 +43,8 @@ cbuffer Object : register(b1)
     float    Recess;          // 1 = this part sits in the aperture well
     float3   FinishDir;       // world space, unit
     float    Lacquer;         // clear-coat weight on top (the dial's lacquer)
+    float    Opacity;         // 1 for a solid draw; a fraction for one copy of a smear
+    float3   _pad1;
 };
 
 TextureCube<float4> EnvSpecular  : register(t0);   // GGX-prefiltered, mips by roughness
@@ -390,5 +392,5 @@ float4 PsMain(VsOut i) : SV_Target
         colour = lerp(colour, inkLit, max(onMark, print));
     }
 
-    return float4(colour * Exposure, 1.0);
+    return float4(colour * Exposure, Opacity);
 }

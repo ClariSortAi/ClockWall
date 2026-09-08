@@ -61,6 +61,7 @@ internal readonly record struct Material(
         Recess = Recess ? 1f : 0f,
         FinishDir = FinishDir,
         Lacquer = Lacquer,
+        Opacity = 1f,
     };
 }
 
@@ -87,4 +88,5 @@ internal struct ObjectConstants
     public Vector2 Roughness; public int Finish; public float FinishScale;
     public Vector3 FinishCentre; public float Recess;
     public Vector3 FinishDir; public float Lacquer;
+    public float Opacity; public Vector3 _pad;
 }

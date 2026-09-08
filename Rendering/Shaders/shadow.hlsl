@@ -25,6 +25,8 @@ cbuffer Object : register(b1)
     float    Recess;
     float3   FinishDir;
     float    Lacquer;
+    float    Opacity;
+    float3   _pad1;
 };
 
 struct VsIn  { float3 pos : POSITION; float3 nrm : NORMAL; };

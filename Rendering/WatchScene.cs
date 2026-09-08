@@ -60,7 +60,20 @@ internal sealed class WatchScene : IDisposable
     private readonly ID3D11SamplerState _linearClamp, _shadowCmp, _point;
     private readonly ID3D11RasterizerState _rasterMain, _rasterShadow, _rasterCrystal;
     private readonly ID3D11DepthStencilState _depthOn, _depthReadOnly, _depthOff;
-    private readonly ID3D11BlendState _blendOpaque, _blendCrystal;
+    private readonly ID3D11BlendState _blendOpaque, _blendCrystal, _blendSmear;
+
+    /// <summary>The balance's angle at the previous colour frame, so this
+    /// frame knows how far it swept. Degrees; NaN before the first frame.</summary>
+    private double _previousBalance = double.NaN;
+    private bool _shadowPass;
+
+    /// <summary>Smears deferred to the end of the opaque pass. A translucent
+    /// copy writes no depth, so anything opaque drawn after it - the plate
+    /// under the balance - lands on top and wipes it out; measured, the
+    /// balance vanished to a ghost. So the copies wait until every opaque
+    /// part is down. Reused every frame; never grows past the parts that
+    /// smear.</summary>
+    private readonly List<(Mesh Mesh, Material Material, Vector3 Pivot, double From, double Swept, double Scale, int Copies)> _smears = new();
 
     private const int ShadowSize = 2048;
     private readonly ID3D11Texture2D _shadowTex;
@@ -284,6 +297,19 @@ internal sealed class WatchScene : IDisposable
         // The crystal adds light and leaves coverage alone: colour ONE/ONE,
         // alpha ZERO/ONE.
         _blendCrystal = device.CreateBlendState(new BlendDescription(Blend.One, Blend.One, Blend.Zero, Blend.One));
+        // A smear copy: ordinary alpha over what is there, and the coverage
+        // channel kept at its maximum so the corners' composite still sees
+        // the panel as painted wherever any copy landed.
+        _blendSmear = device.CreateBlendState(new BlendDescription(Blend.SourceAlpha, Blend.InverseSourceAlpha, Blend.One, Blend.One)
+        {
+            RenderTarget = { [0] = new RenderTargetBlendDescription
+            {
+                BlendEnable = true,
+                SourceBlend = Blend.SourceAlpha, DestinationBlend = Blend.InverseSourceAlpha, BlendOperation = BlendOperation.Add,
+                SourceBlendAlpha = Blend.One, DestinationBlendAlpha = Blend.One, BlendOperationAlpha = BlendOperation.Max,
+                RenderTargetWriteMask = ColorWriteEnable.All,
+            } },
+        });
 
         // ---- shadow map
         _shadowTex = device.CreateTexture2D(new Texture2DDescription
@@ -456,7 +482,9 @@ internal sealed class WatchScene : IDisposable
         ctx.OMSetBlendState(_blendOpaque);
         ctx.VSSetShader(_vsShadow);
         ctx.PSSetShader(_psShadow);
+        _shadowPass = true;
         DrawOpaque(reading);
+        _shadowPass = false;
 
         // ---- 2. the watch
         ctx.OMSetRenderTargets(_colourRtv!, _depthDsv);
@@ -474,6 +502,7 @@ internal sealed class WatchScene : IDisposable
         ctx.PSSetSampler(0, _linearClamp);
         ctx.PSSetSampler(1, _shadowCmp);
         DrawOpaque(reading);
+        _previousBalance = reading.Balance;
 
         // ---- 3. the crystal
         ctx.RSSetState(_rasterCrystal);
@@ -543,6 +572,26 @@ internal sealed class WatchScene : IDisposable
                     Drive.Barrel => -reading.Train * BarrelPerSeconds,
                     _ => 0.0,
                 };
+                // The balance at speed covers up to a hundred degrees between
+                // two frames, and a rim with spokes drawn sharp at that rate
+                // aliases into a wheel running backwards - the complaint the
+                // wall made about the sprite face. A camera would integrate
+                // the sweep; so does this: when the swing since the last frame
+                // is wider than a spoke, the part is drawn as a fan of copies
+                // across that swing, each a fraction opaque. Slow, near the
+                // reversals, it is drawn once and sharp - which is the only
+                // moment an eye ever gets a balance in focus.
+                if ((drive == Drive.Balance || drive == Drive.Hairspring) && !_shadowPass && !double.IsNaN(_previousBalance))
+                {
+                    var swept = reading.Balance - _previousBalance;
+                    var scale = drive == Drive.Hairspring ? SpringTravel : 1.0;
+                    if (Math.Abs(swept) > 6.0)
+                    {
+                        var copies = Math.Clamp((int)(Math.Abs(swept) / 5.0), 2, 24);
+                        _smears.Add((mesh, MaterialFor(name, material), new Vector3(arbor.X, 0f, arbor.Y), _previousBalance, swept, scale, copies));
+                        goto next;
+                    }
+                }
                 world = ScreenClockwiseAbout((float)degrees, new Vector3(arbor.X, 0f, arbor.Y)) * _movementWorld;
                 break;
             }
@@ -550,17 +599,8 @@ internal sealed class WatchScene : IDisposable
             // Finish centres are given in the movement's frame for the
             // wheels (their own arbor) and carried into the world here, so
             // circular graining stays concentric with the part as it turns.
-            var mat = material;
-            if (mat.Finish == Finish.Circular)
-            {
-                var arbor = ArborOf(name);
-                mat = mat with { FinishCentre = Vector3.Transform(new Vector3(arbor.X, 0f, arbor.Y), _movementWorld) };
-            }
-            else if (mat.Finish == Finish.Straight)
-            {
-                mat = mat with { FinishDir = Vector3.Normalize(Vector3.TransformNormal(d.CotesDirection, _movementWorld)) };
-            }
-            Draw(mesh, mat, world);
+            Draw(mesh, MaterialFor(name, material), world);
+            next:;
         }
 
         // The case and dial furniture: everything in case.glb that does not
@@ -576,6 +616,50 @@ internal sealed class WatchScene : IDisposable
         Draw(_case["hour_hand"], CaseMaterial("hour_hand"), ScreenClockwise((float)reading.Hour));
         Draw(_case["minute_hand"], CaseMaterial("minute_hand"), ScreenClockwise((float)reading.Minute));
         Draw(_case["seconds_hand"], CaseMaterial("seconds_hand"), ScreenClockwiseAbout((float)reading.Second, _secondsArbor));
+
+        // The smears, last: translucent over everything opaque, depth-tested
+        // against it, writing none of their own.
+        if (_smears.Count > 0)
+        {
+            _context.OMSetBlendState(_blendSmear);
+            _context.OMSetDepthStencilState(_depthReadOnly);
+            foreach (var s in _smears)
+            {
+                for (var c = 0; c < s.Copies; c++)
+                {
+                    var at = (s.From + s.Swept * (c + 0.5) / s.Copies) * s.Scale;
+                    DrawWithOpacity(s.Mesh, s.Material, ScreenClockwiseAbout((float)at, s.Pivot) * _movementWorld, 1.6f / s.Copies);
+                }
+            }
+            _context.OMSetBlendState(_blendOpaque);
+            _context.OMSetDepthStencilState(_depthOn);
+            _smears.Clear();
+        }
+    }
+
+    /// <summary>A movement part's material with its finish centre or
+    /// direction carried into the world, so circular graining stays
+    /// concentric with the part as it turns.</summary>
+    private Material MaterialFor(string name, Material material)
+    {
+        if (material.Finish == Finish.Circular)
+        {
+            var arbor = ArborOf(name);
+            return material with { FinishCentre = Vector3.Transform(new Vector3(arbor.X, 0f, arbor.Y), _movementWorld) };
+        }
+        if (material.Finish == Finish.Straight)
+        {
+            return material with { FinishDir = Vector3.Normalize(Vector3.TransformNormal(_design.CotesDirection, _movementWorld)) };
+        }
+        return material;
+    }
+
+    private void DrawWithOpacity(Mesh mesh, Material material, Matrix4x4 world, float opacity)
+    {
+        var constants = material.ToConstants(world);
+        constants.Opacity = Math.Min(1f, opacity);
+        _context.UpdateSubresource(constants, _objectCb);
+        mesh.Draw(_context);
     }
 
     private Material CaseMaterial(string name) =>
@@ -614,7 +698,7 @@ internal sealed class WatchScene : IDisposable
         {
             _vsWatch, _vsShadow, _vsCrystal, _vsPost, _psWatch, _psShadow, _psCrystal, _psPost, _layout,
             _frameCb, _objectCb, _postCb, _linearClamp, _shadowCmp, _point, _rasterMain, _rasterShadow, _rasterCrystal,
-            _depthOn, _depthReadOnly, _depthOff, _blendOpaque, _blendCrystal,
+            _depthOn, _depthReadOnly, _depthOff, _blendOpaque, _blendCrystal, _blendSmear,
             _shadowSrv, _shadowDsv, _shadowTex, _dialPrint, _environment,
         }) disposable.Dispose();
     }
