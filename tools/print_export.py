@@ -56,11 +56,17 @@ def bought(name):
 
 
 def load_bores():
-    """The bore table from tools/print_bores.py, or None: this export works
+    """The bore table from tools/print_bores.py keyed by bearing, plus the
+    header (printer, scale) it was built for; or None: this export works
     without one, at the study's scale, and says so in the manifest."""
     try:
         import print_bores
-        return print_bores.load_bores(BORES)
+        table = print_bores.load_bores(BORES)
+        if not table:
+            return None
+        with open(BORES) as f:
+            head = json.load(f)
+        return {"table": table, "printer": head.get("printer"), "scale": head.get("scale")}
     except ImportError:
         return None
 
@@ -69,7 +75,7 @@ def apply_bores(name, shape, bores):
     if not bores:
         return shape
     import print_bores
-    return print_bores.apply_bore(name, shape, bores)
+    return print_bores.apply_bore(name, shape, bores["table"])
 
 
 def scaled(shape, factor):
@@ -103,9 +109,11 @@ def main():
     parts = {}
     for name, shape in A.load_case().items():
         parts[name] = ("case_solids.py", shape)
-    inv = {v: k for k, v in G.NAMES.items()}
+    # Every solid in the catalogue, instances included, as the exporter names them.
+    catalogue = json.load(open(os.path.join(G.PARTS, "catalogue.json")))
     trsf = A.om10_to_case()
-    for name, tag in inv.items():
+    for tag in sorted(catalogue):
+        name = G.name_of(tag)
         path = os.path.join(G.PARTS, tag.replace("#", "_") + ".step")
         if not os.path.exists(path):
             continue
@@ -119,7 +127,7 @@ def main():
 
     manifest = {
         "scale": factor,
-        "bores": (bores.get("printer") if bores else None) or "none applied: no Assets/print-bores.json",
+        "bores": ("%s, %d bearings opened" % (bores["printer"], len(bores["table"]))) if bores else "none applied: no Assets/print-bores.json",
         "frame": "case_solids.py's, dial face at z=0, mm x scale",
         "parts": {},
     }

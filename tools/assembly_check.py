@@ -22,6 +22,7 @@ which is the exporter's world frame turned onto this one.
 """
 
 import argparse
+import json
 import math
 import os
 import sys
@@ -93,10 +94,14 @@ def common_volume(a, b):
 def load_movement():
     """Every OM10 part in the case frame, with the open-heart cut, the
     opened bore and the designed hairspring, exactly as the export has them."""
-    inv = {v: k for k, v in G.NAMES.items()}
+    # Every solid in the catalogue, instances included (jewel_2, screw_b_3
+    # ...), named as the exporter names them. Keyed by the 119 base names
+    # at first, which silently left every second instance out of the check.
+    catalogue = json.load(open(os.path.join(G.PARTS, "catalogue.json")))
     trsf = om10_to_case()
     parts = {}
-    for name, tag in inv.items():
+    for tag in sorted(catalogue):
+        name = G.name_of(tag)
         path = os.path.join(G.PARTS, tag.replace("#", "_") + ".step")
         if not os.path.exists(path):
             continue

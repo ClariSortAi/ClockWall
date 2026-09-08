@@ -351,9 +351,13 @@ nothing. `tools/print_export.py` writes the set: every part, ours and
 the OM10's, prepared as the wall export prepares them and with the bore
 table applied when `Assets/print-bores.json` exists, one binary STL each
 in one frame at one scale into `captures/print/<scale>x/` with a
-manifest that marks the springs and the jewels as not for printing.
-Owed still: the bore table on main, and `assembly_check.py` run against
-the bored set.
+manifest that marks the springs and the jewels as not for printing. Run
+with the table: 177 STLs at 3.392x, every one watertight, and the bored
+bearings measure in the STL what the table says (intermediate_bearing
+1.044 mm against 1.047 asked, the difference the tessellation's chord).
+Owed still: `assembly_check.py` run against the bored set, which is the
+peer session's, since a bored bearing that breaks into a neighbour is a
+clash the wall's check never sees.
 
 **7. Cosmetic - done, with one measured and declined.** Depth of field: a
 second target carries view distance out of the watch pass and the post
