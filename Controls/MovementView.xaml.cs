@@ -52,11 +52,44 @@ public sealed partial class MovementView : UserControl
         if (running)
         {
             PushSize();
+            PushBackdrop();
             CompositionTarget.Rendering += OnFrame;
         }
         else
         {
             CompositionTarget.Rendering -= OnFrame;
+        }
+    }
+
+    /// <summary>
+    /// Hands the renderer the wall colour, so it can paint the corners of
+    /// the panel to match: the compositor shows the swap chain opaque
+    /// whatever alpha it is given (see post.hlsl), so the face composites
+    /// itself over the wall.
+    ///
+    /// Looked up from the application resources rather than bound in XAML.
+    /// The brush lives in Theme.xaml's ThemeDictionaries and the dictionary
+    /// resolves it for the active theme; a ThemeResource on the panel
+    /// itself was tried first and took the app down with a stowed exception
+    /// at load. Read when the face starts, so a theme change is picked up the
+    /// next time it does.
+    /// </summary>
+    private void PushBackdrop()
+    {
+        try
+        {
+            if (Application.Current.Resources.TryGetValue("WallBackgroundBrush", out var value)
+                && value is SolidColorBrush brush)
+            {
+                var c = brush.Color;
+                _renderer.Backdrop = new System.Numerics.Vector3(c.R / 255f, c.G / 255f, c.B / 255f);
+            }
+        }
+        catch (Exception ex)
+        {
+            // The renderer keeps its default near-black; a wrong corner
+            // colour is not worth a face that will not start.
+            Debug.WriteLine($"[ClockWall] wall colour unreadable: {ex.Message}");
         }
     }
 
@@ -68,6 +101,6 @@ public sealed partial class MovementView : UserControl
 
     private void OnFrame(object? sender, object e)
     {
-        _renderer.Render(_clock.Elapsed.TotalSeconds);
+        _renderer.Render(DateTime.Now, _clock.Elapsed.TotalSeconds);
     }
 }

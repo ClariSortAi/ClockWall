@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml.Controls;
@@ -67,10 +68,25 @@ public sealed class WatchRenderer : IDisposable
     /// rebuilds before it draws.</summary>
     private bool _deviceLost;
 
+    /// <summary>The watch. Built after the device, torn down with it.</summary>
+    private WatchScene? _scene;
+
+    /// <summary>True once the scene has failed to build on this device - a
+    /// shader that does not compile, an asset missing from the install.
+    /// The panel then shows a plain transparent clear rather than retrying a
+    /// multi-second load sixty times a second. A device rebuild clears it,
+    /// because a fresh device is the one thing that might change the answer.</summary>
+    private bool _sceneFailed;
+
     public WatchRenderer(SwapChainPanel panel)
     {
         _panel = panel;
     }
+
+    /// <summary>The wall colour behind the panel, sRGB 0..1. The control
+    /// reads it off its themed Background so the renderer never names a
+    /// colour; see post.hlsl for why the panel composites itself.</summary>
+    public System.Numerics.Vector3 Backdrop { get; set; }
 
     /// <summary>True when there is a device and a swap chain to draw into.
     /// False during a device rebuild, and false before the panel has a size
@@ -102,10 +118,12 @@ public sealed class WatchRenderer : IDisposable
     /// Draws one frame and presents it. Never throws: a failure is logged, the
     /// device is marked lost, and the next call starts again from nothing.
     /// </summary>
-    /// <param name="seconds">Wall time for whatever is animated. For the flat
-    /// clear it drives the colour so the panel visibly proves it is
-    /// presenting every frame rather than showing one stale buffer.</param>
-    public void Render(double seconds)
+    /// <param name="now">The wall clock, which is what the hands and the
+    /// escapement are a function of.</param>
+    /// <param name="seconds">Monotonic seconds for the things that merely
+    /// drift - the light, the camera - and must not jump when the clock is
+    /// corrected.</param>
+    public void Render(DateTime now, double seconds)
     {
         try
         {
@@ -135,7 +153,7 @@ public sealed class WatchRenderer : IDisposable
                 return;
             }
 
-            Draw((float)seconds);
+            Draw(now, seconds);
 
             // Interval 1: vsync. The wall is a 60 Hz panel and a watch face
             // has no reason to present faster than it can be shown; tearing
@@ -162,24 +180,38 @@ public sealed class WatchRenderer : IDisposable
 
     // ---------------------------------------------------------------- frame
 
-    private void Draw(float seconds)
+    private void Draw(DateTime now, double seconds)
     {
         var context = _context!;
 
-        // A colour that visibly cycles is the whole content of step one. It
-        // proves the loop runs, that the swap chain is bound to the panel and
-        // not to some other surface, and that each frame is actually
-        // presented rather than the first one sitting there forever.
-        var t = seconds % 6.0f / 6.0f;
-        var clear = new Color4(
-            0.5f + 0.5f * MathF.Sin(t * MathF.Tau),
-            0.5f + 0.5f * MathF.Sin(t * MathF.Tau + 2.1f),
-            0.5f + 0.5f * MathF.Sin(t * MathF.Tau + 4.2f),
-            1f);
+        if (_scene is null && !_sceneFailed)
+        {
+            try
+            {
+                var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
+                _scene = new WatchScene(_device!, context, assets);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ClockWall] watch scene failed to build: {ex}");
+                _sceneFailed = true;
+                LogFault("watch scene failed to build", ex);
+            }
+        }
 
-        context.OMSetRenderTargets(_backBuffer!);
-        context.RSSetViewport(0, 0, _width, _height);
-        context.ClearRenderTargetView(_backBuffer!, clear);
+        if (_scene is null)
+        {
+            // Transparent, so the wall's own background shows through the
+            // panel and a broken renderer looks like an empty slot rather
+            // than a coloured square.
+            context.OMSetRenderTargets(_backBuffer!);
+            context.RSSetViewport(0, 0, _width, _height);
+            context.ClearRenderTargetView(_backBuffer!, new Color4(Backdrop.X, Backdrop.Y, Backdrop.Z, 1f));
+            return;
+        }
+
+        _scene.Backdrop = Backdrop;
+        _scene.Render(_backBuffer!, _width, _height, now, seconds);
     }
 
     // ---------------------------------------------------------------- device
@@ -313,8 +345,34 @@ public sealed class WatchRenderer : IDisposable
         native.SetSwapChain(_swapChain);
     }
 
+    /// <summary>
+    /// A line in render-log.txt under the ClockWall local app data folder. Release builds
+    /// compile Debug.WriteLine out, and this face runs on a wall nobody is
+    /// attached to with a debugger: when it shows an empty square, the
+    /// reason has to be somewhere a person can read it the next morning.
+    /// Faults only - never per frame - so the file cannot grow unattended.
+    /// </summary>
+    private static void LogFault(string what, Exception ex)
+    {
+        try
+        {
+            var dir = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData), "ClockWall");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "render-log.txt"),
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {what}: {ex}{System.Environment.NewLine}");
+        }
+        catch
+        {
+            // Logging must never be the thing that fails.
+        }
+    }
+
     private void ReleaseAll()
     {
+        _scene?.Dispose();
+        _scene = null;
+        _sceneFailed = false;
+
         _backBuffer?.Dispose();
         _backBuffer = null;
 

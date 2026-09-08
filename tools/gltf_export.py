@@ -1,6 +1,6 @@
 """Assembles the OM10 parts into one glTF binary for a real-time renderer.
 
-    python tools/gltf_export.py                     # -> captures/gltf/movement.glb
+    python tools/gltf_export.py                     # -> Assets/movement.glb
     python tools/gltf_export.py --deflection 0.02   # finer tessellation
 
 WHAT THIS IS FOR, and how it differs from everything else in tools/. The rest of
@@ -60,7 +60,10 @@ from OCP.gp import gp_Pnt, gp_Vec
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 PARTS = os.path.join(ROOT, "captures", "om10", "parts")
-OUT = os.path.join(ROOT, "captures", "gltf", "movement.glb")
+# Into Assets/, not captures/: the app loads this at run time, the build
+# copies it beside the exe, and it is committed - captures/ is gitignored and
+# a fresh clone has to be able to build the face without Python or OCP.
+OUT = os.path.join(ROOT, "Assets", "movement.glb")
 
 # The only invented content in this file. Base colour, metalness and roughness
 # per part, keyed by the extractor's own names.

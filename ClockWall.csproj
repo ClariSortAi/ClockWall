@@ -17,6 +17,8 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- One pinned upload of decoded pixels in Rendering/Gpu.cs. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,6 +26,16 @@
          build: they need Blender, and a wall clock should not need a renderer
          installed to compile. -->
     <Content Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- The studio panorama the real-time face lights with, linked from
+         where the offline render already keeps it so there is one copy.
+         (Assets\movement.glb, the other input, is written there directly by
+         tools/gltf_export.py and is covered by the glob above.) -->
+    <Content Include="tools\hdri\studio_small_09_2k.hdr" Link="Assets\studio.hdr" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- Shaders compile from source at start-up, so they ship inside the
+         assembly rather than beside it. -->
+    <EmbeddedResource Include="Rendering\Shaders\*.hlsl" />
   </ItemGroup>
 
   <ItemGroup>
