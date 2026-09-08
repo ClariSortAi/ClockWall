@@ -11,8 +11,11 @@ using Vortice.Mathematics;
 namespace ClockWall.Rendering;
 
 /// <summary>
-/// The watch itself: the geometry, the materials, the lights, the camera,
-/// and the four passes that turn a <see cref="Reading"/> into a frame.
+/// The engine: given a <see cref="WatchDesign"/>, builds its geometry and
+/// runs the four passes that turn a <see cref="Reading"/> into a frame.
+/// It contains no number that belongs to a particular face - those are the
+/// design's - only the mechanism: how a lathe becomes a bezel, which arbor
+/// each OM10 part turns about, what order the passes run in.
 ///
 /// THE WORLD. Millimetres. X to the right, Y toward the viewer, Z down the
 /// dial toward six o'clock - so the dial lies in the XZ plane at Y=0 and a
@@ -23,57 +26,15 @@ namespace ClockWall.Rendering;
 ///
 /// THE PASSES. Shadow map from the key light; the opaque watch into a 4x
 /// MSAA half-float target; the crystal over it additively; then resolve,
-/// tone-map and hand the result to the swap chain as premultiplied alpha
-/// so the wall shows through around the case.
+/// tone-map and composite over the wall colour into the swap chain.
 ///
 /// NOTHING ALLOCATES PER FRAME. Every buffer, view and state is made once
-/// here or on resize; the frame loop writes two constant buffers and issues
-/// about forty draws. The wall runs for days.
+/// here or on resize; the frame loop writes three constant buffers and
+/// issues about forty draws. The wall runs for days.
 /// </summary>
 internal sealed class WatchScene : IDisposable
 {
-    // ------------------------------------------------------------ dimensions
-
-    /// <summary>Millimetres per face unit. tools/om10_layout.py places the
-    /// movement at 11.78 face units per millimetre; the case, dial and hands
-    /// were all drawn in face units, so this is what turns every number in
-    /// case_geometry.py into a real size.</summary>
-    private const float U = 1f / 11.780018f;
-
-    private const float DialRadius = 288f * U;
-    private const float BezelInner = 289f * U;
-    private const float CaseRadius = 314f * U;
-    private const float TrackRadius = 268f * U;
-    private const float IndexInner = 246f * U;
-    private const float IndexOuter = 279f * U;
-    private const float IndexHalfWidth = 7.5f * U;
-
-    /// <summary>The opening at six, from escapement_geometry.APERTURE.</summary>
-    private static readonly Vector3 ApertureCentre = new(0f, 0f, 130f * U);
-    private const float ApertureRadius = 126f * U;
-    private const float RehautOuter = 133f * U;
-
-    /// <summary>How far the well drops below the dial before the movement.
-    /// This is the number that makes the aperture a recess: the wall it
-    /// draws, and the depth the shader's occlusion term works against.</summary>
-    private const float WellDepth = 3.0f;
-
-    /// <summary>Where the movement's Y=0 plane sits under the dial. The
-    /// highest part (a bridge screw head, Z=2.30 in the CAD) lands 1.3mm
-    /// below the dial's surface, the balance rim about 3mm.</summary>
-    private const float MovementY = -3.6f;
-
-    // Hand and stack heights, millimetres above the dial. Each clears the
-    // one below it so they shadow each other; the crystal clears all of them.
-    // The hands sit higher than a thin watch would put them, on purpose:
-    // their shadows on the dial are what say they are ABOVE it rather than
-    // printed on it, and a shadow displaced by a millimetre reads from
-    // across a room where a third of that does not.
-    private const float IndexHeight = 0.45f;
-    private const float HourBase = 1.05f, HourRidge = 0.19f;
-    private const float MinuteBase = 1.55f, MinuteRidge = 0.16f;
-    private const float SecondBase = 2.00f, SecondTop = 2.15f;
-    private const float CrystalEdge = 2.7f, CrystalPeak = 3.5f;
+    private readonly WatchDesign _design;
 
     // ------------------------------------------------------------ resources
 
@@ -113,44 +74,7 @@ internal sealed class WatchScene : IDisposable
     private readonly float _debugView =
         System.Environment.GetEnvironmentVariable("CLOCKWALL_DEBUG_VIEW") == "1" ? 1f : 0f;
 
-    // ------------------------------------------------------------ materials
-
-    private static readonly Material Dial = new(Material.DialBlue, 1f, 0.30f, 0.72f, Finish.Dial, Lacquer: 0.25f);
-    private static readonly Material Polished = new(Material.Steel, 1f, 0.11f, 0.11f);
-    private static readonly Material BezelSteel = new(Material.Steel, 1f, 0.06f, 0.14f, Finish.Circular, FinishCentre: Vector3.Zero);
-    private static readonly Material RehautSteel = new(Material.Steel, 1f, 0.06f, 0.12f, Finish.Circular, FinishCentre: ApertureCentre);
-    private static readonly Material BluedHand = new(Material.Blued, 1f, 0.10f, 0.10f);
-    private static readonly Material Floor = new(new Vector3(0.25f, 0.26f, 0.28f), 1f, 0.55f, 0.55f, Recess: true);
-
-    /// <summary>What each OM10 part is made of and how it was finished. The
-    /// two-tier rule from render_lib, kept: almost everything quiet, a few
-    /// things bright, and the escapement the dimmest metal in the window.</summary>
-    private static readonly Dictionary<string, Material> MovementMaterials = new()
-    {
-        ["mainplate"] = new(Material.Plate, 1f, 0.34f, 0.42f, Finish.Perlage, FinishScale: 1.0f, Recess: true),
-        ["bridge"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
-        ["cock"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
-        ["wheel_a"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
-        ["wheel_b"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
-        ["wheel_c"] = new(Material.Brass, 1f, 0.16f, 0.38f, Finish.Circular, Recess: true),
-        ["balance"] = new(Material.Brass, 1f, 0.16f, 0.36f, Finish.Circular, Recess: true),
-        ["collet"] = new(Material.Brass, 1f, 0.22f, 0.22f, Recess: true),
-        ["pinion_a"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
-        ["pinion_b"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
-        ["epinion"] = new(Material.Steel, 1f, 0.16f, 0.16f, Recess: true),
-        ["escape"] = new(Material.Steel, 1f, 0.36f, 0.36f, Recess: true),
-        ["lever"] = new(new Vector3(0.55f, 0.56f, 0.58f), 1f, 0.04f, 0.04f, Finish.BlackPolish, Recess: true),
-        ["guard"] = new(Material.Steel, 1f, 0.14f, 0.14f, Recess: true),
-        ["staff"] = new(Material.Steel, 1f, 0.10f, 0.10f, Recess: true),
-        ["roller"] = new(Material.Steel, 1f, 0.14f, 0.14f, Recess: true),
-        ["hairspring"] = new(Material.Blued, 1f, 0.22f, 0.22f, Recess: true),
-        ["jewel"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
-        ["stone_a"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
-        ["stone_b"] = new(Material.Ruby, 0f, 0.05f, 0.05f, Recess: true),
-        ["screw_a"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
-        ["screw_b"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
-        ["screw_c"] = new(Material.Blued, 1f, 0.11f, 0.11f, Recess: true),
-    };
+    // ------------------------------------------------------------ the mechanism
 
     /// <summary>The rotation map from HANDOVER-REALTIME.md: which arbor each
     /// part turns about, in the movement's own XZ (CAD x, -y). Parts not
@@ -194,12 +118,25 @@ internal sealed class WatchScene : IDisposable
     /// coil breathing rather than sliding out from under its anchor.</summary>
     private const float SpringTravel = 0.05f;
 
+    /// <summary>
+    /// Train ratios beyond the fourth wheel, derived from the counts in the
+    /// manifest rather than invented - ATTRIBUTION.md exists to record that
+    /// distinction. wheel_b (72 teeth) meshes the fourth's pinion_b, counted
+    /// at 9 leaves; wheel_a (75 teeth) is the centre wheel and turns once an
+    /// hour, which with 60 = (72/9)(75/p3) fixes the third pinion at 10.
+    /// Neither turn is perceptible on the wall (a ninth and a sixtieth of
+    /// the fourth's rate); the direction of mesh is what has to be right.
+    /// </summary>
+    private const double ThirdPerFourth = 9.0 / 72.0;
+    private const double CentrePerFourth = 1.0 / 60.0;
+
     // ------------------------------------------------------------ construction
 
-    public WatchScene(ID3D11Device device, ID3D11DeviceContext context, string assetDirectory)
+    public WatchScene(ID3D11Device device, ID3D11DeviceContext context, string assetDirectory, WatchDesign design)
     {
         _device = device;
         _context = context;
+        _design = design;
         var sw = Stopwatch.StartNew();
 
         _environment = new Environment(device, context, Path.Combine(assetDirectory, "studio.hdr"));
@@ -273,34 +210,35 @@ internal sealed class WatchScene : IDisposable
         _rehaut = BuildRehaut();
         _bezel = BuildCase();
         _indices = BuildIndices();
-        _hourHand = BuildDauphine(150f * U, 11f * U, 44f * U, 34f * U, HourBase, HourRidge);
-        _minuteHand = BuildDauphine(214f * U, 9f * U, 54f * U, 40f * U, MinuteBase, MinuteRidge);
+        _hourHand = BuildDauphine(design.Hour, design.HourBase, design.HourRidge);
+        _minuteHand = BuildDauphine(design.Minute, design.MinuteBase, design.MinuteRidge);
         _secondHand = BuildSecondHand();
         _cap = BuildCap();
         _crystal = BuildCrystal();
         _floor = BuildFloor();
 
-        _movementWorld = MovementPlacement();
+        _movementWorld = MovementPlacement(design);
 
-        Debug.WriteLine($"[ClockWall] watch scene ready in {sw.ElapsedMilliseconds} ms");
+        Debug.WriteLine($"[ClockWall] watch scene '{design.Name}' ready in {sw.ElapsedMilliseconds} ms");
     }
 
     /// <summary>
     /// tools/om10_layout.py's placement, in 3D. The movement is exported
     /// Y-up with its arbors at their real millimetre positions; the face
-    /// puts the balance at (296.2, 464.2) face units and turns the whole
-    /// assembly 6.6 degrees clockwise so the escapement runs on the bearing
-    /// the composition wants. Stated as: shift the balance arbor to the
-    /// origin, turn, then move the origin to where the balance goes.
+    /// puts the balance at a chosen point and turns the whole assembly so
+    /// the escapement runs on the bearing the composition wants. Stated
+    /// as: shift the balance arbor to the origin, turn, then move the origin
+    /// to where the balance goes.
     /// </summary>
-    private static Matrix4x4 MovementPlacement()
+    private static Matrix4x4 MovementPlacement(WatchDesign d)
     {
-        const float rotDeg = 6.595f;                          // om10_layout ROT_DEG
-        var balanceFace = new Vector2(296.2238f, 464.2443f);  // escapement_geometry.BALANCE
-        var balanceWorld = new Vector3((balanceFace.X - 320f) * U, MovementY, (balanceFace.Y - 320f) * U);
+        const float U = WatchDesign.FaceUnit;
+        var balanceWorld = new Vector3((d.BalanceFaceUnits.X - 320f) * U, d.MovementY, (d.BalanceFaceUnits.Y - 320f) * U);
 
-        return Matrix4x4.CreateTranslation(8.06f, 0f, 3.51f)  // balance arbor (-8.06, 3.51 CAD) -> origin
-             * ScreenClockwise(rotDeg)
+        // The CAD arbor (x, y) is (x, -y) in the Y-up export, so carrying it
+        // to the origin is a translation by (-x, 0, +y).
+        return Matrix4x4.CreateTranslation(-d.BalanceArborCad.X, 0f, d.BalanceArborCad.Y)
+             * ScreenClockwise(d.MovementRotationDeg)
              * Matrix4x4.CreateTranslation(balanceWorld);
     }
 
@@ -317,7 +255,7 @@ internal sealed class WatchScene : IDisposable
         // One fan; the aperture and the outer rim are cut in the shader.
         var b = new MeshBuilder();
         const int segments = 256;
-        var r = BezelInner + 0.6f;   // tucks under the bezel
+        var r = _design.BezelInner + 0.6f;   // tucks under the bezel
         var centre = Vector3.Zero;
         for (var s = 0; s < segments; s++)
         {
@@ -334,17 +272,18 @@ internal sealed class WatchScene : IDisposable
     /// chamfer on top, and the wall of the well going down inside it.</summary>
     private Mesh BuildRehaut()
     {
+        var d = _design;
         var p = new List<MeshBuilder.ProfilePoint>();
-        var ri = ApertureRadius;
-        var ro = RehautOuter;
+        var ri = d.ApertureRadius;
+        var ro = d.RehautOuter;
         MeshBuilder.Line(p, new Vector2(ro, -0.2f), new Vector2(ro, 0.22f));           // outer wall
         MeshBuilder.Line(p, new Vector2(ro, 0.22f), new Vector2(ro - 0.14f, 0.36f));   // outer chamfer
         MeshBuilder.Line(p, new Vector2(ro - 0.14f, 0.36f), new Vector2(ri + 0.16f, 0.36f)); // flat top
         MeshBuilder.Line(p, new Vector2(ri + 0.16f, 0.36f), new Vector2(ri, 0.20f));   // inner chamfer, the bright line
-        MeshBuilder.Line(p, new Vector2(ri, 0.20f), new Vector2(ri, -WellDepth));     // the well
-        MeshBuilder.Line(p, new Vector2(ri, -WellDepth), new Vector2(ri + 3f, -WellDepth)); // a ledge, so the well has a floor at the rim
+        MeshBuilder.Line(p, new Vector2(ri, 0.20f), new Vector2(ri, -d.WellDepth));    // the well
+        MeshBuilder.Line(p, new Vector2(ri, -d.WellDepth), new Vector2(ri + 3f, -d.WellDepth)); // a ledge, so the well has a floor at the rim
         var b = new MeshBuilder();
-        b.Lathe(p, 192, ApertureCentre.X, ApertureCentre.Z);
+        b.Lathe(p, 192, d.ApertureCentre.X, d.ApertureCentre.Z);
         return b.Build(_device);
     }
 
@@ -353,19 +292,21 @@ internal sealed class WatchScene : IDisposable
     /// rounded outer edge and the case band below it.</summary>
     private Mesh BuildCase()
     {
+        var d = _design;
         var p = new List<MeshBuilder.ProfilePoint>();
-        var ri = BezelInner;
-        var ro = CaseRadius;
+        var ri = d.BezelInner;
+        var ro = d.CaseRadius;
+        var seat = d.CrystalEdge;
         // Walk from the dial outward and up: the flange the dial sits on,
         // the rehaut wall, then the bezel, then down the outside.
         MeshBuilder.Line(p, new Vector2(ri - 0.8f, -0.05f), new Vector2(ri, -0.05f));   // flange under the dial edge
-        MeshBuilder.Line(p, new Vector2(ri, -0.05f), new Vector2(ri, CrystalEdge));     // rehaut wall
-        MeshBuilder.Line(p, new Vector2(ri, CrystalEdge), new Vector2(ri + 0.35f, CrystalEdge)); // crystal seat
-        MeshBuilder.Line(p, new Vector2(ri + 0.35f, CrystalEdge), new Vector2(ri + 0.9f, CrystalEdge + 0.55f)); // inner chamfer
+        MeshBuilder.Line(p, new Vector2(ri, -0.05f), new Vector2(ri, seat));             // rehaut wall
+        MeshBuilder.Line(p, new Vector2(ri, seat), new Vector2(ri + 0.35f, seat));       // crystal seat
+        MeshBuilder.Line(p, new Vector2(ri + 0.35f, seat), new Vector2(ri + 0.9f, seat + 0.55f)); // inner chamfer
         // The domed top: a gentle arc from the chamfer out to the shoulder.
         var domeR = 22f;
         var x0 = ri + 0.9f; var x1 = ro - 0.55f;
-        var yTop = CrystalEdge + 0.62f;
+        var yTop = seat + 0.62f;
         var domeCentre = new Vector2((x0 + x1) * 0.5f, yTop - domeR);
         var a0 = MathF.Atan2(yTop - 0.02f - domeCentre.Y, x0 - domeCentre.X) * 180f / MathF.PI;
         var a1 = MathF.Atan2(yTop - 0.02f - domeCentre.Y, x1 - domeCentre.X) * 180f / MathF.PI;
@@ -385,6 +326,7 @@ internal sealed class WatchScene : IDisposable
     /// own line of light and throws its own shadow.</summary>
     private Mesh BuildIndices()
     {
+        var d = _design;
         var b = new MeshBuilder();
         for (var hour = 1; hour <= 12; hour++)
         {
@@ -392,66 +334,66 @@ internal sealed class WatchScene : IDisposable
             var deg = hour * 30f;
             if (hour == 12)
             {
-                Baton(b, deg, 4.4f * U, -6.2f * U);
-                Baton(b, deg, 4.4f * U, 6.2f * U);
+                Baton(b, deg, d.TwelveHalfWidth, -d.TwelveOffset);
+                Baton(b, deg, d.TwelveHalfWidth, d.TwelveOffset);
             }
             else
             {
-                Baton(b, deg, IndexHalfWidth, 0f);
+                Baton(b, deg, d.IndexHalfWidth, 0f);
             }
         }
         return b.Build(_device);
     }
 
-    private static void Baton(MeshBuilder b, float deg, float halfW, float offset)
+    private void Baton(MeshBuilder b, float deg, float halfW, float offset)
     {
+        var d = _design;
         var a = deg * MathF.PI / 180f;
-        // Along the radius (toward the rim) and across it, clockwise on the dial.
+        // Along the radius (toward the rim) and across it.
         var u = new Vector2(MathF.Sin(a), -MathF.Cos(a));
         var v = new Vector2(u.Y, -u.X);
         Vector2 At(float r, float w) => u * r + v * (w + offset);
-        // Clockwise as seen from above: inner-left, outer-left, outer-right, inner-right.
-        var outline = new[] { At(IndexInner, -halfW), At(IndexOuter, -halfW), At(IndexOuter, halfW), At(IndexInner, halfW) };
-        b.ChamferedPrism(outline, 0f, IndexHeight, 0.12f);
+        var outline = new[] { At(d.IndexInner, -halfW), At(d.IndexOuter, -halfW), At(d.IndexOuter, halfW), At(d.IndexInner, halfW) };
+        b.ChamferedPrism(outline, 0f, d.IndexHeight, d.IndexChamfer);
     }
 
-    private Mesh BuildDauphine(float length, float halfW, float shoulder, float tail, float y0, float ridge)
+    private Mesh BuildDauphine(HandShape shape, float y0, float ridge)
     {
         var b = new MeshBuilder();
-        b.Dauphine(length, halfW, shoulder, tail, y0, ridge);
+        b.Dauphine(shape.Length, shape.HalfWidth, shape.Shoulder, shape.Tail, y0, ridge);
         return b.Build(_device);
     }
 
-    /// <summary>A needle with a pierced counterweight, in blued steel.</summary>
+    /// <summary>A needle with a pierced counterweight.</summary>
     private Mesh BuildSecondHand()
     {
+        var d = _design;
         var b = new MeshBuilder();
-        var w = 2f * U;
-        var tip = -232f * U;
-        var tailEnd = 40f * U;
-        // Clockwise from above: tip-left, tip-right, tail-right, tail-left.
+        var w = d.SecondHalfWidth;
+        var tip = -d.SecondLength;
+        var tailEnd = d.SecondTail;
         var outline = new[]
         {
             new Vector2(-w, tip), new Vector2(w, tip),
             new Vector2(w * 1.5f, tailEnd), new Vector2(-w * 1.5f, tailEnd),
         };
-        b.ChamferedPrism(outline, SecondBase, SecondTop, 0.04f);
+        b.ChamferedPrism(outline, d.SecondBase, d.SecondTop, 0.04f);
 
         var p = new List<MeshBuilder.ProfilePoint>();
-        var ringR = 13f * U; var holeR = 5.4f * U;
-        MeshBuilder.Line(p, new Vector2(ringR, SecondBase), new Vector2(ringR, SecondTop));
-        MeshBuilder.Line(p, new Vector2(ringR, SecondTop), new Vector2(holeR, SecondTop));
-        MeshBuilder.Line(p, new Vector2(holeR, SecondTop), new Vector2(holeR, SecondBase));
-        b.Lathe(p, 64, 0f, 54f * U);
+        MeshBuilder.Line(p, new Vector2(d.SecondRingRadius, d.SecondBase), new Vector2(d.SecondRingRadius, d.SecondTop));
+        MeshBuilder.Line(p, new Vector2(d.SecondRingRadius, d.SecondTop), new Vector2(d.SecondHoleRadius, d.SecondTop));
+        MeshBuilder.Line(p, new Vector2(d.SecondHoleRadius, d.SecondTop), new Vector2(d.SecondHoleRadius, d.SecondBase));
+        b.Lathe(p, 64, 0f, d.SecondRingOffset);
         return b.Build(_device);
     }
 
     /// <summary>The boss over the hand pivots, a low polished dome.</summary>
     private Mesh BuildCap()
     {
+        var d = _design;
         var p = new List<MeshBuilder.ProfilePoint>();
-        var r = 13f * U;
-        var top = SecondTop + 0.25f;
+        var r = d.CapRadius;
+        var top = d.SecondTop + 0.25f;
         MeshBuilder.Line(p, new Vector2(r, 0.4f), new Vector2(r, top - 0.5f));
         MeshBuilder.Arc(p, new Vector2(0f, top - r), r, MathF.Asin((top - 0.5f - (top - r)) / r) * 180f / MathF.PI, 90f, 12);
         var b = new MeshBuilder();
@@ -464,11 +406,12 @@ internal sealed class WatchScene : IDisposable
     /// a sheet of light, not a bubble.</summary>
     private Mesh BuildCrystal()
     {
+        var d = _design;
         var p = new List<MeshBuilder.ProfilePoint>();
-        var chord = BezelInner;
-        var sag = CrystalPeak - CrystalEdge;
+        var chord = d.BezelInner;
+        var sag = d.CrystalPeak - d.CrystalEdge;
         var sphereR = (chord * chord + sag * sag) / (2f * sag);
-        var centre = new Vector2(0f, CrystalPeak - sphereR);
+        var centre = new Vector2(0f, d.CrystalPeak - sphereR);
         var edgeAngle = MathF.Asin(chord / sphereR) * 180f / MathF.PI;
         MeshBuilder.Arc(p, centre, sphereR, 90f - edgeAngle, 90f, 32);
         var b = new MeshBuilder();
@@ -482,8 +425,8 @@ internal sealed class WatchScene : IDisposable
     private Mesh BuildFloor()
     {
         var b = new MeshBuilder();
-        var r = CaseRadius - 0.5f;
-        var y = MovementY - 4.6f;
+        var r = _design.CaseRadius - 0.5f;
+        var y = _design.MovementY - 4.6f;
         const int segments = 128;
         for (var s = 0; s < segments; s++)
         {
@@ -540,34 +483,33 @@ internal sealed class WatchScene : IDisposable
 
     // ------------------------------------------------------------ frame
 
-    /// <summary>The camera and light for one instant. Both drift slowly, and
-    /// that drift is the point of the whole pipeline: the sunburst's lobes
-    /// and the hands' facets only read as metal when the light moves.</summary>
+    /// <summary>The camera and light for one instant, from the design's
+    /// rig. Both drift slowly, and that drift is the point of the whole
+    /// pipeline: the sunburst's lobes and the hands' facets only read as
+    /// metal when the light moves.</summary>
     private readonly struct Rig
     {
         public readonly Matrix4x4 View, Proj, LightViewProj, EnvRot;
         public readonly Vector3 Eye, LightDir;
 
-        public Rig(double seconds)
+        public Rig(WatchDesign d, double seconds)
         {
             var t = (float)seconds;
+            const float toRad = MathF.PI / 180f;
 
-            // ---- camera: a long lens from 300mm, tilted a few degrees so
-            // the case has a side, breathing by a degree or two.
-            var tilt = (4.0f + 1.5f * MathF.Sin(t / 41f)) * MathF.PI / 180f;
-            var swing = (1.2f * MathF.Sin(t / 53f)) * MathF.PI / 180f;
-            const float distance = 300f;
+            // ---- camera
+            var tilt = (d.CameraTiltDeg + d.CameraTiltSwingDeg * MathF.Sin(t / 41f)) * toRad;
+            var swing = (d.CameraSwingDeg * MathF.Sin(t / 53f)) * toRad;
+            var distance = d.CameraDistance;
             Eye = new Vector3(distance * MathF.Sin(swing), distance * MathF.Cos(tilt), distance * MathF.Sin(tilt));
             View = Matrix4x4.CreateLookAt(Eye, Vector3.Zero, -Vector3.UnitZ);
-            // 54.3mm of dial fills the 640-unit panel at this distance.
-            var fov = 2f * MathF.Atan(320f * U / distance);
-            Proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, 1f, 200f, 420f);
+            // 640 face units of dial fill the panel at this distance.
+            var fov = 2f * MathF.Atan(320f * WatchDesign.FaceUnit / distance);
+            Proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, 1f, distance * 0.66f, distance * 1.4f);
 
-            // ---- key light: from the upper left like the old face's key
-            // (dial_render LIGHT_DEG = 315), high, and wandering over a
-            // couple of minutes so the lobes sweep.
-            var bearing = (315f + 22f * MathF.Sin(t / 29f)) * MathF.PI / 180f;
-            var elevation = (46f + 8f * MathF.Sin(t / 37f)) * MathF.PI / 180f;
+            // ---- key light
+            var bearing = (d.KeyBearingDeg + d.KeyBearingSwingDeg * MathF.Sin(t / 29f)) * toRad;
+            var elevation = (d.KeyElevationDeg + d.KeyElevationSwingDeg * MathF.Sin(t / 37f)) * toRad;
             LightDir = Vector3.Normalize(new Vector3(
                 MathF.Sin(bearing) * MathF.Cos(elevation),
                 MathF.Sin(elevation),
@@ -576,25 +518,9 @@ internal sealed class WatchScene : IDisposable
             var lightProj = Matrix4x4.CreateOrthographic(62f, 62f, 20f, 200f);
             LightViewProj = lightView * lightProj;
 
-            // ---- environment: the studio panorama turned so its horizon -
-            // where the softboxes are - lies behind the camera, which is
-            // what a flat metal facing the viewer reflects. Yawed slowly.
-            // studio_small_09, measured off the panorama in radiance: two small
-            // strobes at azimuth -149 and -30; two gridded octagonal softboxes,
-            // the big one centred at azimuth +36 and 25 degrees up at radiance
-            // 28; and a white cyclorama filling -135 to -45 that LOOKS bright
-            // in a tone-mapped preview and is radiance 1 - it is lit, not a
-            // light. Flat polished steel facing the viewer reflects world +Y,
-            // and only the softbox will make it read as silver, so that is
-            // where +Y is aimed. (The wall was tried and gave gunmetal.) Its
-            // eggcrate grid is dealt with in the shader, by smearing the
-            // reflection along the anisotropic lobe.
-            // Rx pitches world +Y up to the box's elevation; Ry (negative,
-            // because the panorama's longitude runs the other way from a
-            // rotation about Y) swings it round to the box's azimuth, and
-            // wanders so the reflection crosses the dial.
-            var yaw = -0.63f + 0.22f * MathF.Sin(t / 67f);
-            EnvRot = Matrix4x4.CreateRotationX(-65f * MathF.PI / 180f) * Matrix4x4.CreateRotationY(yaw);
+            // ---- environment
+            var yaw = d.EnvYaw + d.EnvYawSwing * MathF.Sin(t / 67f);
+            EnvRot = Matrix4x4.CreateRotationX(d.EnvPitchDeg * toRad) * Matrix4x4.CreateRotationY(yaw);
         }
     }
 
@@ -606,7 +532,8 @@ internal sealed class WatchScene : IDisposable
     {
         EnsureTargets(width, height);
         var ctx = _context;
-        var rig = new Rig(seconds);
+        var d = _design;
+        var rig = new Rig(d, seconds);
         var reading = _caliber.Read(now);
 
         // ---- frame constants
@@ -616,15 +543,15 @@ internal sealed class WatchScene : IDisposable
             LightViewProj = rig.LightViewProj,
             EnvRot = rig.EnvRot,
             CameraPos = rig.Eye,
-            Exposure = 1.0f,
+            Exposure = d.Exposure,
             LightDir = rig.LightDir,
             ShadowTexel = 1f / ShadowSize,
-            LightColour = new Vector3(2.0f, 1.97f, 1.9f),
+            LightColour = d.KeyColour,
             Time = (float)seconds,
-            ApertureCentre = ApertureCentre,
-            ApertureRadius = ApertureRadius,
-            DialRadius = DialRadius,
-            TrackRadius = TrackRadius,
+            ApertureCentre = d.ApertureCentre,
+            ApertureRadius = d.ApertureRadius,
+            DialRadius = d.DialRadius,
+            TrackRadius = d.TrackRadius,
             DebugView = _debugView,
         };
         ctx.UpdateSubresource(frame, _frameCb);
@@ -669,7 +596,7 @@ internal sealed class WatchScene : IDisposable
         ctx.OMSetBlendState(_blendCrystal);
         ctx.VSSetShader(_vsCrystal);
         ctx.PSSetShader(_psCrystal);
-        Draw(_crystal, Polished, Matrix4x4.Identity);
+        Draw(_crystal, d.Polished, Matrix4x4.Identity);
 
         // ---- 4. resolve and present
         ctx.PSSetShaderResource(3, null);
@@ -694,12 +621,13 @@ internal sealed class WatchScene : IDisposable
     /// the colour target.</summary>
     private void DrawOpaque(Reading reading)
     {
-        Draw(_floor, Floor, Matrix4x4.Identity);
+        var d = _design;
+        Draw(_floor, d.Floor, Matrix4x4.Identity);
 
         // The movement, part by part, each turned about its arbor.
         foreach (var (name, mesh) in _movement)
         {
-            var material = MovementMaterials.TryGetValue(name, out var m) ? m : Polished with { Recess = true };
+            var material = d.Movement.TryGetValue(name, out var m) ? m : d.Polished with { Recess = true };
             var world = _movementWorld;
             foreach (var (part, arbor, drive) in Rotations)
             {
@@ -737,35 +665,23 @@ internal sealed class WatchScene : IDisposable
             }
             else if (mat.Finish == Finish.Straight)
             {
-                mat = mat with { FinishDir = Vector3.Normalize(Vector3.TransformNormal(new Vector3(0.94f, 0f, 0.34f), _movementWorld)) };
+                mat = mat with { FinishDir = Vector3.Normalize(Vector3.TransformNormal(d.CotesDirection, _movementWorld)) };
             }
             Draw(mesh, mat, world);
         }
 
         // The dial furniture.
-        Draw(_dial, Dial, Matrix4x4.Identity);
-        Draw(_rehaut, RehautSteel, Matrix4x4.Identity);
-        Draw(_bezel, BezelSteel, Matrix4x4.Identity);
-        Draw(_indices, Polished, Matrix4x4.Identity);
+        Draw(_dial, d.Dial, Matrix4x4.Identity);
+        Draw(_rehaut, d.Rehaut, Matrix4x4.Identity);
+        Draw(_bezel, d.Bezel, Matrix4x4.Identity);
+        Draw(_indices, d.Polished, Matrix4x4.Identity);
 
         // The hands, clockwise from twelve.
-        Draw(_hourHand, Polished, ScreenClockwise((float)reading.Hour));
-        Draw(_minuteHand, Polished, ScreenClockwise((float)reading.Minute));
-        Draw(_secondHand, BluedHand, ScreenClockwise((float)reading.Second));
-        Draw(_cap, Polished, Matrix4x4.Identity);
+        Draw(_hourHand, d.Polished, ScreenClockwise((float)reading.Hour));
+        Draw(_minuteHand, d.Polished, ScreenClockwise((float)reading.Minute));
+        Draw(_secondHand, d.SecondHand, ScreenClockwise((float)reading.Second));
+        Draw(_cap, d.Polished, Matrix4x4.Identity);
     }
-
-    /// <summary>
-    /// Train ratios beyond the fourth wheel, derived from the counts in the
-    /// manifest rather than invented - ATTRIBUTION.md exists to record that
-    /// distinction. wheel_b (72 teeth) meshes the fourth's pinion_b, counted
-    /// at 9 leaves; wheel_a (75 teeth) is the centre wheel and turns once an
-    /// hour, which with 60 = (72/9)(75/p3) fixes the third pinion at 10.
-    /// Neither turn is perceptible on the wall (a ninth and a sixtieth of
-    /// the fourth's rate); the direction of mesh is what has to be right.
-    /// </summary>
-    private const double ThirdPerFourth = 9.0 / 72.0;
-    private const double CentrePerFourth = 1.0 / 60.0;
 
     private static Vector2 ArborOf(string part)
     {
@@ -784,12 +700,12 @@ internal sealed class WatchScene : IDisposable
         ReleaseTargets();
         foreach (var mesh in _movement.Values) mesh.Dispose();
         foreach (var mesh in new[] { _dial, _rehaut, _bezel, _indices, _hourHand, _minuteHand, _secondHand, _cap, _crystal, _floor }) mesh.Dispose();
-        foreach (var d in new IDisposable[]
+        foreach (var disposable in new IDisposable[]
         {
             _vsWatch, _vsShadow, _vsCrystal, _vsPost, _psWatch, _psShadow, _psCrystal, _psPost, _layout,
             _frameCb, _objectCb, _postCb, _linearClamp, _shadowCmp, _point, _rasterMain, _rasterShadow,
             _depthOn, _depthReadOnly, _depthOff, _blendOpaque, _blendCrystal,
             _shadowSrv, _shadowDsv, _shadowTex, _dialPrint, _environment,
-        }) d.Dispose();
+        }) disposable.Dispose();
     }
 }

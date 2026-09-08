@@ -123,6 +123,38 @@ but **cannot regenerate the GLB**.
 self-contained. The reason is in `CLAUDE.md` and it is Smart App Control, not
 preference.
 
+## Status, 2026-09-08: built
+
+All six steps are done and on the wall as the fourth face, `live`. What
+exists, where, and what the next session should know:
+
+- `Rendering/WatchDesign.cs` is the face as data; `Rendering/WatchScene.cs`
+  is the engine. `FACE-RECIPE.md` is the process for the next design, with
+  every trap this one hit.
+- The materials are anisotropic GGX with a tangent field per finish
+  (`watch.hlsl`), and the studio is sampled along the lobe with seven taps.
+  The sunburst sweeps; a four-frame sequence shows it.
+- The studio is `studio_small_09` aimed at its one big softbox, with a
+  synthetic diffuser and fill added in `ibl.hlsl`. Everything about that
+  was found with `CLOCKWALL_DEBUG_VIEW=1`, not derived.
+- The compositor ignores the swap chain's alpha; the post pass composites
+  over the wall colour. Faults go to `%LOCALAPPDATA%\ClockWall\render-log.txt`.
+- Measured on the deployed build: about 35% GPU at idle clocks and 33 W;
+  about 12% of one CPU core above the digital face; working set flat.
+
+Not done, in the order they are worth doing:
+
+1. **The balance strobes.** At 3.5 Hz and 285 degrees it moves 60-100
+   degrees between frames and the rim's spokes alias, the same complaint
+   the sprite face drew. The sprite face cross-faded to a rotational smear
+   on `BalanceSpeed`; the live face has no equivalent yet. The cheap form is
+   to draw the balance N times per frame at sub-step angles with additive
+   weights, gated on `BalanceSpeed`.
+2. **Depth of field, barely** (ART-DIRECTION item 7). Not implemented.
+3. **The crystal's edge refraction.** Skipped; a wrong one is worse than none.
+4. **The hairspring** still turns rigidly by 5% of the balance's swing.
+5. The `Rotations` table is the OM10's. A different movement is a project.
+
 ## The licence question, asked and answered
 
 **Settled 2026-09-08: not a concern.** This is a wall clock in somebody's

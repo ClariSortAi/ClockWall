@@ -189,7 +189,9 @@ public sealed class WatchRenderer : IDisposable
             try
             {
                 var assets = Path.Combine(AppContext.BaseDirectory, "Assets");
-                _scene = new WatchScene(_device!, context, assets);
+                // The one place the face is chosen. A second design is a
+                // second WatchDesign and this line; see FACE-RECIPE.md.
+                _scene = new WatchScene(_device!, context, assets, WatchDesign.BlueSoleil);
             }
             catch (Exception ex)
             {

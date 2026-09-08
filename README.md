@@ -139,6 +139,15 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
 
 - `--fullscreen`
 - `--screenshot <path>` renders the window to a 1080x1920 PNG and exits.
+- `--screenshot <path> --screenshot-seq N MS` captures N frames MS apart in one
+  launch, numbered, so motion can be differenced.
+- `C` cycles the clock faces: analogue, mechanical (sprites), digital, live. The
+  choice persists by name in `%LOCALAPPDATA%\ClockWall\clock-mode.txt` and survives
+  every rebuild - a stale value looks exactly like a build that did nothing.
+- `CLOCKWALL_DEBUG_VIEW=1` in the environment renders the live face as a mirror of
+  its studio, for checking where the light is.
+- The live face logs any failure to build its scene to
+  `%LOCALAPPDATA%\ClockWall\render-log.txt`.
 - Esc exits. F11 toggles fullscreen.
 - The window is draggable from anywhere on its surface, using the native title bar (`SetTitleBar`) rather than custom mouse handling. It remembers where you put it, in `%LOCALAPPDATA%\ClockWall\window-position.txt`. On launch, that remembered position is checked against the currently connected displays, so unplugging a monitor won't strand the window off screen.
 - While running, ClockWall keeps the display awake (`SetThreadExecutionState`) and restores the previous setting on exit.
@@ -148,6 +157,13 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
 The UI is WinUI 3 (Windows App SDK) on .NET 10, unpackaged, in C# and XAML, targeting Windows 11. It follows Microsoft's `winui-design` skill, which targets WinUI 3 directly, so its guidance on Fluent brush keys, `ThemeResource`, `x:Bind`, and `ListView` applied without translation.
 
 Everything is themed from one file, `Themes/Theme.xaml`. No panel hardcodes a color or font, so a reskin means editing that one file.
+
+The live watch face is a D3D11 scene in a `SwapChainPanel`: the OM10 movement
+as geometry, a procedural case and dial, anisotropic materials so the sunburst's
+lobes sweep as the light drifts, and the offline render's studio HDRI as the
+light. `ART-DIRECTION.md` is what it is meant to look like, `FACE-RECIPE.md`
+is how to make another one, and `Rendering/WatchDesign.cs` is the one file a
+new design edits.
 
 Mica is not used, and that's deliberate rather than an oversight. A full-bleed wall display has no desktop behind it, and Mica's backdrop falls back to a solid fill whenever the window isn't in the foreground, which for a wall panel is the normal state. That fallback made the background lighter than the cards sitting on it, inverting the intended elevation. A flat dark background sidesteps the problem.
 

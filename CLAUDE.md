@@ -16,8 +16,13 @@ operational layer.
     ClockWall.exe --screenshot out.png   # renders a 1080x1920 PNG and exits
     ClockWall.exe --fullscreen           # Esc exits, F11 toggles
 
+    python tools/gltf_export.py          # regenerates Assets/movement.glb (needs OCP + build123d)
+    python tools/dial_print.py           # regenerates Assets/dial-print.png
+
 No test suite. Verify a change by building and taking a screenshot. `captures/` is
-gitignored for exactly that.
+gitignored for exactly that. For the live face, judge the full 1080x1920 screenshot
+at wall distance, not a crop: `ART-DIRECTION.md` is the brief and the wall is the
+acceptance test.
 
 ## Traps
 
@@ -31,15 +36,35 @@ gitignored for exactly that.
   intermittently — that is SAC being reputation-based, not a build error.
 - `dotnet` may not be on PATH in a plain PowerShell session; `deploy.ps1` prepends
   `C:\Program Files\dotnet`.
+- **The live face shows an empty square and nothing else.** Release strips
+  `Debug.WriteLine`. Read `%LOCALAPPDATA%\ClockWall\render-log.txt` — the renderer
+  writes every scene-build fault there with a stack. A shader that fails to compile
+  or a missing asset lands there, not on screen.
+- **The XAML compositor ignores the swap chain's alpha** (measured: a strip forced to
+  alpha 0 stayed black). The live face composites itself over the wall colour it reads
+  from `WallBackgroundBrush`; do not spend time on premultiplied alpha.
+- **Do not reason about the environment's orientation; look.** Run with
+  `CLOCKWALL_DEBUG_VIEW=1` and every surface renders as a mirror of the studio by its
+  normal. The dial then shows what world +Y is aimed at. Two sessions of arithmetic
+  were wrong before this existed.
 
 ## Layout
 
 - `MainWindow.xaml[.cs]` — window shell only: size, presenter, keyboard, drag, CLI /
   screenshot entry, roster budget. No visual content.
-- `Controls/` — `ClockPanel`, `SystemMeters`, `ActivityTicker`, `AgentListPanel`.
+- `Controls/` — `ClockPanel`, `SystemMeters`, `ActivityTicker`, `AgentListPanel`,
+  `OpenworkedFace` (the sprite face), `MovementView` (the live face's panel).
 - `Services/` — `SessionWatcher` (finds sessions + subagents), `AgentSession` (model),
-  `TranscriptTokens` (tail-follows transcripts by byte offset).
+  `TranscriptTokens` (tail-follows transcripts by byte offset), `Caliber` (the
+  movement's physics; every angle from one beat count).
+- `Rendering/` — the live face. `WatchDesign` is the FACE (palette, dimensions,
+  materials, light rig: the only file a new design edits); `WatchScene` is the
+  ENGINE (passes, geometry builders, transforms); `WatchRenderer` the device and
+  swap chain; `Environment` the HDRI bake; `Shaders/*.hlsl` embedded and compiled at
+  start-up. `FACE-RECIPE.md` is the repeatable process for producing a new face.
 - `Themes/Theme.xaml` — the entire design system.
+- `tools/` — the Python pipeline: CAD extraction, the glTF exporter, the dial print
+  mask, and the retired Blender sprite renders.
 
 ## Conventions
 
