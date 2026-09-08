@@ -56,26 +56,16 @@ def bought(name):
 
 
 def load_bores():
-    """The bore table from tools/print_bores.py keyed by bearing, plus the
-    header (printer, scale) it was built for; or None: this export works
-    without one, at the study's scale, and says so in the manifest."""
-    try:
-        import print_bores
-        table = print_bores.load_bores(BORES)
-        if not table:
-            return None
-        with open(BORES) as f:
-            head = json.load(f)
-        return {"table": table, "printer": head.get("printer"), "scale": head.get("scale")}
-    except ImportError:
+    """Switch the exporter's print set on (gltf_export.use_print_bores, the
+    ONE place the table is applied, inside prepared) and read the header
+    it was built for; or None: this export works without a table, at the
+    study's scale, and says so in the manifest."""
+    table = G.use_print_bores(True)
+    if not table:
         return None
-
-
-def apply_bores(name, shape, bores):
-    if not bores:
-        return shape
-    import print_bores
-    return print_bores.apply_bore(name, shape, bores["table"])
+    with open(BORES) as f:
+        head = json.load(f)
+    return {"table": table, "printer": head.get("printer"), "scale": head.get("scale")}
 
 
 def scaled(shape, factor):
@@ -122,7 +112,7 @@ def main():
             shape = hairspring.build(hairspring.design())[0].wrapped
         else:
             shape = G.read_step(path)
-        shape = apply_bores(name, G.prepared(name, shape), bores)
+        shape = G.prepared(name, shape)
         parts[name] = (tag, A.transformed(shape, trsf))
 
     manifest = {

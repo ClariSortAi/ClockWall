@@ -308,13 +308,42 @@ def bore_open(shape, axis_xz, radius):
     return BRepAlgoAPI_Cut(shape, cyl).Shape()
 
 
+# The printable bore set, off unless --print turns it on. It stays None so
+# that the wall export is byte-identical without the flag: the wall's
+# movement is not a printed movement and must not inherit a printer's
+# clearances, which are twenty times the watch's own.
+PRINT_BORES = None
+
+
+def use_print_bores(enabled=True):
+    """Switch the printable bore set on for this process, and say whether it
+    is there. Assets/print-bores.json comes from tools/print_bores.py, which
+    needs the STEP, so a clone without one gets None and the export simply
+    runs as the wall's."""
+    global PRINT_BORES
+    if not enabled:
+        PRINT_BORES = None
+        return None
+    from print_bores import load_bores
+    PRINT_BORES = load_bores()
+    return PRINT_BORES
+
+
 def prepared(name, shape):
     """Every change made to an OM10 solid on its way out: the open-heart
-    cut and the opened bore. The assembly check uses the same one."""
+    cut, the opened bore, and under --print the printable bore set. The
+    assembly check uses the same one."""
     if name in OPEN_HEART_CUT:
         shape = open_heart(shape)
     if name in BORED:
         shape = bore_open(shape, *BORED[name])
+    if PRINT_BORES:
+        # After BORED rather than instead of it. BORED is the wall's fix for
+        # the one interference the STEP carries and is a fact about the file;
+        # the print set is a decision about a machine. Cutting a hole twice
+        # costs nothing, the larger wins, and the two stay independent.
+        from print_bores import apply_bore
+        shape = apply_bore(name, shape, PRINT_BORES)
     return shape
 
 
@@ -405,7 +434,13 @@ def main():
     ap.add_argument("--angular", type=float, default=0.12,
                     help="angular deflection in radians (default 0.12)")
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--print", dest="print_set", action="store_true",
+                    help="open the bores for printing (Assets/print-bores.json); "
+                         "the wall export is unchanged without this")
     args = ap.parse_args()
+
+    if args.print_set and use_print_bores() is None:
+        raise SystemExit("no Assets/print-bores.json - run tools/print_bores.py first")
 
     catalogue_path = os.path.join(PARTS, "catalogue.json")
     if not os.path.exists(catalogue_path):

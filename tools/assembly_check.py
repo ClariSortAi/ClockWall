@@ -130,8 +130,23 @@ def om10_axis(x, z):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--print", dest="print_set", action="store_true",
+                    help="check the printable bore set rather than the wall's movement")
     args = ap.parse_args()
     step = 60 if args.quick else 30
+
+    # Turned on before anything loads, because prepared() is what applies it
+    # and load_movement() calls prepared once per solid. Flipping it later
+    # would check the wall's movement and report on the printed one.
+    if args.print_set:
+        bores = G.use_print_bores()
+        if bores is None:
+            raise SystemExit("no Assets/print-bores.json - run tools/print_bores.py first")
+        # Say which movement is on the bench. The two runs look identical
+        # otherwise, and a clean pass on the wrong one is worse than a fail.
+        print("checking the PRINTABLE set: %d bores opened" % len(bores))
+    else:
+        print("checking the wall's movement")
 
     case = load_case()
     mv = load_movement()
@@ -174,9 +189,14 @@ def main():
     ]
 
     clashes = 0
+    missing = 0
     for mover, axis, angles, others in checks:
         if mover not in allp:
-            print("  (no part named %s)" % mover)
+            # A failure, not a skip: a run with no movement loaded (no
+            # captures/om10/all on this machine) once reported 0 clashes
+            # and exit 0 while checking nothing but the case.
+            print("  MISSING %s: not loaded, so not checked" % mover)
+            missing += 1
             continue
         worst = {}
         for ang in angles:
@@ -199,8 +219,8 @@ def main():
                 print("  CLASH %-13s vs %-16s %9.4f mm3  (worst at %s deg)" % (mover, other, v, ang))
         else:
             print("  ok    %-13s clears %s" % (mover, ", ".join(o for o in others if o in allp)))
-    print("\n%d clashes" % clashes)
-    sys.exit(1 if clashes else 0)
+    print("\n%d clashes, %d movers missing" % (clashes, missing))
+    sys.exit(1 if clashes or missing else 0)
 
 
 if __name__ == "__main__":

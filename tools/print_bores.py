@@ -305,7 +305,19 @@ def main():
         wall_at_scale = wall_left * scale
         holds = wall_at_scale >= printer["min_wall"]
 
-        allowed = {bearing["source"], parts[fit["pivot"]]["source"]}
+        # Keyed on the source ids the fits file recorded, not on the names.
+        # Re-resolving the name is what broke this once: 00107 was renamed
+        # from impulse_pin to lever_staff, the old name then resolved to a
+        # different solid, the real pivot stopped being excluded, and the
+        # bore was reported as breaking into the very part running in it.
+        pivot_source = fit.get("pivot_source") or parts[fit["pivot"]]["source"]
+        if fit.get("pivot") in parts and parts[fit["pivot"]]["source"] != pivot_source:
+            print(
+                "  ! %s: fits file calls the pivot %s, which now names a different solid;"
+                " using %s as recorded" % (name, fit["pivot"], pivot_source),
+                file=sys.stderr,
+            )
+        allowed = {bearing["source"], pivot_source}
         tube = opened_bore_solid(arbor, bearing["y"], new_r, profile["bore_r"], overshoot=0.0)
         hits = clashes(tube, solids, allowed, boxes)
 

@@ -209,6 +209,14 @@ def measure_fits(solids, parts):
             {
                 "bearing": name,
                 "pivot": pivot,
+                # The source id as well as the name. Names move: 00107 was
+                # called impulse_pin until this file's own measurements
+                # showed it running in the fork's two jewels. A consumer
+                # that re-resolves a NAME against a later catalogue can
+                # silently pick up a different solid, so the id travels too
+                # and consumers key on it.
+                "bearing_source": bearing["source"],
+                "pivot_source": parts[pivot]["source"],
                 "arbor": [round(a, 3) for a in arbor],
                 "height": round(height, 3),
                 "bore_dia": 2 * bore_r,

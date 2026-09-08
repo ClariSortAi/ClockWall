@@ -339,7 +339,7 @@ upper bearing left at the old pivot size; `gltf_export.BORED` opens it and
 the check turns the intermediate in it. Output is
 `captures/assembly-check-*.txt`; a clean run is `0 clashes`, exit 0.
 
-**6. Print it - in progress, with the peer session.** `PRINT-STUDY.md`
+**6. Print it - done, with the peer session.** `PRINT-STUDY.md`
 settles the scale (3.4x on a 50 um MSLA machine, three prints of about
 104 mm) and finds that the running fits, not the walls, govern: the
 tightest is 0.0063 mm on the diameter, and no scale a printer can hold
@@ -355,9 +355,9 @@ manifest that marks the springs and the jewels as not for printing. Run
 with the table: 177 STLs at 3.392x, every one watertight, and the bored
 bearings measure in the STL what the table says (intermediate_bearing
 1.044 mm against 1.047 asked, the difference the tessellation's chord).
-Owed still: `assembly_check.py` run against the bored set, which is the
-peer session's, since a bored bearing that breaks into a neighbour is a
-clash the wall's check never sees.
+`assembly_check.py --print` runs the same check on the bored set: 0
+clashes, on both machines, and the intermediate clears both its bearings.
+Done.
 
 **7. Cosmetic - done, with one measured and declined.** Depth of field: a
 second target carries view distance out of the watch pass and the post
