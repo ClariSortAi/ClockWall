@@ -135,16 +135,46 @@ SUBSTITUTES = {
 # What the movement measures across the plate, in the exporter's own frame.
 MOVEMENT_SPAN_MM = 30.78
 
-# A watch's running fit - a pivot in its hole - is a hundredth of a
-# millimetre. It cannot be measured off the STEP: that file is nominal CAD,
-# where a pivot and its jewel are drawn to the same size and the clearance
-# lives on the drawing rather than in the solid. So this is the one number
-# in the study taken from watchmaking practice rather than from the file,
-# and it is called out here for that reason. It matters more than it looks:
-# clearances scale with the part, so a scale chosen to fix the walls also
-# has to open this fit past what the machine can hold, or the parts print
-# beautifully and then seize solid.
-RUNNING_FIT_MM = 0.010
+# The gap between a pivot and its bearing, as a SURFACE gap, because a
+# surface gap is what a printer's clearance figure means. It matters more
+# than it looks: clearances scale with the part, so a scale chosen to fix
+# the walls also has to open this gap past what the machine can hold, or
+# the parts print beautifully and then seize solid.
+#
+# This was 0.010 mm, assumed from watchmaking practice, on the reasoning
+# that nominal CAD draws a pivot and its jewel to the same size and keeps
+# the clearance on the drawing. The reasoning was sound and wrong about
+# this file: the OM10's STEP carries its real fits at every arbor.
+# tools/om10_fits.py measures them, and the tightest is a 0.0031 mm gap,
+# three times tighter than the guess, which makes this constraint three
+# times worse than the first version of the study reported.
+FITS = os.path.join(ROOT, "Assets", "om10-fits.json")
+ASSUMED_FIT_MM = 0.010
+
+
+def running_fit_mm():
+    """The tightest measured pivot gap, or the old assumption if nobody has
+    run the measurement yet. The tightest rather than the median, because
+    the tightest fit decides whether the assembly turns at all: a movement
+    with one seized arbor is a paperweight."""
+    try:
+        with open(FITS) as f:
+            fits = json.load(f)
+        gaps = [r["clearance_dia"] / 2 for r in fits["pivots"] if r["clearance_dia"] > 0]
+        if gaps:
+            return min(gaps), "measured"
+    except (OSError, ValueError, KeyError) as exc:
+        # Missing or half-written is the normal case on a fresh clone:
+        # om10_fits.py needs the STEP, and the STEP is gitignored. Say which
+        # number is being used and carry on rather than refusing to run.
+        print(
+            "  ! no measured fits (%s); assuming %.4f mm" % (exc, ASSUMED_FIT_MM),
+            file=sys.stderr,
+        )
+    return ASSUMED_FIT_MM, "assumed"
+
+
+RUNNING_FIT_MM, RUNNING_FIT_SOURCE = running_fit_mm()
 
 
 def measure(shape):
@@ -373,6 +403,14 @@ def main():
 
     print()
     print("WHICH CONSTRAINT BINDS")
+    print(
+        "  running fit %.4f mm, %s%s"
+        % (
+            RUNNING_FIT_MM,
+            RUNNING_FIT_SOURCE,
+            " - run tools/om10_fits.py" if RUNNING_FIT_SOURCE == "assumed" else " off the STEP",
+        )
+    )
     print("%-20s %10s %10s   %s" % ("printer", "walls", "fits", "governed by"))
     print("-" * 78)
     for res in results:

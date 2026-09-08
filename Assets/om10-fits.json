@@ -1,0 +1,240 @@
+{
+ "pivots": [
+  {
+   "bearing": "barrel_bearing",
+   "pivot": "barrel_arbor",
+   "arbor": [
+    6.674,
+    -3.765
+   ],
+   "height": 1.238,
+   "bore_dia": 1.4008318107678621,
+   "pivot_dia": 1.3881679077711224,
+   "clearance_dia": 0.012663902996739695,
+   "clearance_radial": 0.006331951498369848
+  },
+  {
+   "bearing": "barrel_bearing_2",
+   "pivot": "barrel_arbor",
+   "arbor": [
+    6.674,
+    -3.765
+   ],
+   "height": -1.659,
+   "bore_dia": 1.4008318107677242,
+   "pivot_dia": 1.38816790777112,
+   "clearance_dia": 0.012663902996604248,
+   "clearance_radial": 0.006331951498302124
+  },
+  {
+   "bearing": "centre_bearing",
+   "pivot": "pinion_centre",
+   "arbor": [
+    7.029,
+    4.222
+   ],
+   "height": 1.308,
+   "bore_dia": 0.5509335462050395,
+   "pivot_dia": 0.5380664686132204,
+   "clearance_dia": 0.012867077591819154,
+   "clearance_radial": 0.006433538795909577
+  },
+  {
+   "bearing": "centre_bearing_2",
+   "pivot": "pinion_centre",
+   "arbor": [
+    7.029,
+    4.222
+   ],
+   "height": -2.149,
+   "bore_dia": 0.5509335462050355,
+   "pivot_dia": 0.5380664686132204,
+   "clearance_dia": 0.012867077591815157,
+   "clearance_radial": 0.0064335387959075785
+  },
+  {
+   "bearing": "intermediate_bearing",
+   "pivot": "intermediate",
+   "arbor": [
+    1.53,
+    4.125
+   ],
+   "height": 1.758,
+   "bore_dia": 0.1812098067655308,
+   "pivot_dia": 0.19079020473486377,
+   "clearance_dia": -0.009580397969332966,
+   "clearance_radial": -0.004790198984666483
+  },
+  {
+   "bearing": "jewel",
+   "pivot": "epinion",
+   "arbor": [
+    -3.679,
+    7.898
+   ],
+   "height": 1.348,
+   "bore_dia": 0.10117096803976114,
+   "pivot_dia": 0.09291365992724625,
+   "clearance_dia": 0.008257308112514891,
+   "clearance_radial": 0.004128654056257446
+  },
+  {
+   "bearing": "jewel_2",
+   "pivot": "impulse_pin",
+   "arbor": [
+    -5.871,
+    5.706
+   ],
+   "height": 1.368,
+   "bore_dia": 0.10119921033017419,
+   "pivot_dia": 0.09288548179345665,
+   "clearance_dia": 0.008313728536717538,
+   "clearance_radial": 0.004156864268358769
+  },
+  {
+   "bearing": "jewel_3",
+   "pivot": "epinion",
+   "arbor": [
+    -3.679,
+    7.898
+   ],
+   "height": -1.948,
+   "bore_dia": 0.10117096803974161,
+   "pivot_dia": 0.09291365992724625,
+   "clearance_dia": 0.008257308112495365,
+   "clearance_radial": 0.0041286540562476826
+  },
+  {
+   "bearing": "jewel_4",
+   "pivot": "impulse_pin",
+   "arbor": [
+    -5.871,
+    5.706
+   ],
+   "height": 0.342,
+   "bore_dia": 0.10167434225237447,
+   "pivot_dia": 0.09288548179345665,
+   "clearance_dia": 0.008788860458917816,
+   "clearance_radial": 0.004394430229458908
+  },
+  {
+   "bearing": "shock_jewel_cock",
+   "pivot": "staff",
+   "arbor": [
+    -8.063,
+    3.514
+   ],
+   "height": -1.912,
+   "bore_dia": 0.09119026396768126,
+   "pivot_dia": 0.08286520251154912,
+   "clearance_dia": 0.00832506145613214,
+   "clearance_radial": 0.00416253072806607
+  },
+  {
+   "bearing": "shock_jewel_dial",
+   "pivot": "staff",
+   "arbor": [
+    -8.063,
+    3.514
+   ],
+   "height": 1.309,
+   "bore_dia": 0.08913492841451309,
+   "pivot_dia": 0.0828652025115501,
+   "clearance_dia": 0.006269725902962986,
+   "clearance_radial": 0.003134862951481493
+  },
+  {
+   "bearing": "train_bearing",
+   "pivot": "pinion_third",
+   "arbor": [
+    4.453,
+    8.124
+   ],
+   "height": 1.308,
+   "bore_dia": 0.30117917874513384,
+   "pivot_dia": 0.28782096049878053,
+   "clearance_dia": 0.013358218246353304,
+   "clearance_radial": 0.006679109123176652
+  },
+  {
+   "bearing": "train_bearing_2",
+   "pivot": "pinion_seconds",
+   "arbor": [
+    0.0,
+    8.0
+   ],
+   "height": 1.308,
+   "bore_dia": 0.3019999999999798,
+   "pivot_dia": 0.287000000000029,
+   "clearance_dia": 0.014999999999950775,
+   "clearance_radial": 0.0074999999999753875
+  },
+  {
+   "bearing": "train_bearing_3",
+   "pivot": "pinion_third",
+   "arbor": [
+    4.453,
+    8.124
+   ],
+   "height": -2.059,
+   "bore_dia": 0.30117917874511785,
+   "pivot_dia": 0.28782096049878053,
+   "clearance_dia": 0.013358218246337317,
+   "clearance_radial": 0.006679109123168658
+  },
+  {
+   "bearing": "train_bearing_back",
+   "pivot": "intermediate",
+   "arbor": [
+    1.53,
+    4.125
+   ],
+   "height": -2.054,
+   "bore_dia": 0.20120980675983682,
+   "pivot_dia": 0.1907902047348654,
+   "clearance_dia": 0.010419602024971414,
+   "clearance_radial": 0.005209801012485707
+  },
+  {
+   "bearing": "train_bearing_back_2",
+   "pivot": "pinion_seconds",
+   "arbor": [
+    0.0,
+    8.0
+   ],
+   "height": -1.96,
+   "bore_dia": 0.20199999999995943,
+   "pivot_dia": 0.18700000000002945,
+   "clearance_dia": 0.014999999999929986,
+   "clearance_radial": 0.007499999999964993
+  }
+ ],
+ "pipes": [
+  {
+   "bearing": "hour_wheel",
+   "pivot": "cannon_pinion",
+   "arbor": [
+    0.0,
+    0.0
+   ],
+   "height": 2.675,
+   "bore_dia": 1.4089999999999996,
+   "pivot_dia": 1.1970000000000085,
+   "clearance_dia": 0.21199999999999108,
+   "clearance_radial": 0.10599999999999554
+  },
+  {
+   "bearing": "cannon_wheel",
+   "pivot": "cannon_pinion",
+   "arbor": [
+    0.0,
+    0.0
+   ],
+   "height": 1.3,
+   "bore_dia": 1.102999999999992,
+   "pivot_dia": 1.1130000000000082,
+   "clearance_dia": -0.010000000000016218,
+   "clearance_radial": -0.005000000000008109
+  }
+ ]
+}
