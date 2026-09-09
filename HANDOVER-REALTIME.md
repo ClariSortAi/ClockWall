@@ -377,6 +377,18 @@ softbox and the key are two copies of one light (the key dominates it
 five to one); a rectangular area light (linearly transformed cosines,
 anisotropic) would replace both with one.
 
+**The small seconds (2026-09-09).** The OM10's fourth wheel pinion comes up
+at nine, 1.9 mm under the dial, inside the open heart, where the seconds
+hand was a bare needle among the wheels. It now has what an open-heart
+watch with a small seconds gives it (`tools/case_solids.py`): a chapter
+ring floating over the movement on two posts screwed to the plate's face
+in the window, its sixty-groove track engraved and ink-filled (the ink is
+its own solid so it can be black where the ring is white), and a blued
+hand on the pinion's extended pivot. The ring's outer edge is 0.19 mm from
+the rehaut's well wall, which is what sets its size; the assembly check
+turns the hand against it and the ring against the train. The heart was
+not made smaller, on the owner's instruction.
+
 **7. Cosmetic - done; the crystal since redone as glass.** The crystal is
 now a box sapphire with a bevel standing proud of the bezel, and its shader
 a light path: a four-layer anti-reflective stack by the transfer-matrix

@@ -36,10 +36,11 @@ SCALE = SIZE / 640.0          # px per face unit
 U_MM = 0.08488                # mm per face unit (case_solids.U)
 PX_MM = SCALE / U_MM          # px per mm, about 18.8
 
-# The scratch: an arc across the upper left of the crystal, outside the
-# open heart so it reads against the dial. Centre and radius in mm from
+# The scratch: an arc down the lower right of the crystal, over the
+# sunburst and clear of the open heart - the first one crossed the heart
+# and read as a stray hand among the wheels. Centre and radius in mm from
 # the dial centre, x right, y up; start and end angles in degrees.
-SCRATCH = dict(centre=(-31.0, 14.0), radius=27.5, a0=-42.0, a1=-8.0, width_mm=0.045, depth=0.75)
+SCRATCH = dict(centre=(34.0, -14.0), radius=26.0, a0=160.0, a1=195.0, width_mm=0.045, depth=0.75)
 # A second, shorter one crossing it: the way scratches come in pairs off
 # one edge, and a lone perfect arc looks placed.
 SCRATCH2 = dict(centre=(-6.0, 22.5), radius=8.0, a0=190.0, a1=228.0, width_mm=0.03, depth=0.45)

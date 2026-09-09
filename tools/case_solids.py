@@ -297,16 +297,87 @@ def minute_hand():
     return (hand + tube) - bore
 
 
+# ---- the small seconds, inside the heart
+# The OM10 is a small-seconds calibre: its fourth wheel's pinion comes up at
+# nine and stops 1.9 mm under the dial, where a plain dial would carry a
+# sunk sub-dial. The open heart takes that ground, so the seconds get what
+# an open-heart watch with a small seconds gives them: a chapter ring
+# floating over the movement on two posts screwed to the plate, its track
+# engraved and ink-filled, and a blued hand on the pinion reading against
+# it. Everything below is a solid that could be made; the ring's outer edge
+# stops 0.19 mm short of the rehaut's well wall, which is what sets its
+# size (the arbor sits 7.46 mm from the aperture's centre, the wall at 10.2).
+SECONDS_RING_R_OUT = 2.55
+SECONDS_RING_R_IN = 1.95
+SECONDS_RING_TOP = -1.15                 # world z of the ring's face; the hand rides above, the plate floor is at -4.86
+SECONDS_RING_T = 0.25
+SECONDS_POST_R = 0.35
+SECONDS_POST_AT = 2.25                   # the posts' radius from the arbor, at the ring's nine and three: the
+                                         # plate's face in the window is a skin over the third wheel at its six,
+                                         # and the assembly check found the post's foot on the wheel's teeth there
+SECONDS_FLOOR_Z = -0.05 + MOVEMENT_Z     # the plate's face inside the window: gltf_export.OPEN_HEART_FLOOR_Y
+TRACK_DEPTH = 0.06
+
+
+def _track_grooves():
+    """The sixty grooves of the seconds track, as solids about the arbor: a
+    short fine one a second, a longer wider one every five."""
+    grooves = None
+    for i in range(60):
+        five = i % 5 == 0
+        w = 0.09 if five else 0.05
+        r0, r1 = (2.00, 2.50) if five else (2.08, 2.42)
+        box = extrude(make_face(Polyline((-w / 2, r0), (w / 2, r0), (w / 2, r1), (-w / 2, r1), (-w / 2, r0))), TRACK_DEPTH + 0.02)
+        box = box.moved(Location((0, 0, SECONDS_RING_TOP - TRACK_DEPTH), (0, 0, -i * 6.0)))
+        grooves = box if grooves is None else grooves + box
+    return grooves
+
+
+def _post_holes():
+    holes = None
+    for sx in (SECONDS_POST_AT, -SECONDS_POST_AT):
+        h = Cylinder(SECONDS_POST_R + 0.02, SECONDS_RING_T + 0.2, align=(None, None, None)).moved(Location((sx, 0, SECONDS_RING_TOP - SECONDS_RING_T - 0.1)))
+        holes = h if holes is None else holes + h
+    return holes
+
+
+def seconds_ring():
+    """The chapter ring: a white-lacquered annulus with the track cut into
+    its face and two holes for the posts."""
+    ring = extrude(Circle(SECONDS_RING_R_OUT) - Circle(SECONDS_RING_R_IN), SECONDS_RING_T).moved(Location((0, 0, SECONDS_RING_TOP - SECONDS_RING_T)))
+    ring = ring - _track_grooves() - _post_holes()
+    return ring.moved(Location(SECONDS_ARBOR))
+
+
+def seconds_track():
+    """The ink in the grooves: the same grooves, kept to the ring's volume,
+    as their own solid so they can be black where the ring is white."""
+    ring = extrude(Circle(SECONDS_RING_R_OUT) - Circle(SECONDS_RING_R_IN), SECONDS_RING_T).moved(Location((0, 0, SECONDS_RING_TOP - SECONDS_RING_T)))
+    ink = (_track_grooves() & ring) - _post_holes()     # the grooves at three and nine stop at the post holes, as the ring's do
+    return ink.moved(Location(SECONDS_ARBOR))
+
+
+def seconds_post(sign):
+    """A post from the plate's face in the window up through the ring, and
+    the screw head that holds the ring down: one turned part with a slotted
+    head, at the ring's three (sign +1) or nine (sign -1)."""
+    x = sign * SECONDS_POST_AT
+    post = Cylinder(SECONDS_POST_R, SECONDS_RING_TOP - SECONDS_FLOOR_Z, align=(None, None, None)).moved(Location((x, 0, SECONDS_FLOOR_Z)))
+    head = Cylinder(0.50, 0.12, align=(None, None, None)).moved(Location((x, 0, SECONDS_RING_TOP)))
+    slot = extrude(make_face(Polyline((-0.06, -0.6), (0.06, -0.6), (0.06, 0.6), (-0.06, 0.6), (-0.06, -0.6))), 0.1).moved(Location((x, 0, SECONDS_RING_TOP + 0.07)))
+    return (post + head - slot).moved(Location(SECONDS_ARBOR))
+
+
 def seconds_hand():
-    """A needle with a counterweight on the fourth wheel's arbor, inside the
-    aperture and below the dial's surface. Short, because it is a small
-    seconds now and its tip must clear the rehaut at every angle."""
-    length, tail, w, z_lo, z_hi = 2.4, 0.9, 0.11, -0.60, -0.48
-    outline = [(-w, length), (w, length), (w * 1.6, -tail), (-w * 1.6, -tail)]
+    """A blued needle with a counterweight, riding 0.2 mm over the ring's
+    face on a collar pressed onto the pinion's extended pivot."""
+    length, tail, w, z_lo, z_hi = 2.32, 0.80, 0.075, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.30
+    outline = [(-0.02, length), (0.02, length), (w, 0.3), (w, -tail), (-w, -tail), (-w, 0.3)]
     needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
-    weight = extrude(Circle(0.42) - Circle(0.18), z_hi - z_lo).moved(Location((0, -tail - 0.1, z_lo)))
-    arbor = Cylinder(0.24, z_hi - SECONDS_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, SECONDS_PINION_TOP)))
-    return (needle + weight + arbor).moved(Location(SECONDS_ARBOR))
+    weight = extrude(Circle(0.34) - Circle(0.14), z_hi - z_lo).moved(Location((0, -tail - 0.05, z_lo)))
+    collar = Cylinder(0.42, z_hi - (SECONDS_RING_TOP - 0.55), align=(None, None, None)).moved(Location((0, 0, SECONDS_RING_TOP - 0.55)))
+    pivot = Cylinder(0.24, z_hi - SECONDS_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, SECONDS_PINION_TOP)))
+    return (needle + weight + collar + pivot).moved(Location(SECONDS_ARBOR))
 
 
 def cap():
@@ -354,6 +425,10 @@ def main():
         ("hour_hand", hour_hand(), STEEL),
         ("minute_hand", minute_hand(), STEEL),
         ("seconds_hand", seconds_hand(), BLUED),
+        ("seconds_ring", seconds_ring(), DIAL),
+        ("seconds_track", seconds_track(), BLUED),
+        ("seconds_post", seconds_post(+1), STEEL),
+        ("seconds_post_2", seconds_post(-1), STEEL),
         ("cap", cap(), STEEL),
         ("crown", crown(), STEEL),
     ]

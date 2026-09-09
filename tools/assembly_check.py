@@ -119,6 +119,8 @@ def load_case():
         "dial": C.dial().wrapped, "rehaut": C.rehaut().wrapped, "indices": C.indices().wrapped,
         "hour_hand": C.hour_hand().wrapped, "minute_hand": C.minute_hand().wrapped,
         "seconds_hand": C.seconds_hand().wrapped, "cap": C.cap().wrapped, "crown": C.crown().wrapped,
+        "seconds_ring": C.seconds_ring().wrapped, "seconds_track": C.seconds_track().wrapped,
+        "seconds_post": C.seconds_post(+1).wrapped, "seconds_post_2": C.seconds_post(-1).wrapped,
     }
 
 
@@ -166,9 +168,17 @@ def main():
         ("minute_hand", centre, range(0, 360, step),
          ["dial", "cap", "crystal", "rehaut", "indices", "cannon_pinion", "hour_wheel", "hour_hand"]),
         ("seconds_hand", seconds_axis, range(0, 360, step),
-         ["dial", "rehaut", "mainplate", "wheel_seconds", "pinion_seconds", "date_plate", "dial_rest", "hour_hand", "minute_hand", "crystal"]),
+         ["dial", "rehaut", "mainplate", "wheel_seconds", "pinion_seconds", "date_plate", "dial_rest", "hour_hand", "minute_hand", "crystal",
+          "seconds_ring", "seconds_track", "seconds_post", "seconds_post_2"]),
+        ("seconds_ring", None, [0],
+         ["rehaut", "mainplate", "dial", "date_plate", "dial_rest", "hour_wheel", "cannon_wheel", "minute_wheel", "wheel_third", "pinion_third",
+          "intermediate", "intermediate_bearing", "balance", "cock", "lever", "pallet_bridge", "hour_hand", "minute_hand", "seconds_track", "seconds_post", "seconds_post_2"]),
+        ("seconds_post", None, [0],
+         ["mainplate", "date_plate", "dial_rest", "wheel_third", "pinion_third", "intermediate", "pinion_seconds", "balance", "lever", "pallet_bridge", "seconds_track"]),
+        ("seconds_post_2", None, [0],
+         ["mainplate", "date_plate", "dial_rest", "wheel_third", "pinion_third", "intermediate", "pinion_seconds", "balance", "lever", "pallet_bridge", "seconds_track"]),
         ("balance", staff, range(-285, 286, 57),
-         ["mainplate", "hairspring", "cock", "stud", "regulator", "regulator_boot", "rehaut", "dial", "lever"]),
+         ["mainplate", "hairspring", "cock", "stud", "regulator", "regulator_boot", "rehaut", "dial", "lever", "seconds_ring", "seconds_post", "seconds_post_2"]),
         ("hairspring", staff, [0],
          ["collet", "stud", "regulator", "regulator_boot", "stud_carrier", "mainplate", "cock", "balance", "staff", "roller"]),
         ("mainspring", barrel, [0],
