@@ -191,6 +191,20 @@ float3 GrainDirection(float3 P, float3 N, out float ripple)
     return 0;
 }
 
+// ------------------------------------------------------------- noise
+
+float Hash1(float n) { return frac(sin(n) * 43758.5453); }
+float Hash2(float2 p) { return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453); }
+
+// Smooth value noise in 2D, for the lacquer's orange peel.
+float Noise2(float2 p)
+{
+    float2 i = floor(p), f = frac(p);
+    f = f * f * (3 - 2 * f);
+    return lerp(lerp(Hash2(i), Hash2(i + float2(1, 0)), f.x),
+                lerp(Hash2(i + float2(0, 1)), Hash2(i + float2(1, 1)), f.x), f.y);
+}
+
 // ------------------------------------------------------------- shadow
 
 float Shadow(float3 P, float3 N, float NoL)
@@ -272,6 +286,38 @@ PsOut PsMain(VsOut i)
     float rT = lerp(Roughness.y, Roughness.x, aniso);
     float rB = Roughness.y;
     if (Finish == FINISH_PERLAGE) { rT += ripple * 0.10; rB += ripple * 0.10; }
+
+    // ---- the dial's texture
+    // A soleil is not one smooth field: it is thousands of brush lines
+    // laid outward from the centre, each a hair different in depth and
+    // not quite radial, in bundles where the brush dwelt. So per line
+    // (about a twentieth of a millimetre at the rim) the roughness and
+    // the across-grain tilt of the normal wander, and per bundle they
+    // wander again, more slowly. The lobes keep their sweep and gain the
+    // streaked, combed structure a real sunburst has under a lamp. Applied
+    // in the tangent frame so the streaks run WITH the grain.
+    float3 Nc = N;   // the lacquer's normal, perturbed below
+    if (Finish == FINISH_DIAL)
+    {
+        float ang = atan2(P.z, P.x);
+        float brush = Hash1(floor(ang * 260.0) * 7.31);                  // ~1600 lines round
+        float bundle = Noise2(float2(ang * 40.0, 0.37));                 // ~250 bundles round
+        float wobble = (brush - 0.5) * 0.7 + (bundle - 0.5) * 0.35;      // -0.5 .. 0.5
+        rT *= 1.0 + wobble * 0.45;
+        rB *= 1.0 + (bundle - 0.5) * 0.15;
+        N = normalize(N + B * wobble * 0.028);                           // across the grain, up to ~1 degree
+        T = normalize(T - N * dot(T, N));
+        B = cross(N, T);
+        // Lacquer's orange peel: the clear coat is a sprayed film with a
+        // slow ripple about a millimetre across and a fraction of a
+        // degree steep. Its reflection of the room wobbles with it, which
+        // is what separates lacquer from glass to the eye.
+        float2 q = P.xz / 1.15;
+        float e = 0.08;
+        float dx = Noise2(q + float2(e, 0)) - Noise2(q - float2(e, 0));
+        float dz = Noise2(q + float2(0, e)) - Noise2(q - float2(0, e));
+        Nc = normalize(N + float3(dx, 0, dz) * 0.06);
+    }
     rT = clamp(rT, 0.02, 1.0);
     rB = clamp(rB, 0.02, 1.0);
     float at = rT * rT, ab = rB * rB;
@@ -309,9 +355,11 @@ PsOut PsMain(VsOut i)
 
         if (Lacquer > 0)
         {
-            // Clear coat: an isotropic, very smooth dielectric layer on top.
+            // Clear coat: an isotropic, very smooth dielectric layer on top,
+            // on the peel's normal rather than the metal's.
             float a = 0.06 * 0.06;
-            float d = NoH * NoH * (a - 1) + 1;
+            float NcoH = saturate(dot(Nc, H));
+            float d = NcoH * NcoH * (a - 1) + 1;
             float Dc = a / (PI * d * d);
             float Fc = 0.04 + 0.96 * pow(1 - VoH, 5);
             direct += Dc * Fc * 0.25 * Lacquer * NoL * LightColour * shadow;
@@ -368,7 +416,7 @@ PsOut PsMain(VsOut i)
         // same reason the crystal's is: the softbox's eggcrate grid mirrored
         // crisply across the whole dial read as a plaid, and a lacquer a
         // few microns thick over a brushed metal is never that flat anyway.
-        float3 Rc = mul(reflect(-V, N), (float3x3)EnvRot);
+        float3 Rc = mul(reflect(-V, Nc), (float3x3)EnvRot);
         float Fc = 0.04 + 0.96 * pow(1 - NoV, 5);
         specIbl += EnvSpecular.SampleLevel(LinearClamp, Rc, 2.6).rgb * Fc * Lacquer;
     }

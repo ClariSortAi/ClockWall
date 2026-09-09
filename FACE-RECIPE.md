@@ -160,7 +160,25 @@ In order of how much each buys, from `ART-DIRECTION.md`:
 4. indices are faceted geometry (chamfered prisms in the CAD)
 5. the hands cast shadows that sweep (hand heights in the CAD - higher hands throw longer shadows)
 6. the aperture is a recess (the rehaut's well in the CAD, and the occlusion term in `watch.hlsl`)
-7. depth of field, barely (not implemented)
+7. depth of field, barely (`post.hlsl`: a distance target, focus a millimetre behind the dial, capped at a pixel and a half)
+
+## 6b. What makes it a photograph of a thing, not a render of a model
+
+A spotless object is the giveaway. Two masks and one procedural texture,
+all light-driven so they move with the rig:
+
+- **The dial's texture** (`watch.hlsl`, `FINISH_DIAL`): per brush line
+  (about 1600 round) the roughness and the across-grain tilt wander, and
+  per bundle they wander again, so the lobes are combed rather than
+  smooth; and the lacquer has orange peel, a millimetre-scale ripple on the
+  clear coat's normal, which is what tells lacquer from glass. Tune the
+  wobble amplitudes there; too much reads as banding across the lobes.
+- **The crystal's wear** (`tools/crystal_wear.py` -> `Assets/crystal-wear.png`,
+  read by `crystal.hlsl`): one hairline scratch, an arc across the upper
+  left, lit as a groove so it flares only when the key light drifts across
+  it; a second shorter one off the same edge; ten motes of dust. Place the
+  scratch in the tool, by design, outside the open heart so it reads
+  against the dial. "Ever so slight but noticeable" is the brief.
 
 ## 7. The wall
 

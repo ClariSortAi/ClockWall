@@ -70,6 +70,36 @@ internal static class Gpu
     /// dial's printing (see tools/dial_print.py); everything else it shows
     /// is geometry and light.
     /// </summary>
+    /// <summary>A colour PNG as an RGBA8 texture, channels kept: the
+    /// crystal's wear mask carries three (scratch, dust, direction).</summary>
+    public static ID3D11ShaderResourceView LoadRgba(ID3D11Device device, string path)
+    {
+        using var stream = File.OpenRead(path);
+        var decoder = Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(stream.AsRandomAccessStream()).AsTask().GetAwaiter().GetResult();
+        var bgra = decoder.GetPixelDataAsync(
+            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+            Windows.Graphics.Imaging.BitmapAlphaMode.Ignore,
+            new Windows.Graphics.Imaging.BitmapTransform(),
+            Windows.Graphics.Imaging.ExifOrientationMode.IgnoreExifOrientation,
+            Windows.Graphics.Imaging.ColorManagementMode.DoNotColorManage).AsTask().GetAwaiter().GetResult().DetachPixelData();
+        var width = (int)decoder.PixelWidth;
+        var height = (int)decoder.PixelHeight;
+        var description = new Texture2DDescription
+        {
+            Width = (uint)width, Height = (uint)height, MipLevels = 1, ArraySize = 1,
+            Format = Format.B8G8R8A8_UNorm, SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Immutable, BindFlags = BindFlags.ShaderResource,
+        };
+        unsafe
+        {
+            fixed (byte* p = bgra)
+            {
+                using var texture = device.CreateTexture2D(description, new[] { new SubresourceData((nint)p, (uint)(width * 4)) });
+                return device.CreateShaderResourceView(texture);
+            }
+        }
+    }
+
     public static ID3D11ShaderResourceView LoadMask(ID3D11Device device, string path)
     {
         using var stream = File.OpenRead(path);

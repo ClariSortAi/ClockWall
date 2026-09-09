@@ -79,7 +79,7 @@ internal sealed class WatchScene : IDisposable
     private readonly ID3D11Texture2D _shadowTex;
     private readonly ID3D11DepthStencilView _shadowDsv;
     private readonly ID3D11ShaderResourceView _shadowSrv;
-    private readonly ID3D11ShaderResourceView _dialPrint;
+    private readonly ID3D11ShaderResourceView _dialPrint, _crystalWear;
 
     private int _width, _height;
     private ID3D11Texture2D? _colourMsaa, _depthMsaa, _resolved, _distanceMsaa, _distance;
@@ -242,6 +242,7 @@ internal sealed class WatchScene : IDisposable
         _movement = GltfLoader.Load(device, Path.Combine(assetDirectory, "movement.glb"));
         _case = GltfLoader.Load(device, Path.Combine(assetDirectory, "case.glb"));
         _dialPrint = Gpu.LoadMask(device, Path.Combine(assetDirectory, "dial-print.png"));
+        _crystalWear = Gpu.LoadRgba(device, Path.Combine(assetDirectory, "crystal-wear.png"));
 
         foreach (var required in new[] { "case", "dial", "rehaut", "indices", "hour_hand", "minute_hand", "seconds_hand", "cap", "crystal" })
         {
@@ -556,7 +557,9 @@ internal sealed class WatchScene : IDisposable
         ctx.OMSetBlendState(_blendCrystal);
         ctx.VSSetShader(_vsCrystal);
         ctx.PSSetShader(_psCrystal);
+        ctx.PSSetShaderResource(1, _crystalWear);
         Draw(_case["crystal"], d.Polished, Matrix4x4.Identity);
+        ctx.PSSetShaderResource(1, null);
 
         // ---- 4. resolve and present
         ctx.PSSetShaderResource(3, null);
@@ -788,7 +791,7 @@ internal sealed class WatchScene : IDisposable
             _vsWatch, _vsShadow, _vsCrystal, _vsPost, _psWatch, _psShadow, _psCrystal, _psPost, _layout,
             _frameCb, _objectCb, _postCb, _linearClamp, _shadowCmp, _point, _rasterMain, _rasterShadow, _rasterCrystal,
             _depthOn, _depthReadOnly, _depthOff, _blendOpaque, _blendCrystal, _blendSmear,
-            _shadowSrv, _shadowDsv, _shadowTex, _dialPrint, _environment,
+            _shadowSrv, _shadowDsv, _shadowTex, _dialPrint, _crystalWear, _environment,
         }) disposable.Dispose();
     }
 }

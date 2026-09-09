@@ -42,6 +42,7 @@ cbuffer Object : register(b1)
 };
 
 TextureCube<float4> EnvSpecular : register(t0);
+Texture2D<float4>   Wear        : register(t1);   // R scratch, G dust, B scratch direction / pi; face units
 SamplerState        LinearClamp : register(s0);
 
 struct VsIn  { float3 pos : POSITION; float3 nrm : NORMAL; };
@@ -86,5 +87,30 @@ float4 PsMain(VsOut i) : SV_Target
     float glint = a / (3.14159 * d * d) * 0.25 * saturate(dot(N, LightDir));
 
     float3 colour = env * F + LightColour * glint * F * 6.0;
+
+    // ---- the wear: one hairline scratch and a little dust (tools/crystal_wear.py)
+    // A scratch is a groove: a tiny cylinder lying in the surface. It
+    // scatters light like a hair does (Kajiya-Kay) - brightest where the
+    // half-vector lies ACROSS it - so it is invisible from most angles and
+    // flares as the rig drifts the key light over it, which is exactly the
+    // way a real scratch announces itself. It also catches a little of the
+    // whole room, which is why a scratch shows faintly against a dark dial
+    // even out of the glint. Dust is the opposite: a speck sitting proud of
+    // the glass, lit from above by the key and by the room, and not
+    // anisotropic at all. Both are additive, like the rest of this pass.
+    float2 faceUv = i.world.xz * (11.780018 / 640.0) + 0.5;
+    float3 wear = Wear.Sample(LinearClamp, faceUv).rgb;
+    if (wear.r + wear.g > 0.002)
+    {
+        float a = wear.b * 3.14159;
+        float3 Tsc = float3(cos(a), 0, -sin(a));       // along the stroke, face x-right / y-up onto world x / -z
+        float TH = dot(Tsc, H);
+        float sinTH = sqrt(saturate(1 - TH * TH));
+        float groove = pow(sinTH, 40.0) * saturate(dot(N, LightDir));
+        float3 roomAvg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 4.5).rgb;
+        float3 scratch = (LightColour * groove * 0.9 + roomAvg * 0.35) * wear.r;
+        float3 dust = (LightColour * saturate(dot(N, LightDir)) * 0.30 + roomAvg * 0.45) * wear.g * float3(0.92, 0.92, 0.88);
+        colour += scratch + dust;
+    }
     return float4(colour * Exposure, 0);
 }

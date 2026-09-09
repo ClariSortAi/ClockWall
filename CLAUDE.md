@@ -24,6 +24,7 @@ operational layer.
     python tools/assembly_check.py --quick   # exact interference check, our solids against the OM10's (~15 min)
     python tools/print_export.py         # the print set: one STL per part at print scale, bores opened -> captures/print/
     python tools/dial_print.py           # regenerates Assets/dial-print.png
+    python tools/crystal_wear.py         # regenerates Assets/crystal-wear.png (the scratch and the dust)
 
     .\deploy.ps1 -NoRestart -Dest "$env:LOCALAPPDATA\Programs\ClockWall-dev"   # a dev install that leaves the wall's copy running
 
