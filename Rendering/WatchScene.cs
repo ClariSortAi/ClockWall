@@ -224,12 +224,19 @@ internal sealed class WatchScene : IDisposable
         ("minute_wheel_pinion", new(3.32f, -2.72f), Drive.MinuteWheel),
         ("barrel", new(3.77f, 6.67f), Drive.Barrel),
         ("barrel_cover", new(3.77f, 6.67f), Drive.Barrel),
+        // The centre-seconds conversion on the back (tools/sweep_seconds.py):
+        // the transfer wheel on the fourth wheel's pivot, the idler against
+        // it, the centre wheel and its arbor at the middle, once a minute.
+        ("sweep_transfer", new(-8.00f, 0.00f), Drive.Seconds),
+        ("sweep_idler", new(-4.00f, -1.83f), Drive.SweepIdler),
+        ("sweep_wheel", new(0f, 0f), Drive.Seconds),
+        ("sweep_arbor", new(0f, 0f), Drive.Seconds),
         ("mainspring", new(3.77f, 6.67f), Drive.Barrel),
         // The ratchet wheel sits on the barrel ARBOR, which turns only when
         // the watch is wound; the barrel body turns round it while it runs.
     };
 
-    private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour, MinuteWheel, Barrel }
+    private enum Drive { Balance, Hairspring, Escape, Fork, Seconds, Third, Centre, Intermediate, Minute, Hour, MinuteWheel, Barrel, SweepIdler }
 
     /// <summary>How far the pallet lever banks either side of centre, in
     /// degrees, for a full swing of the fork. Real, not exaggerated: the
@@ -722,6 +729,7 @@ internal sealed class WatchScene : IDisposable
                     Drive.Hour => reading.Hour,
                     Drive.MinuteWheel => -reading.Minute * MinuteWheelPerMinute,
                     Drive.Barrel => -reading.Train * BarrelPerSeconds,
+                    Drive.SweepIdler => -reading.Train,      // forty against forty: the same rate, the other way
                     _ => 0.0,
                 };
                 // The balance at speed covers up to a hundred degrees between
@@ -769,7 +777,9 @@ internal sealed class WatchScene : IDisposable
         }
         Draw(_case["hour_hand"], CaseMaterial("hour_hand"), ScreenClockwise((float)reading.Hour));
         Draw(_case["minute_hand"], CaseMaterial("minute_hand"), ScreenClockwise((float)reading.Minute));
-        Draw(_case["seconds_hand"], CaseMaterial("seconds_hand"), ScreenClockwiseAbout((float)reading.Second, _secondsArbor));
+        // The centre seconds: on the sweep arbor at the middle, the fourth
+        // wheel's own angle brought there by the module.
+        Draw(_case["seconds_hand"], CaseMaterial("seconds_hand"), ScreenClockwise((float)reading.Second));
 
         // The smears, last: translucent over everything opaque, depth-tested
         // against it, writing none of their own.

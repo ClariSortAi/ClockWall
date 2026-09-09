@@ -400,6 +400,32 @@ steel hand with a counterweight on the pinion's extended pivot. The
 shader's recess term takes the keyhole as two circles (`Aperture2`). The
 heart was not made smaller, on the owner's instruction; it got bigger.
 
+**The centre-seconds conversion (2026-09-09).** The owner wanted a sweep
+hand. The OM10 has nothing at its centre turning once a minute and a solid
+centre post, so this is a conversion, done the way they have been done for
+a century: an indirect centre seconds on the back (`tools/sweep_seconds.py`,
+`models/step/sweep-seconds.step`). Where it could go was measured off the
+solids first: the dial side is crowded to the middle by the motion works
+and the cannon pinion's pipe is blind; the back, below the barrel bridge
+and the train bridge, is free to the caseback. So: a transfer wheel on the
+fourth pinion's lengthened back pivot, an idler on a stud, a centre wheel
+on a dia 0.30 arbor, all 40 teeth at the train's module 0.11 (involute,
+20 degrees, generated), under a Y-shaped cock with two jewels screwed to
+the two bridges, with a friction spring on the centre wheel's hub. The
+arbor runs up through the barrel bridge, the centre post (a 0.17 mm tube
+now, as centre tubes are) and the cannon pinion, drilled through, to a
+polished hand with a counterweight above the minute hand. The hands came
+down (hour 0.75, minute 1.15) so the sweep hand clears the crystal by 0.3;
+the cap is a ring; the case is 1.8 deeper and the caseback further back,
+which also fixed a caseback that had sat 0.1 mm INTO the bridges' backs
+unchecked. The small-seconds fixture and its keyhole are retired (the bar
+and its bosses stay: the bearings still need holding). The assembly check
+turns the meshing pairs together through a tooth pitch, and the arbor
+through its four bores. Every changed OM10 solid is listed in
+`ATTRIBUTION.md`. What is NOT modelled: the module's extra friction on the
+train (the mechanism's friction fraction is unchanged), and the fourth
+wheel's endshake with the longer pivot.
+
 **7. Cosmetic - done; the crystal since redone as glass.** The crystal is
 now a box sapphire with a bevel standing proud of the bezel, and its shader
 a light path: a four-layer anti-reflective stack by the transfer-matrix

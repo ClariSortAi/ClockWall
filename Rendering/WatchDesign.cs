@@ -132,7 +132,7 @@ internal sealed record WatchDesign
             ApertureCentre = aperture,
             ApertureRadius = 10.2f,
             Aperture2Centre = new Vector3(-8f, 0f, 0f),
-            Aperture2Radius = 4.6f,
+            Aperture2Radius = 0f,          // the keyhole closed with the centre-seconds conversion
 
             MovementY = -4.81f,
             CotesDirection = new Vector3(0.94f, 0f, 0.34f),
@@ -153,16 +153,7 @@ internal sealed record WatchDesign
                 ["indices"] = steel,
                 ["hour_hand"] = steel,
                 ["minute_hand"] = steel,
-                ["seconds_hand"] = steel with { Recess = true },
-                // The small-seconds chapter ring: black lacquer over brass,
-                // its engraved track filled with white ink, on two polished
-                // posts; the hand polished steel like the big hands. Dark
-                // ring, bright marks, bright hand: the well is dim and the
-                // wall is far, and a blued hand on a white ring vanished.
-                ["seconds_ring"] = new(new Vector3(0.03f, 0.03f, 0.035f), 0f, 0.30f, 0.30f, Recess: true, Lacquer: 0.5f),
-                ["seconds_track"] = new(new Vector3(0.85f, 0.85f, 0.82f), 0f, 0.6f, 0.6f, Recess: true),
-                ["seconds_post"] = steel with { Recess = true },
-                ["seconds_post_2"] = steel with { Recess = true },
+                ["seconds_hand"] = steel,      // the centre seconds, over the dial under the crystal
                 ["cap"] = steel,
                 ["crown"] = new(Material.Steel, 1f, 0.10f, 0.22f, Finish.Circular, FinishCentre: new Vector3(28.5f, 0f, 0f)),
             },
@@ -179,6 +170,15 @@ internal sealed record WatchDesign
                 ["wheel_centre"] = brass,
                 ["wheel_third"] = brass,
                 ["wheel_seconds"] = brass,
+                // The centre-seconds conversion, on the back: brass wheels,
+                // a steel arbor and stud, a cock finished like the bridges.
+                ["sweep_transfer"] = brass,
+                ["sweep_idler"] = brass,
+                ["sweep_wheel"] = brass,
+                ["sweep_arbor"] = new(Material.Steel, 1f, 0.10f, 0.10f, Recess: true),
+                ["sweep_stud"] = new(Material.Steel, 1f, 0.10f, 0.10f, Recess: true),
+                ["sweep_cock"] = new(Material.Plate, 1f, 0.14f, 0.34f, Finish.Straight, FinishScale: 1.35f, FinishDir: Vector3.UnitX, Recess: true),
+                ["sweep_spring"] = new(Material.Blued, 1f, 0.22f, 0.22f, Recess: true),
                 ["intermediate"] = brass,
                 ["cannon_wheel"] = brass,
                 ["minute_wheel"] = brass,

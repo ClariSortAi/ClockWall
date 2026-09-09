@@ -106,8 +106,13 @@ HOUR_COLLAR_R = 1.10                     # the hour hand's pipe, over the minute
 DIAL_BORE_R = HOUR_COLLAR_R + 0.05       # the dial's centre hole clears the outer collar
 STEM_Z = MOVEMENT_Z                      # the OM10's stem lies in its y = 0 plane
 
-HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=1.05, ridge=0.19)
-MINUTE = dict(length=214 * U, half_w=9 * U, shoulder=54 * U, tail=40 * U, base=1.55, ridge=0.16)
+# Lowered for the centre seconds: the sweep hand rides over the minute
+# hand and under the crystal's underside (1.9), and 0.3 mm to spare there
+# is what a watch has.
+HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=0.75, ridge=0.19)
+MINUTE = dict(length=214 * U, half_w=9 * U, shoulder=54 * U, tail=40 * U, base=1.15, ridge=0.16)
+SWEEP = dict(length=270 * U, tail=95 * U, half_w=0.09, base=1.42, thick=0.10)   # the centre seconds hand
+SWEEP_ARBOR_R = 0.15                     # sweep_seconds.ARBOR_R; its top at world 1.54
 CAP_R = 13 * U
 
 # ------------------------------------------------------------------ materials
@@ -158,7 +163,7 @@ def case():
         (ri - 0.8, -DIAL_T), (ri, -DIAL_T), (ri, seat), (ri + 0.35, seat), on_dome(x0),
         ("arc", on_dome((x0 + x1) / 2), on_dome(x1)),
         ("arc", (edge_c[0] + edge_r * math.cos(math.radians(45)), edge_c[1] + edge_r * math.sin(math.radians(45))), (ro, edge_c[1])),
-        (ro, -6.5), (ro - 1.5, -7.0), (ri - 0.8, -7.0),
+        (ro, -8.3), (ro - 1.5, -8.8), (ri - 0.8, -8.8),   # deeper by 1.8 for the sweep module and a caseback that clears the bridges
     ]
     band = revolve(profile(pts), Axis.Z)
     # The stem hole: the OM10's stem (OM10-00225) runs out at three in its
@@ -169,10 +174,14 @@ def case():
     return band - hole
 
 
+CASEBACK_Z = -10.2                       # its outer face; inner face -8.8, 0.3 behind the sweep module's screw heads
+
+
 def caseback():
     """A snap back closing the band. Not visible from the front; here so the
-    case is a vessel and not a ring."""
-    return Cylinder(BEZEL_IN - 0.8 - 0.05, 1.4, align=(None, None, None)).moved(Location((0, 0, -8.4)))
+    case is a vessel and not a ring. It sat at -8.4 once, which put its
+    inner face 0.1 mm INTO the bridges' back faces; nothing had checked it."""
+    return Cylinder(BEZEL_IN - 0.8 - 0.05, 1.4, align=(None, None, None)).moved(Location((0, 0, CASEBACK_Z)))
 
 
 def crystal():
@@ -199,7 +208,9 @@ WELL_DEPTH_AT_SECONDS = 2.8              # the well wall stops above the plate's
 
 
 def window():
-    return Circle(APERTURE_R).moved(Location(APERTURE)) + Circle(SECONDS_WIN_R).moved(Location(SECONDS_ARBOR))
+    # Round again: the keyhole carried the small-seconds sub-dial, and the
+    # centre seconds retired it.
+    return Circle(APERTURE_R).moved(Location(APERTURE))
 
 
 def dial():
@@ -211,17 +222,12 @@ def dial():
 
 def rehaut():
     """The polished ring standing in the opening, with the well wall inside
-    it: a flange on the dial, chamfered, and the wall down into the well -
-    deep round the heart, shallower round the seconds where the plate's bar
-    stands higher."""
-    win = window()
-    flange = extrude(offset(win, 0.6) - win, 0.36)
-    flange = chamfer(flange.edges().group_by(Axis.Z)[-1], 0.12)
-    wall = extrude(offset(win, WELL_WALL) - win, WELL_DEPTH_AT_SECONDS).moved(Location((0, 0, -WELL_DEPTH_AT_SECONDS)))
-    heart = Circle(APERTURE_R).moved(Location(APERTURE))
-    bulge = offset(Circle(SECONDS_WIN_R).moved(Location(SECONDS_ARBOR)), WELL_WALL)
-    deep = extrude((offset(heart, WELL_WALL) - heart) - bulge, WELL_DEPTH - WELL_DEPTH_AT_SECONDS).moved(Location((0, 0, -WELL_DEPTH)))
-    return flange + wall + deep
+    it. A lathe part again now the opening is round; the keyhole's
+    offset-built version is in the history with the sub-dial it served."""
+    ri, ro = APERTURE_R, REHAUT_OUT
+    pts = [(ro, 0.0), (ro, 0.22), (ro - 0.14, 0.36), (ri + 0.16, 0.36), (ri, 0.20),
+           (ri, -WELL_DEPTH), (ri + WELL_WALL, -WELL_DEPTH), (ri + WELL_WALL, 0.0)]
+    return revolve(profile(pts), Axis.Z).moved(Location(APERTURE))
 
 
 def baton(deg, half_w, offset):
@@ -312,7 +318,9 @@ def minute_hand():
     # pipe, so a tube bored to the pipe, reaching down over its top.
     top = m["base"] + m["ridge"]
     tube = Cylinder(MINUTE_COLLAR_R, top - (CANNON_PINION_TOP - 0.3), align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP - 0.3)))
-    bore = Cylinder(CANNON_PIPE_R + 0.01, top - 0.15 - (CANNON_PINION_TOP - 0.4), align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP - 0.4)))
+    # Bored right through now: the sweep arbor and the seconds hand's pipe
+    # pass up the middle. It was blind by 0.15 while nothing did.
+    bore = Cylinder(CANNON_PIPE_R + 0.01, top + 0.2 - (CANNON_PINION_TOP - 0.4), align=(None, None, None)).moved(Location((0, 0, CANNON_PINION_TOP - 0.4)))
     return (hand + tube) - bore
 
 
@@ -386,8 +394,9 @@ def seconds_post(sign):
     return (post + head - slot).moved(Location(SECONDS_ARBOR))
 
 
-def seconds_hand():
-    """A blued needle with a counterweight, riding 0.2 mm over the ring's
+def small_seconds_hand():
+    """RETIRED with the centre-seconds conversion, kept with the fixture.
+    A blued needle with a counterweight, riding 0.2 mm over the ring's
     face on a collar pressed onto the pinion's extended pivot."""
     # Bolder than a blued sliver: the well is dark and the wall is far.
     length, tail, w, z_lo, z_hi = 4.0, 1.25, 0.13, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.32
@@ -400,19 +409,29 @@ def seconds_hand():
 
 
 def cap():
-    """The hand nut over the pivots, a low dome."""
-    # A low dome over the minute hand's boss: from the boss's top to a
-    # hair under the crystal's underside. It used to reach down through
-    # both hands' collars, and the assembly check said so.
+    """The minute hand's boss cover: a low ring now, under the sweep hand,
+    with the arbor through its middle. It was a dome to the crystal when
+    nothing passed through it."""
     r = CAP_R * 0.85
     base = MINUTE["base"] + MINUTE["ridge"]
-    top = CRYSTAL_UNDER - 0.05
-    sag = top - base
-    sphere_r = (r * r + sag * sag) / (2 * sag)
-    cz = top - sphere_r
-    mid_x = r * 0.6
-    pts = [(0, base), (r, base), ("arc", (mid_x, cz + math.sqrt(sphere_r ** 2 - mid_x ** 2)), (0, top))]
+    top = SWEEP["base"] - 0.06
+    pts = [(0.37, base), (r, base), (r, top - 0.03), (r - 0.03, top), (0.37, top)]   # the hand's pipe (r 0.32) passes through
     return revolve(profile(pts), Axis.Z)
+
+
+def seconds_hand():
+    """The centre seconds: a long thin polished needle with a counterweight,
+    on a pipe pressed over the sweep arbor's top, riding above the minute
+    hand and under the crystal."""
+    s = SWEEP
+    z_lo, z_hi = s["base"], s["base"] + s["thick"]
+    w = s["half_w"]
+    outline = [(-0.025, s["length"]), (0.025, s["length"]), (w, 1.5), (w, -s["tail"]), (-w, -s["tail"]), (-w, 1.5)]
+    needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
+    weight = extrude(Circle(0.55) - Circle(0.22), z_hi - z_lo).moved(Location((0, -s["tail"] - 0.15, z_lo)))
+    pipe = Cylinder(0.32, 1.60 - (z_lo - 0.18), align=(None, None, None)).moved(Location((0, 0, z_lo - 0.18)))
+    bore = Cylinder(SWEEP_ARBOR_R + 0.005, 1.55 - (z_lo - 0.3), align=(None, None, None)).moved(Location((0, 0, z_lo - 0.3)))
+    return (needle + weight + pipe) - bore
 
 
 def crown():
@@ -444,10 +463,6 @@ def main():
         ("hour_hand", hour_hand(), STEEL),
         ("minute_hand", minute_hand(), STEEL),
         ("seconds_hand", seconds_hand(), STEEL),
-        ("seconds_ring", seconds_ring(), BLUED),
-        ("seconds_track", seconds_track(), DIAL),
-        ("seconds_post", seconds_post(+1), STEEL),
-        ("seconds_post_2", seconds_post(-1), STEEL),
         ("cap", cap(), STEEL),
         ("crown", crown(), STEEL),
     ]

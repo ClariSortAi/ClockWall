@@ -4148,5 +4148,38 @@
    -0.193,
    -13.62
   ]
+ },
+ "sweep_transfer": {
+  "source": "designed"
+ },
+ "sweep_idler": {
+  "source": "designed"
+ },
+ "sweep_wheel": {
+  "source": "designed"
+ },
+ "sweep_arbor": {
+  "source": "designed"
+ },
+ "sweep_stud": {
+  "source": "designed"
+ },
+ "sweep_cock": {
+  "source": "designed"
+ },
+ "sweep_jewel": {
+  "source": "designed"
+ },
+ "sweep_jewel_2": {
+  "source": "designed"
+ },
+ "sweep_screw": {
+  "source": "designed"
+ },
+ "sweep_screw_2": {
+  "source": "designed"
+ },
+ "sweep_spring": {
+  "source": "designed"
  }
 }

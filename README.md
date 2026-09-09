@@ -144,6 +144,10 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
 - `C` cycles the clock faces: analogue, mechanical (sprites), digital, live. The
   choice persists by name in `%LOCALAPPDATA%\ClockWall\clock-mode.txt` and survives
   every rebuild - a stale value looks exactly like a build that did nothing.
+- The live face carries a centre seconds. The OM10 is a small-seconds calibre, so
+  this is a conversion, an indirect sweep-seconds module on the back designed as
+  solids (`tools/sweep_seconds.py`) and checked against the movement; the hand
+  turns at the fourth wheel's rate, once a minute, through the module.
 - The live face's movement is simulated, not read off the system clock: it keeps
   its own rate, runs down in about sixty hours and stops, and keeps running while
   the machine sleeps. The crown is the keyboard: `W` winds; `S` pulls the crown

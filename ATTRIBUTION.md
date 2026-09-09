@@ -100,6 +100,21 @@ diameter that `tools/om10_fits.py` measured off the file itself
 files, and it is recorded here so that the opened bush is not taken for
 openmovement's dimension.
 
+## The centre-seconds conversion, 2026-09-09
+
+The OM10 is a small-seconds calibre. The owner asked for a centre seconds,
+and the export now carries an indirect sweep-seconds module of our own
+design on the movement's back (`tools/sweep_seconds.py`: three 40-tooth
+wheels, an arbor, a stud, a cock, two jewels, two screws, a friction
+spring) and, to fit it, modifies four OM10 solids on the way out: the
+fourth wheel's pinion `OM10-00164` gets a lengthened back pivot, the
+barrel bridge `OM10-00199`, the centre post `OM00-00138` and the cannon
+pinion `OM10-00127` are bored 0.36 mm for the arbor. As with the open-heart
+cut, these are changes to a derived copy made at export time; the OM10 files
+are untouched, and the result is an OM10 with a centre-seconds conversion,
+not an OM10. They are recorded here so that the modified parts are not
+taken for openmovement's design.
+
 The source STEP (`om10-00001_20220701_va_01_3.stp`, 18.8 MB) and the release
 notes (`OM10_Release_notes.pdf`, which name the parts) are the owner's copies
 from openmovement's free registration, kept outside the repository.

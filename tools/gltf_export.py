@@ -297,9 +297,10 @@ BAR_TOP_Y = 1.85                       # the jewel seats end at 1.65
 SECONDS_ARBOR_CAD = (0.0, 8.0)         # cad (x, z): world (-8, 0)
 THIRD_ARBOR_CAD = (4.453, 8.124)       # cad (x, z): world (-8.12, -4.45)
 BOSS_R = 1.45
-# The keyhole: the window bulges out round the seconds arbor so a real
-# sub-dial fits there; case_solids.SECONDS_WIN_R plus the wall.
-SECONDS_WINDOW_R = 4.6 + 0.55
+# The keyhole the small-seconds sub-dial had: the window bulged out round
+# the seconds arbor. Closed (0) since the centre-seconds conversion; the
+# bar and its bosses stay, because the bearings still need holding.
+SECONDS_WINDOW_R = 0.0
 BAR_CLEAR_OF_WALL = 0.60               # the well wall is 0.5 thick inside the window's edge, plus clearance
 # The parts the window is cut through: the plate and the two dial-side plates
 # over it. Nothing that moves, nothing that is a jewel.
@@ -345,12 +346,16 @@ def use_print_bores(enabled=True):
 
 def prepared(name, shape):
     """Every change made to an OM10 solid on its way out: the open-heart
-    cut, the opened bore, and under --print the printable bore set. The
-    assembly check uses the same one."""
+    cut, the opened bore, the centre-seconds conversion's modifications,
+    and under --print the printable bore set. The assembly check uses the
+    same one."""
     if name in OPEN_HEART_CUT:
         shape = open_heart(shape)
     if name in BORED:
         shape = bore_open(shape, *BORED[name])
+    import sweep_seconds
+    if name in sweep_seconds.MODIFIED:
+        shape = sweep_seconds.MODIFIED[name](shape)
     if PRINT_BORES:
         # After BORED rather than instead of it. BORED is the wall's fix for
         # the one interference the STEP carries and is a fact about the file;
@@ -376,7 +381,9 @@ def open_heart(shape):
         # on its side and centre it at the given height.
         return Cylinder(r, h, align=(None, None, None)).moved(Location((x, y, z), (90, 0, 0)))
 
-    window = cyl(OPEN_HEART_R, cx, cz) + cyl(SECONDS_WINDOW_R, sx, sz)
+    window = cyl(OPEN_HEART_R, cx, cz)
+    if SECONDS_WINDOW_R > 0:
+        window = window + cyl(SECONDS_WINDOW_R, sx, sz)
 
     def bar_between(p0, p1, extend0, extend1):
         (x0, z0), (x1, z1) = p0, p1
@@ -397,7 +404,9 @@ def open_heart(shape):
     # The bars stop short of the well wall, which stands in the outer half
     # millimetre of the window; the assembly check found a bar's end
     # inside the wall.
-    inside = cyl(OPEN_HEART_R - BAR_CLEAR_OF_WALL, cx, cz) + cyl(SECONDS_WINDOW_R - BAR_CLEAR_OF_WALL, sx, sz)
+    inside = cyl(OPEN_HEART_R - BAR_CLEAR_OF_WALL, cx, cz)
+    if SECONDS_WINDOW_R > 0:
+        inside = inside + cyl(SECONDS_WINDOW_R - BAR_CLEAR_OF_WALL, sx, sz)
     bar = bar & inside
     return (part - (window - bar)).wrapped
 
@@ -503,6 +512,18 @@ def main():
         if name in names:
             raise SystemExit("duplicate name %s for %s and %s" % (name, names[name], tag))
         names[name] = tag
+        parts.append((name, verts, norms, faces, steel))
+        total += len(faces)
+
+    # The centre-seconds conversion's own parts, on the back. See sweep_seconds.py.
+    import sweep_seconds
+    for name, solid in sweep_seconds.parts():
+        got = tessellate_shape(solid.wrapped, args.deflection * 2.0, args.angular)
+        if got is None:
+            continue
+        verts, norms, faces = got
+        verts, norms = om10_to_world(verts, norms)
+        names[name] = "designed"
         parts.append((name, verts, norms, faces, steel))
         total += len(faces)
 

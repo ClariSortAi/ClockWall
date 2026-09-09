@@ -25,6 +25,7 @@ operational layer.
     python tools/print_export.py         # the print set: one STL per part at print scale, bores opened -> captures/print/
     python tools/dial_print.py           # regenerates Assets/dial-print.png
     python tools/crystal_wear.py         # regenerates Assets/crystal-wear.png (the scratch and the dust)
+    python tools/sweep_seconds.py        # the centre-seconds module -> models/step/sweep-seconds.step (gltf_export applies it)
 
     .\deploy.ps1 -NoRestart -Dest "$env:LOCALAPPDATA\Programs\ClockWall-dev"   # a dev install that leaves the wall's copy running
 

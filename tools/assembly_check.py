@@ -47,6 +47,16 @@ SPECK = 1e-4   # mm^3: below this is tessellation noise on a touching face
 # drawn as one solid in another. Reported as "joined", not as a clash.
 JOINED = {
     ("mainspring", "barrel_arbor"): "the inner end hooked on the arbor, 0.037 mm3 of the hook in the hub",
+    ("sweep_transfer", "pinion_seconds"): "pressed on the lengthened pivot's seat",
+    ("sweep_wheel", "sweep_arbor"): "pressed on the arbor",
+    ("sweep_stud", "sweep_cock"): "the stud pressed into the cock",
+    ("sweep_screw", "barrel_bridge"): "threaded into the barrel bridge",
+    ("sweep_screw_2", "bridge"): "threaded into the train bridge",
+    ("sweep_screw", "sweep_cock"): "through the cock's foot",
+    ("sweep_screw_2", "sweep_cock"): "through the cock's foot",
+    ("sweep_screw", "sweep_spring"): "clamping the spring",
+    ("sweep_arbor", "sweep_wheel"): "pressed on the arbor",
+    ("sweep_spring", "sweep_wheel"): "the spring bearing on the hub, by design",
 }
 
 
@@ -110,6 +120,10 @@ def load_movement():
         else:
             shape = G.read_step(path)
         parts[name] = transformed(G.prepared(name, shape), trsf)
+    # The centre-seconds conversion's own parts, in the same frame.
+    import sweep_seconds
+    for name, solid in sweep_seconds.parts():
+        parts[name] = transformed(solid.wrapped, trsf)
     return parts
 
 
@@ -119,8 +133,6 @@ def load_case():
         "dial": C.dial().wrapped, "rehaut": C.rehaut().wrapped, "indices": C.indices().wrapped,
         "hour_hand": C.hour_hand().wrapped, "minute_hand": C.minute_hand().wrapped,
         "seconds_hand": C.seconds_hand().wrapped, "cap": C.cap().wrapped, "crown": C.crown().wrapped,
-        "seconds_ring": C.seconds_ring().wrapped, "seconds_track": C.seconds_track().wrapped,
-        "seconds_post": C.seconds_post(+1).wrapped, "seconds_post_2": C.seconds_post(-1).wrapped,
     }
 
 
@@ -160,6 +172,8 @@ def main():
     escape = om10_axis(-3.68, 7.90)
     barrel = om10_axis(6.67, -3.77)
     intermediate = om10_axis(1.53, 4.125)
+    import sweep_seconds
+    sweep_idler_axis = om10_axis(*sweep_seconds.IDLER)
 
     # (moving part, axis, angles, the parts it may touch)
     checks = [
@@ -167,17 +181,26 @@ def main():
          ["dial", "cap", "crystal", "rehaut", "indices", "cannon_pinion", "hour_wheel", "cannon_wheel", "minute_hand"]),
         ("minute_hand", centre, range(0, 360, step),
          ["dial", "cap", "crystal", "rehaut", "indices", "cannon_pinion", "hour_wheel", "hour_hand"]),
-        ("seconds_hand", seconds_axis, range(0, 360, step),
-         ["dial", "rehaut", "mainplate", "wheel_seconds", "pinion_seconds", "date_plate", "dial_rest", "hour_hand", "minute_hand", "crystal",
-          "seconds_ring", "seconds_track", "seconds_post", "seconds_post_2"]),
-        ("seconds_ring", None, [0],
-         ["rehaut", "mainplate", "dial", "date_plate", "dial_rest", "hour_wheel", "cannon_wheel", "minute_wheel", "wheel_third", "pinion_third",
-          "intermediate", "intermediate_bearing", "balance", "cock", "lever", "pallet_bridge", "hour_hand", "minute_hand", "seconds_track", "seconds_post", "seconds_post_2",
-          "train_bearing", "train_bearing_2", "pinion_seconds"]),
-        ("seconds_post", None, [0],
-         ["mainplate", "date_plate", "dial_rest", "wheel_third", "pinion_third", "intermediate", "pinion_seconds", "balance", "lever", "pallet_bridge", "seconds_track"]),
-        ("seconds_post_2", None, [0],
-         ["mainplate", "date_plate", "dial_rest", "wheel_third", "pinion_third", "intermediate", "pinion_seconds", "balance", "lever", "pallet_bridge", "seconds_track"]),
+        # The centre seconds hand, over everything, under the crystal.
+        ("seconds_hand", centre, range(0, 360, step),
+         ["dial", "rehaut", "indices", "hour_hand", "minute_hand", "cap", "crystal", "cannon_pinion", "hour_wheel"]),
+        # The conversion on the back: the arbor turns through four parts.
+        ("sweep_arbor", centre, [0, 90],
+         ["barrel_bridge", "centre_post", "cannon_pinion", "mainplate", "hour_wheel", "cannon_wheel", "minute_wheel", "sweep_jewel", "sweep_cock",
+          "cap", "hour_hand", "minute_hand", "dial", "sweep_wheel", "sweep_spring"]),
+        ("sweep_wheel", centre, [0, 4.5],
+         ["sweep_cock", "sweep_jewel", "sweep_spring", "barrel_bridge", "ratchet_wheel", "sweep_screw", "sweep_screw_2", "sweep_arbor"]),
+        ("sweep_transfer", seconds_axis, [0, 4.5],
+         ["sweep_cock", "sweep_stud", "bridge", "train_bearing_back_2", "sweep_jewel_2", "sweep_screw_2", "barrel_bridge", "pinion_seconds"]),
+        ("sweep_idler", sweep_idler_axis, [0, 4.5],
+         ["sweep_cock", "sweep_stud", "bridge", "barrel_bridge", "sweep_spring", "intermediate"]),
+        ("sweep_cock", None, [0],
+         ["barrel_bridge", "bridge", "ratchet_wheel", "crown_wheel", "click", "caseback", "train_bearing_back_2", "sweep_screw", "sweep_screw_2", "sweep_stud"]),
+        ("sweep_screw", None, [0], ["barrel_bridge", "bridge", "sweep_cock", "sweep_spring", "caseback", "ratchet_wheel", "mainspring", "barrel"]),
+        ("sweep_screw_2", None, [0], ["barrel_bridge", "bridge", "sweep_cock", "caseback", "wheel_third", "wheel_seconds", "intermediate"]),
+        ("caseback", None, [0], ["bridge", "barrel_bridge", "cock", "sweep_cock", "sweep_screw", "sweep_screw_2", "case"]),
+        ("pinion_seconds", seconds_axis, [0, 20],
+         ["bridge", "train_bearing_back_2", "train_bearing_2", "sweep_cock", "sweep_jewel_2", "mainplate"]),
         ("balance", staff, range(-285, 286, 57),
          ["mainplate", "hairspring", "cock", "stud", "regulator", "regulator_boot", "rehaut", "dial", "lever", "seconds_ring", "seconds_post", "seconds_post_2"]),
         ("hairspring", staff, [0],
@@ -199,8 +222,30 @@ def main():
         ("rehaut", None, [0], ["mainplate", "cock", "balance", "date_plate", "dial_rest", "wheel_seconds", "bridge"]),
     ]
 
+    # Meshing pairs turn TOGETHER: one wheel against the other at the
+    # gear ratio, through a full tooth pitch, so that the teeth are tested
+    # in the positions they actually take and not against a wheel standing
+    # still. A clash here is a depthing or a tooth-form fault.
+    pairs = [
+        ("sweep_transfer", seconds_axis, "sweep_idler", sweep_idler_axis, -1.0),
+        ("sweep_idler", sweep_idler_axis, "sweep_wheel", centre, -1.0),
+    ]
     clashes = 0
     missing = 0
+    for a, axis_a, b, axis_b, ratio in pairs:
+        if a not in allp or b not in allp:
+            print("  MISSING pair %s / %s" % (a, b)); missing += 1; continue
+        pitch = 360.0 / 40
+        worst = 0.0
+        for k in range(0, 10):
+            ang = pitch * k / 10
+            v = common_volume(rotated(allp[a], axis_a, ang), rotated(allp[b], axis_b, ang * ratio))
+            if v == v and v > worst: worst = v
+        if worst > SPECK:
+            clashes += 1
+            print("  CLASH %-13s meshing %-16s %9.4f mm3  (through a tooth pitch)" % (a, b, worst))
+        else:
+            print("  ok    %-13s meshes %s through a tooth pitch" % (a, b))
     for mover, axis, angles, others in checks:
         if mover not in allp:
             # A failure, not a skip: a run with no movement loaded (no
