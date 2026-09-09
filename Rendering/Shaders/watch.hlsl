@@ -48,6 +48,8 @@ cbuffer Object : register(b1)
     float    Opacity;         // 1 for a solid draw; a fraction for one copy of a smear
     float    Breathe;         // the balance's angle, radians clockwise, for FINISH_HAIRSPRING
     float2   _pad1;
+    float3   Eta;       float Conductor;   // a metal's n, and whether the exact conductor Fresnel applies
+    float3   Kappa;     float _pad2;       // its k
 };
 
 TextureCube<float4> EnvSpecular  : register(t0);   // GGX-prefiltered, mips by roughness
@@ -139,10 +141,40 @@ float V_Aniso(float at, float ab, float ToV, float BoV, float ToL, float BoL, fl
     return 0.5 / max(lambdaV + lambdaL, 1e-5);
 }
 
+// The exact Fresnel reflectance of a conductor from air, per channel, for
+// a metal given by n and k (the form in Pharr, Jakob & Humphreys, PBRT):
+// unpolarised, the mean of s and p. This is what makes gold gold - the
+// reflectance is 0.95 red and 0.37 blue at normal incidence and climbs to
+// white at grazing along a curve Schlick's approximation only sketches.
+float3 F_Conductor(float3 n, float3 k, float c)
+{
+    c = saturate(c);
+    float c2 = c * c;
+    float sin2 = 1 - c2;
+    float3 n2 = n * n, k2 = k * k;
+    float3 t0 = n2 - k2 - sin2;
+    float3 a2b2 = sqrt(t0 * t0 + 4 * n2 * k2);
+    float3 t1 = a2b2 + c2;
+    float3 a = sqrt(max(0.5 * (a2b2 + t0), 0));
+    float3 t2 = 2 * a * c;
+    float3 Rs = (t1 - t2) / (t1 + t2);
+    float3 t3 = c2 * a2b2 + sin2 * sin2;
+    float3 t4 = t2 * sin2;
+    float3 Rp = Rs * (t3 - t4) / (t3 + t4);
+    return saturate(0.5 * (Rp + Rs));
+}
+
 float3 F_Schlick(float3 f0, float VoH)
 {
     float f = pow(1.0 - VoH, 5.0);
     return f0 + (1.0 - f0) * f;
+}
+
+// Schlick for dielectrics and for metals given only a colour; the exact
+// conductor curve for metals given their constants.
+float3 Fresnel(float3 f0, float c)
+{
+    return Conductor > 0.5 ? F_Conductor(Eta, Kappa, c) : F_Schlick(f0, c);
 }
 
 // ------------------------------------------------------------- the grain
@@ -441,7 +473,7 @@ PsOut PsMain(VsOut i)
         float norm = (at * ab) / (atL * abL);
         float D = D_Aniso(atL, abL, dot(T, H), dot(B, H), NoH) * norm;
         float Vis = V_Aniso(atL, abL, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NoV, NoL);
-        float3 F = F_Schlick(f0, VoH);
+        float3 F = Fresnel(f0, VoH);
         float3 spec = D * Vis * F;
         float3 diff = albedo / PI;
         direct = (diff + spec) * NoL * LightColour * shadow;
@@ -456,7 +488,7 @@ PsOut PsMain(VsOut i)
             float3 H2 = normalize(L2 + V);
             float D2 = D_Aniso(atL, abL, dot(T, H2), dot(B, H2), saturate(dot(N, H2))) * norm;
             float Vis2 = V_Aniso(atL, abL, dot(T, V), dot(B, V), dot(T, L2), dot(B, L2), NoV, NoL2);
-            float3 F2 = F_Schlick(f0, saturate(dot(V, H2)));
+            float3 F2 = Fresnel(f0, saturate(dot(V, H2)));
             direct += (diff + D2 * Vis2 * F2) * NoL2 * LightColour * causticE;
         }
 
@@ -514,7 +546,10 @@ PsOut PsMain(VsOut i)
         specIbl = EnvSpecular.SampleLevel(LinearClamp, mul(R, (float3x3)EnvRot), roughMean * maxMip).rgb * EnvScale;
     }
     float2 brdf = BrdfLut.Sample(LinearClamp, float2(NoV, roughMean));
-    specIbl *= (f0 * brdf.x + brdf.y);
+    // The split-sum's F0 * A + B is Schlick's shape; for a metal with its
+    // constants the exact reflectance at the view angle stands in for the
+    // whole, which keeps the grazing colour shift the LUT cannot carry.
+    specIbl *= Conductor > 0.5 ? F_Conductor(Eta, Kappa, NoV) * (brdf.x + brdf.y) : (f0 * brdf.x + brdf.y);
     float3 diffIbl = EnvDiffuse.SampleLevel(LinearClamp, envN, 0).rgb * EnvScale * albedo;
 
     if (Lacquer > 0)

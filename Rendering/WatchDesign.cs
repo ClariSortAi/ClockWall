@@ -153,7 +153,10 @@ internal sealed record WatchDesign
                 ["indices"] = steel,
                 ["hour_hand"] = steel,
                 ["minute_hand"] = steel,
-                ["seconds_hand"] = steel,      // the centre seconds, over the dial under the crystal
+                // The centre seconds in gold: Johnson & Christy's constants,
+                // the exact Fresnel, polished to a mirror. Gold is a coloured
+                // mirror - it reads as gold only where the room is bright.
+                ["seconds_hand"] = Material.Conductor(Material.GoldN, Material.GoldK, 0.04f, 0.04f),
                 ["cap"] = steel,
                 ["crown"] = new(Material.Steel, 1f, 0.10f, 0.22f, Finish.Circular, FinishCentre: new Vector3(28.5f, 0f, 0f)),
             },

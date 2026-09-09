@@ -35,7 +35,7 @@ import sys
 
 from build123d import (Axis, Circle, Compound, Cylinder, Line, Location, Plane,
                        Polyline, Shell, Solid, ThreePointArc, chamfer, extrude,
-                       make_face, offset, revolve)
+                       loft, make_face, offset, revolve)
 from build123d import export_step
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -111,7 +111,7 @@ STEM_Z = MOVEMENT_Z                      # the OM10's stem lies in its y = 0 pla
 # is what a watch has.
 HOUR = dict(length=150 * U, half_w=11 * U, shoulder=44 * U, tail=34 * U, base=0.75, ridge=0.19)
 MINUTE = dict(length=214 * U, half_w=9 * U, shoulder=54 * U, tail=40 * U, base=1.15, ridge=0.16)
-SWEEP = dict(length=270 * U, tail=95 * U, half_w=0.09, base=1.42, thick=0.10)   # the centre seconds hand
+SWEEP = dict(length=270 * U, tail=95 * U, half_w=0.13, base=1.42, thick=0.12)   # the centre seconds hand: 0.26 wide, half-round
 SWEEP_ARBOR_R = 0.15                     # sweep_seconds.ARBOR_R; its top at world 1.54
 CAP_R = 13 * U
 
@@ -426,9 +426,18 @@ def seconds_hand():
     s = SWEEP
     z_lo, z_hi = s["base"], s["base"] + s["thick"]
     w = s["half_w"]
-    outline = [(-0.025, s["length"]), (0.025, s["length"]), (w, 1.5), (w, -s["tail"]), (-w, -s["tail"]), (-w, 1.5)]
-    needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
-    weight = extrude(Circle(0.55) - Circle(0.22), z_hi - z_lo).moved(Location((0, -s["tail"] - 0.15, z_lo)))
+    # The needle is HALF-ROUND in section, not flat: a flat face mirrors one
+    # direction and is all highlight or all dark, which on a thin hand is
+    # all of it. A rounded section turns through every direction across its
+    # width, so under a softbox it shows a bright line along its crown and
+    # the metal's own colour either side - which is how a gold hand reads as
+    # gold rather than as a white streak. Lofted from a half-ellipse at the
+    # boss to a small one at the tip.
+    def section(half_w, height, y):
+        f = make_face(ThreePointArc((-half_w, 0), (0, height), (half_w, 0)) + Line((half_w, 0), (-half_w, 0)))
+        return f.moved(Location((0, 0, 0), (90, 0, 0))).moved(Location((0, y, z_lo)))
+    needle = loft([section(w, s["thick"], -s["tail"]), section(w, s["thick"], 1.5), section(0.03, 0.035, s["length"])])
+    weight = extrude(Circle(0.55) - Circle(0.22), s["thick"] * 0.8).moved(Location((0, -s["tail"] - 0.15, z_lo)))
     pipe = Cylinder(0.32, 1.60 - (z_lo - 0.18), align=(None, None, None)).moved(Location((0, 0, z_lo - 0.18)))
     bore = Cylinder(SWEEP_ARBOR_R + 0.005, 1.55 - (z_lo - 0.3), align=(None, None, None)).moved(Location((0, 0, z_lo - 0.3)))
     return (needle + weight + pipe) - bore

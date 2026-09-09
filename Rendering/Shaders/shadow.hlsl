@@ -28,6 +28,8 @@ cbuffer Object : register(b1)
     float    Lacquer;
     float    Opacity;
     float3   _pad1;
+    float3   Eta;       float Conductor;   // a metal's n, and whether the exact conductor Fresnel applies
+    float3   Kappa;     float _pad2;       // its k
 };
 
 struct VsIn  { float3 pos : POSITION; float3 nrm : NORMAL; };

@@ -426,6 +426,20 @@ through its four bores. Every changed OM10 solid is listed in
 train (the mechanism's friction fraction is unchanged), and the fourth
 wheel's endshake with the longer pivot.
 
+**Gold, by its constants (2026-09-09).** The centre seconds hand is gold:
+not a colour but Johnson & Christy's n and k at three wavelengths, with the
+exact conductor Fresnel evaluated in `watch.hlsl` (`F_Conductor`; the
+split-sum's F0 A + B is replaced by the exact reflectance at the view
+angle for such metals), so the reflectance at normal incidence and the
+climb to white at grazing both fall out of the physics. Two things
+learned: a flat polished hand under a softbox is all highlight and reads
+white whatever its metal, so the hand's needle is half-round in section
+and shows a bright line along its crown with the gold either side; and
+iron's constants, tried for the case, made polished steel cream (iron's
+F0 is warm), so the case keeps the palette's cool tone until constants
+for a chromium-rich stainless surface are to hand. `Material.Conductor`
+is the way to give any part its constants.
+
 **7. Cosmetic - done; the crystal since redone as glass.** The crystal is
 now a box sapphire with a bevel standing proud of the bezel, and its shader
 a light path: a four-layer anti-reflective stack by the transfer-matrix

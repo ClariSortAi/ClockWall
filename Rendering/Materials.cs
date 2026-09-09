@@ -35,11 +35,52 @@ internal readonly record struct Material(
     Vector3 FinishCentre = default,
     Vector3 FinishDir = default,
     bool Recess = false,
-    float Lacquer = 0f)
+    float Lacquer = 0f,
+    Vector3 Eta = default,
+    Vector3 Kappa = default)
 {
+    // ---- metals, by their measured optical constants
+    // A metal's look is its Fresnel reflectance: the complex refractive
+    // index n + ik at each wavelength, from the literature, evaluated
+    // exactly in the shader (the conductor Fresnel equations). Nothing is a
+    // colour; the reflectance at normal incidence (F0, below) falls out of
+    // n and k, and so does the shift toward white at grazing that says
+    // "gold" rather than "yellow". Red, green, blue at 650, 550, 450 nm.
+    //   gold   Johnson & Christy, Phys. Rev. B 6, 4370 (1972)
+    //   iron   Johnson & Christy, Phys. Rev. B 9, 5056 (1974): the steel
+    //   brass  Querry, Optical constants of minerals and other materials
+    //          (1985), a 70/30 alloy, read off the curves - approximate
+    public static readonly Vector3 GoldN = new(0.18f, 0.42f, 1.37f), GoldK = new(3.42f, 2.35f, 1.77f);
+    public static readonly Vector3 IronN = new(2.87f, 2.90f, 2.53f), IronK = new(3.36f, 3.17f, 2.83f);
+    public static readonly Vector3 BrassN = new(0.44f, 0.53f, 1.06f), BrassK = new(3.60f, 2.70f, 2.20f);
+
+    /// <summary>Reflectance at normal incidence from n and k: ((n-1)^2 + k^2) / ((n+1)^2 + k^2).</summary>
+    public static Vector3 F0(Vector3 n, Vector3 k)
+    {
+        static float one(float n, float k) => ((n - 1) * (n - 1) + k * k) / ((n + 1) * (n + 1) + k * k);
+        return new Vector3(one(n.X, k.X), one(n.Y, k.Y), one(n.Z, k.Z));
+    }
+
+    /// <summary>A polished metal from its constants: base colour is its F0,
+    /// and the shader gets n and k for the exact Fresnel curve.</summary>
+    public static Material Conductor(Vector3 n, Vector3 k, float roughAlong, float roughAcross, Finish finish = Finish.Isotropic,
+                                     float finishScale = 1f, Vector3 finishCentre = default, Vector3 finishDir = default, bool recess = false)
+        => new(F0(n, k), 1f, roughAlong, roughAcross, finish, finishScale, finishCentre, finishDir, recess, 0f, n, k);
+
     // ART-DIRECTION.md, "the palette, which is already decided". Linear.
+    // Steel and brass stay the palette's tones. Iron's constants were tried
+    // for the case (2026-09-09) and made it cream: iron's F0 is warm (0.56,
+    // 0.54, 0.51), and a polished stainless case reads white because its
+    // chromium-rich surface does not, for which no per-wavelength constants
+    // were to hand. A tone chosen from photographs of the real thing beats
+    // the wrong metal's physics. Gold has its constants; it is the one
+    // metal here whose look IS its Fresnel curve.
     public static readonly Vector3 Steel = new(0.680f, 0.700f, 0.740f);
     public static readonly Vector3 Brass = new(0.740f, 0.560f, 0.260f);
+    public static readonly Vector3 Gold = F0(GoldN, GoldK);
+    // Blued steel is not a metal's constants: its colour is a thin oxide
+    // film's interference over iron, and stays a colour until that film is
+    // modelled. Ruby is a dielectric.
     public static readonly Vector3 Blued = new(0.035f, 0.075f, 0.300f);
     public static readonly Vector3 Ruby = new(0.560f, 0.060f, 0.090f);
 
@@ -66,6 +107,9 @@ internal readonly record struct Material(
         FinishDir = FinishDir,
         Lacquer = Lacquer,
         Opacity = 1f,
+        Eta = Eta,
+        Conductor = Kappa == default ? 0f : 1f,
+        Kappa = Kappa,
     };
 }
 
@@ -104,4 +148,6 @@ internal struct ObjectConstants
     public Vector3 FinishCentre; public float Recess;
     public Vector3 FinishDir; public float Lacquer;
     public float Opacity; public float Breathe; public Vector2 _pad;
+    public Vector3 Eta; public float Conductor;     // the metal's n, and whether n and k are to be used
+    public Vector3 Kappa; public float _pad2;       // the metal's k
 }
