@@ -163,14 +163,20 @@ floor on the problem and never a ceiling. Section a part before printing it.
 Eleven parts, in two groups that scaling treats differently.
 
 The first group is the wrong material at any scale. The hairspring at 0.035 mm
-and the mainspring at 0.14 mm are springs: the elasticity is the part, and no
+and the mainspring at 0.102 mm are springs: the elasticity is the part, and no
 photopolymer has it. A printed spiral has no elastic limit and therefore no
-rate. Both are strip steel, and `tools/hairspring.py` and `tools/mainspring.py`
-already specify them down to length and gauge, 127.4 mm of 0.035 x 0.16 and 446
-mm of 0.14 x 1.95. The four shock settings go the same way and take their
-springs, capstones and hole jewels with them: eight rows in the table, one
-bought assembly per pivot. The jewels likewise, since a printed bearing is why a
-watch would run for weeks rather than years.
+rate. Both are strip steel and both are specified down to length and gauge,
+though they get there differently. The hairspring is designed by
+`tools/hairspring.py` for the measured balance, 127.4 mm of 0.035 x 0.16, and
+the export substitutes it for the OM10's 0.020 placeholder. The mainspring is
+the OM10's own, `OM10-00120`, which was taken for a barrel drum until it was
+measured: 283.7 mm of 0.102 x 1.505, drawn as 11.75 coils. `tools/mainspring.py`
+measures that strip rather than designing one.
+
+The four shock settings go the same way and take their springs, capstones and
+hole jewels with them: eight rows in the table, one bought assembly per pivot.
+The jewels likewise, since a printed bearing is why a watch would run for weeks
+rather than years.
 
 The second group is the right material and the wrong process, and it has one
 member. The balance staff is a turning job. Its pivots are the running fit, and
