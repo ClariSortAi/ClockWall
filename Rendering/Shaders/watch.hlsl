@@ -55,6 +55,20 @@ Texture2D<float2>   BrdfLut      : register(t2);   // split-sum scale / bias
 Texture2D<float>    ShadowMap    : register(t3);
 Texture2D<float>    DialPrint    : register(t4);   // the lettering, a coverage mask in face units
 SamplerState        ShadowPoint  : register(s2);   // the shadow map read raw, for the blocker search
+Texture2D<float4>   Wear         : register(t5);   // the crystal's scratch and dust (crystal_wear.py), mipped
+
+// The crystal, as the dial sees it: case_solids.crystal(). Millimetres.
+static const float N_SAPPHIRE     = 1.771;
+static const float CRYSTAL_UNDER  = 1.9;       // its flat underside above the dial
+static const float CRYSTAL_THICK  = 1.7;       // about, under the dome
+static const float CRYSTAL_CHORD  = 24.483;    // its outer radius
+static const float BEVEL_IN       = 23.933;    // where the bevel starts
+static const float BEVEL_WIDTH    = 0.55;      // across, in plan
+static const float BEVEL_SLANT    = 0.68;      // along the slope
+static const float BEVEL_MID_R    = 24.208;
+static const float BEVEL_MID_Y    = 3.35;
+static const float BEVEL_SLOPE    = 0.6289;    // radians: atan(0.40 / 0.55)
+static const float WEAR_PX_PER_MM = 18.85;     // the mask's 1024 px over the 640-unit face
 
 SamplerState              LinearClamp : register(s0);
 SamplerComparisonState    ShadowCmp   : register(s1);
@@ -356,6 +370,59 @@ PsOut PsMain(VsOut i)
     float NoL = saturate(dot(N, L));
     float shadow = Shadow(P, N, NoL);
 
+    // ---- what the crystal throws onto the dial: the air gap, made visible
+    // The glass sits 1.9 mm above the dial. Whatever is ON it - the scratch,
+    // the dust - shadows the dial, displaced along the light by the gap and
+    // softened by the softbox's size; that displacement is the one thing
+    // that says the wear is on the glass and not printed on the dial. And
+    // the bevel is a prism ring: the key light through it is bent inward,
+    // so under the bevel the dial loses the key (a dark ring) and a little
+    // way in it gets it a second time (a bright one). Both traced for the
+    // actual light through the actual refraction: the ray that reaches P
+    // is followed back up through the underside and the glass to where it
+    // entered the top, and the bevel's rays are followed down to where
+    // they land.
+    float3 causticDir = 0;   // the direction the bent key arrives from, if it does
+    float  causticE = 0;     // its illuminance here, as a fraction of the key's
+    if (P.y < CRYSTAL_UNDER && L.y > 0.05)
+    {
+        float3 up = float3(0, 1, 0);
+        float3 Q = P + L * ((CRYSTAL_UNDER - P.y) / L.y);        // where the key's ray left the underside
+        float3 Lin = -refract(-L, up, 1.0 / N_SAPPHIRE);          // its path inside, followed back up
+        float3 R = Q + Lin * (CRYSTAL_THICK / Lin.y);             // where it entered the top
+        float rR = length(R.xz);
+        float penumbraMm = 2.0 * LightHalfTan * (CRYSTAL_UNDER - P.y + CRYSTAL_THICK);
+        float mip = log2(max(penumbraMm * WEAR_PX_PER_MM, 1.0));
+        float3 w = Wear.SampleLevel(LinearClamp, R.xz * (11.780018 / 640.0) + 0.5, mip).rgb;
+        shadow *= 1 - saturate(w.r * 0.5 + w.g * 0.9);
+        if (rR > BEVEL_IN - 0.05 && rR < CRYSTAL_CHORD + 0.3)
+            shadow *= 0.08;                                        // the prism took it elsewhere
+        float phi = atan2(P.xz.y, P.xz.x);
+        [unroll] for (int it = 0; it < 2; it++)
+        {
+            float3 Nb = float3(cos(phi) * sin(BEVEL_SLOPE), cos(BEVEL_SLOPE), sin(phi) * sin(BEVEL_SLOPE));
+            float3 Bp = float3(BEVEL_MID_R * cos(phi), BEVEL_MID_Y, BEVEL_MID_R * sin(phi));
+            float catchN = dot(Nb, L);
+            if (catchN <= 0.02) break;
+            float3 Ti = refract(-L, Nb, 1.0 / N_SAPPHIRE);
+            if (Ti.y >= -1e-3) break;
+            float3 Qb = Bp + Ti * ((Bp.y - CRYSTAL_UNDER) / -Ti.y);
+            float3 To = refract(Ti, up, N_SAPPHIRE);
+            if (dot(To, To) < 0.5 || To.y >= -1e-3) break;
+            float3 Pl = Qb + To * ((CRYSTAL_UNDER - P.y) / -To.y);
+            float phiL = atan2(Pl.z, Pl.x);
+            if (it == 0) { phi -= (phiL - phi); continue; }       // the ray drifts sideways: aim again
+            float rL = length(Pl.xz);
+            float h = 0.5 * BEVEL_WIDTH * catchN / max(-To.y, 0.2) + 0.5 * penumbraMm;
+            float band = exp(-pow((length(P.xz) - rL) / h, 2.0));
+            // The bevel's slant width of flux per unit of rim, spread over
+            // the band (a Gaussian of half-width h integrates to h sqrt(pi)),
+            // through the coating twice.
+            causticE = catchN * BEVEL_SLANT / (h * 1.7725) * 0.996 * 0.996 * band;
+            causticDir = -To;
+        }
+    }
+
     // ---- key light
     float3 direct = 0;
     if (NoL > 0)
@@ -377,6 +444,20 @@ PsOut PsMain(VsOut i)
         float3 spec = D * Vis * F;
         float3 diff = albedo / PI;
         direct = (diff + spec) * NoL * LightColour * shadow;
+
+        // The bevel's caustic arrives from its own direction and gets the
+        // same BRDF, lobe widening and all; on this metal dial that is the
+        // sunburst's own lobe lit a second time, from a little further in.
+        if (causticE > 0)
+        {
+            float3 L2 = causticDir;
+            float NoL2 = saturate(dot(N, L2));
+            float3 H2 = normalize(L2 + V);
+            float D2 = D_Aniso(atL, abL, dot(T, H2), dot(B, H2), saturate(dot(N, H2))) * norm;
+            float Vis2 = V_Aniso(atL, abL, dot(T, V), dot(B, V), dot(T, L2), dot(B, L2), NoV, NoL2);
+            float3 F2 = F_Schlick(f0, saturate(dot(V, H2)));
+            direct += (diff + D2 * Vis2 * F2) * NoL2 * LightColour * causticE;
+        }
 
         if (Lacquer > 0)
         {

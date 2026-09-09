@@ -274,7 +274,7 @@ internal sealed class WatchScene : IDisposable
         _movement = GltfLoader.Load(device, Path.Combine(assetDirectory, "movement.glb"));
         _case = GltfLoader.Load(device, Path.Combine(assetDirectory, "case.glb"));
         _dialPrint = Gpu.LoadMask(device, Path.Combine(assetDirectory, "dial-print.png"));
-        _crystalWear = Gpu.LoadRgba(device, Path.Combine(assetDirectory, "crystal-wear.png"));
+        _crystalWear = Gpu.LoadRgba(device, context, Path.Combine(assetDirectory, "crystal-wear.png"));
 
         foreach (var required in new[] { "case", "dial", "rehaut", "indices", "hour_hand", "minute_hand", "seconds_hand", "cap", "crystal" })
         {
@@ -605,6 +605,7 @@ internal sealed class WatchScene : IDisposable
         ctx.PSSetShaderResource(2, _environment.BrdfLut);
         ctx.PSSetShaderResource(3, _shadowSrv);
         ctx.PSSetShaderResource(4, _dialPrint);
+        ctx.PSSetShaderResource(5, _crystalWear);   // the dial reads the glass's wear for its shadows
         ctx.PSSetSampler(0, _linearClamp);
         ctx.PSSetSampler(1, _shadowCmp);
         ctx.PSSetSampler(2, _shadowPoint);
