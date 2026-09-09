@@ -201,6 +201,12 @@
     <x:Double x:Key="AgentDetailFontSize">20</x:Double>
     <x:Double x:Key="AgentMetaFontSize">18</x:Double>
 
+    <!-- The studio strip over the live face: a caption, a value, chevrons. -->
+    <x:Double x:Key="StudioCaptionFontSize">15</x:Double>
+    <x:Double x:Key="StudioValueFontSize">24</x:Double>
+    <x:Double x:Key="StudioChevronFontSize">30</x:Double>
+    <x:Double x:Key="StudioValueMinWidth">92</x:Double>
+
     <!-- Printed dial text ("4 Hz · 28,800 vph"). Small on purpose: on a real
          dial this is the line you only read when you go looking for it. -->
     <x:Double x:Key="EmptyStateFontSize">26</x:Double>
@@ -377,6 +383,29 @@
         <Setter Property="Foreground" Value="{ThemeResource AgentMetaTextBrush}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="StudioCaptionTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallSmallFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource StudioCaptionFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockTertiaryTextBrush}" />
+        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="StudioValueTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource StudioValueFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockPrimaryTextBrush}" />
+        <Setter Property="IsTextSelectionEnabled" Value="False" />
+    </Style>
+
+    <Style x:Key="StudioChevronTextStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
+        <Setter Property="FontSize" Value="{StaticResource StudioChevronFontSize}" />
+        <Setter Property="Foreground" Value="{ThemeResource ClockTertiaryTextBrush}" />
+        <Setter Property="Padding" Value="{StaticResource SpacingXSmall}" />
         <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
 

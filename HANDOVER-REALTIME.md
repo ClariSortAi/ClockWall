@@ -362,7 +362,10 @@ Done.
 **The studio, in physical units (2026-09-08).** `Rendering/Lighting.cs`:
 seven numbers - key bearing, elevation, lux, kelvin, angular size; ambient
 lux; EV100 - on keys through the same chain as the crown, with a four-second
-readout on the panel and a one-line file for persistence. Colour from
+readout on the panel and a one-line file for persistence, and as a strip
+across the top of the wall (`Controls/StudioStrip`) whose chevrons do one
+press each; the strip's bounds are cut out of the window's drag region as
+a passthrough (`InputNonClientPointerSource`) so it takes the pointer. Colour from
 Planck's law; the HDRI calibrated off its own irradiance read back after
 the bake; the softbox's size in the penumbra (PCSS) and in the highlight
 width (Karis); exposure the Filament way. Defaults reproduce the designed

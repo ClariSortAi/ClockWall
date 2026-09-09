@@ -1,0 +1,27 @@
+<UserControl
+    x:Class="ClockWall.StudioStrip"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--
+        The studio's seven numbers, as a strip above the live face: a caption
+        in the wall's small type, the value in white, a chevron either side.
+        Every value is a physical quantity (Rendering/Lighting.cs) and every
+        chevron is one press of the same key the keyboard has, so the two
+        never disagree. No buttons: the chevrons are TextBlocks with Tapped,
+        which keeps the strip as quiet as the rest of the wall (no hover
+        plates, no borders) and stays inside Theme.xaml's resources.
+
+        The wall's root is the window's drag region, which swallows pointer
+        input; MainWindow cuts a passthrough hole for this strip's bounds so
+        the chevrons can be tapped at all. See StudioBoundsChanged.
+    -->
+    <StackPanel x:Name="Root"
+                Orientation="Horizontal"
+                HorizontalAlignment="Center"
+                Spacing="{StaticResource SpacingMedium}" />
+
+</UserControl>

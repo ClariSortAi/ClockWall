@@ -59,6 +59,13 @@ public sealed partial class MovementView : UserControl
         ShowReadout();
     }
 
+    public string[] LightValues => _renderer.LightValues;
+
+    /// <summary>Fires on the UI thread once the renderer's scene is built,
+    /// so the strip can read real values rather than blanks.</summary>
+    public event Action? SceneReady;
+    private bool _sceneReported;
+
     public void ShowReadout()
     {
         LightReadout.Text = _renderer.LightReadout;
@@ -142,5 +149,10 @@ public sealed partial class MovementView : UserControl
     private void OnFrame(object? sender, object e)
     {
         _renderer.Render(DateTime.Now, _clock.Elapsed.TotalSeconds);
+        if (!_sceneReported && _renderer.LightValues[0] != "")
+        {
+            _sceneReported = true;
+            SceneReady?.Invoke();
+        }
     }
 }

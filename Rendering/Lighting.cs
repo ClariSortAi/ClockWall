@@ -87,6 +87,19 @@ internal sealed class LightRig
         "key {0:0}° / {1:0}°  ·  {2:#,0} lx  ·  {3:0} K  ·  {4:0}° wide     ambient {5:#,0} lx     EV {6:0.0}",
         BearingDeg, ElevationDeg, KeyLux, Kelvin, AngularDeg, AmbientLux, Ev100);
 
+    /// <summary>The seven values as the strip shows them, in the order of
+    /// <see cref="LightControl"/>.</summary>
+    public string[] Values() => new[]
+    {
+        string.Format(CultureInfo.InvariantCulture, "{0:0}°", BearingDeg),
+        string.Format(CultureInfo.InvariantCulture, "{0:0}°", ElevationDeg),
+        string.Format(CultureInfo.InvariantCulture, "{0:#,0} lx", KeyLux),
+        string.Format(CultureInfo.InvariantCulture, "{0:#,0} K", Kelvin),
+        string.Format(CultureInfo.InvariantCulture, "{0:0}°", AngularDeg),
+        string.Format(CultureInfo.InvariantCulture, "{0:#,0} lx", AmbientLux),
+        string.Format(CultureInfo.InvariantCulture, "EV {0:0.0}", Ev100),
+    };
+
     /// <summary>The key's colour, linear sRGB, normalised to Y = 1, from
     /// Planck's law. B(l, T) = 2hc^2 / l^5 / (exp(hc / (l k T)) - 1), integrated
     /// over 380-780 nm against the CIE 1931 2-degree matching functions in

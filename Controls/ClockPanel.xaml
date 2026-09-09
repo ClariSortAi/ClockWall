@@ -25,6 +25,14 @@
         Typography.NumeralAlignment="Tabular" pins every digit glyph to the
         same advance width, so the centered line never re-flows on a tick.
     -->
+    <Grid>
+    <!-- The studio strip: over the top of the panel, live face only, and
+         laid over rather than stacked so the hero never moves when it shows. -->
+    <local:StudioStrip x:Name="Studio"
+                       VerticalAlignment="Top"
+                       HorizontalAlignment="Center"
+                       Margin="{StaticResource WallEdgeMargin}"
+                       Visibility="Collapsed" />
     <StackPanel HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Spacing="{StaticResource SpacingXLarge}">
@@ -117,5 +125,6 @@
                    Text="" />
 
     </StackPanel>
+    </Grid>
 
 </UserControl>

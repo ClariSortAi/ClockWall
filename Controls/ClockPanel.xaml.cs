@@ -113,6 +113,12 @@ public sealed partial class ClockPanel : UserControl
     public ClockPanel()
     {
         InitializeComponent();
+        Studio.Adjusted += (control, steps) => AdjustLight(control, steps);
+        Studio.SizeChanged += (_, _) => PublishStudioBounds();
+        Studio.LayoutUpdated += (_, _) => PublishStudioBounds();
+        // The live face's scene builds after the first frame; the strip's
+        // values are refreshed when it reports in.
+        LiveFace.SceneReady += () => Studio.SetValues(LiveFace.LightValues);
         BuildFaceTicks();
 
         try
@@ -177,15 +183,39 @@ public sealed partial class ClockPanel : UserControl
         if (_face == Live) LiveFace.TurnCrown(byHands);
     }
 
-    /// <summary>The studio's lights, live face only. See LightRig.</summary>
+    /// <summary>The studio's lights, live face only. See LightRig. The
+    /// keys and the strip's chevrons both come through here, so the strip
+    /// always shows what the keys did.</summary>
     public void AdjustLight(ClockWall.Rendering.LightControl control, int steps)
     {
-        if (_face == Live) LiveFace.AdjustLight(control, steps);
+        if (_face != Live) return;
+        LiveFace.AdjustLight(control, steps);
+        Studio.SetValues(LiveFace.LightValues);
     }
 
     public void ResetLight()
     {
-        if (_face == Live) LiveFace.ResetLight();
+        if (_face != Live) return;
+        LiveFace.ResetLight();
+        Studio.SetValues(LiveFace.LightValues);
+    }
+
+    /// <summary>The strip's bounds in the window, physical pixels, or null
+    /// when it is hidden: MainWindow cuts the drag region round it.</summary>
+    public event Action<Windows.Graphics.RectInt32?>? StudioBoundsChanged;
+
+    private void PublishStudioBounds()
+    {
+        if (Studio.Visibility != Visibility.Visible || Studio.ActualWidth <= 0 || XamlRoot is null)
+        {
+            StudioBoundsChanged?.Invoke(null);
+            return;
+        }
+        var scale = XamlRoot.RasterizationScale;
+        var origin = Studio.TransformToVisual(null).TransformPoint(new Windows.Foundation.Point(0, 0));
+        StudioBoundsChanged?.Invoke(new Windows.Graphics.RectInt32(
+            (int)Math.Floor(origin.X * scale), (int)Math.Floor(origin.Y * scale),
+            (int)Math.Ceiling(Studio.ActualWidth * scale), (int)Math.Ceiling(Studio.ActualHeight * scale)));
     }
 
     public void ShowLightReadout()
@@ -207,6 +237,10 @@ public sealed partial class ClockPanel : UserControl
         // that always knows which face won.
         MechanicalFace.SetRunning(_loaded && _face == Mechanical);
         LiveFace.SetRunning(_loaded && _face == Live);
+
+        Studio.Visibility = _face == Live ? Visibility.Visible : Visibility.Collapsed;
+        if (_face == Live) Studio.SetValues(LiveFace.LightValues);
+        PublishStudioBounds();
     }
 
     /// <summary>The element for a face index. A switch rather than an array

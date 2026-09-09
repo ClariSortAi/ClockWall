@@ -35,6 +35,8 @@ public sealed partial class MainWindow : Window
 
     private readonly IntPtr _hwnd;
     private readonly string? _screenshotPath;
+    private Microsoft.UI.Input.InputNonClientPointerSource? _nonClient;
+    private Windows.Graphics.RectInt32 _studioRect;
     private readonly int _screenshotFrames;
     private readonly TimeSpan _screenshotInterval;
     private readonly bool _startFullScreen;
@@ -233,6 +235,25 @@ public sealed partial class MainWindow : Window
         // and the Escape/F11 accelerators are window-scoped, so that costs
         // nothing here.
         SetTitleBar(WallRoot);
+
+        // One exception to "the wall has none": the studio strip over the
+        // live face. Its bounds are cut out of the drag region as a
+        // passthrough, so its chevrons get the pointer and the rest of the
+        // wall still moves the window.
+        _nonClient = Microsoft.UI.Input.InputNonClientPointerSource.GetForWindowId(AppWindow.Id);
+        HeroClock.StudioBoundsChanged += bounds =>
+        {
+            if (bounds is { } r && (r.Width != _studioRect.Width || r.Height != _studioRect.Height || r.X != _studioRect.X || r.Y != _studioRect.Y))
+            {
+                _studioRect = r;
+                _nonClient.SetRegionRects(Microsoft.UI.Input.NonClientRegionKind.Passthrough, new[] { r });
+            }
+            else if (bounds is null && _studioRect.Width != 0)
+            {
+                _studioRect = default;
+                _nonClient.ClearRegionRects(Microsoft.UI.Input.NonClientRegionKind.Passthrough);
+            }
+        };
 
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {

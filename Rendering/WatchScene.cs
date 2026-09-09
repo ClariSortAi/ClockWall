@@ -133,6 +133,7 @@ internal sealed class WatchScene : IDisposable
     }
 
     public string LightReadout => _light.Describe();
+    public string[] LightValues => _light.Values();
 
     /// <summary>The crown pulled out or pushed in, from the S key. Out, the
     /// arrow keys turn it; the crown itself moves 0.6mm on the stem.</summary>
