@@ -11,6 +11,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
+    float3   Aperture2Centre; float Aperture2Radius;
     float    TrackRadius; float DebugView; float EnvScale; float LightHalfTan;
 };
 

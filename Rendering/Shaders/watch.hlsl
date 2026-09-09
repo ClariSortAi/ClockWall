@@ -30,6 +30,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;   // unit vector TOWARD the light
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
+    float3   Aperture2Centre; float Aperture2Radius;
     float    TrackRadius; float DebugView; float EnvScale; float LightHalfTan;
 };
 
@@ -537,7 +538,9 @@ PsOut PsMain(VsOut i)
     // is lit by less light than the dial is, and why it falls off at the rim.
     if (Recess > 0)
     {
-        float edge = max(ApertureRadius - length(P.xz - ApertureCentre.xz), 0.0);
+        // The opening is a keyhole: nearest edge of either circle.
+        float edge = max(max(ApertureRadius - length(P.xz - ApertureCentre.xz),
+                             Aperture2Radius - length(P.xz - Aperture2Centre.xz)), 0.0);
         float depth = max(ApertureCentre.y - P.y, 0.0);
         float ao = edge / sqrt(edge * edge + depth * depth);
         ao = lerp(0.03, 0.42, ao);

@@ -377,17 +377,28 @@ softbox and the key are two copies of one light (the key dominates it
 five to one); a rectangular area light (linearly transformed cosines,
 anisotropic) would replace both with one.
 
-**The small seconds (2026-09-09).** The OM10's fourth wheel pinion comes up
-at nine, 1.9 mm under the dial, inside the open heart, where the seconds
-hand was a bare needle among the wheels. It now has what an open-heart
-watch with a small seconds gives it (`tools/case_solids.py`): a chapter
-ring floating over the movement on two posts screwed to the plate's face
-in the window, its sixty-groove track engraved and ink-filled (the ink is
-its own solid so it can be black where the ring is white), and a blued
-hand on the pinion's extended pivot. The ring's outer edge is 0.19 mm from
-the rehaut's well wall, which is what sets its size; the assembly check
-turns the hand against it and the ring against the train. The heart was
-not made smaller, on the owner's instruction.
+**The small seconds, and the bearings the heart had bared (2026-09-09).**
+The OM10's fourth wheel pinion comes up at nine, 1.9 mm under the dial,
+inside the open heart, where the seconds hand was a bare needle among the
+wheels. Sizing a sub-dial for it exposed a flaw the interference check
+never asked about: the window as first cut had removed the plate from
+round the dial-side bushes of the seconds pinion (`train_bearing_2`, cad
+(0, 8)) and the third pinion (`train_bearing`, cad (4.45, 8.12)). Nothing
+clashed, because the bushes are their own solids and stayed put in the
+file; in a made watch the train would have fallen over. The plate now
+keeps a boss round each on a second bar, from the third's boss through
+the seconds' to the window's wall - the bridge an openworked plate has
+(`gltf_export.open_heart`). The lesson for the checker: "held" is a
+different question from "clear", and it is not yet asked automatically.
+
+On that bar stands the fixture (`tools/case_solids.py`): the opening is
+now a keyhole, the heart bulged out 4.6 mm round the seconds arbor, and in
+the bulge a chapter ring 8.5 mm across floats over the movement on two
+posts screwed to the bar, its sixty-groove track engraved and ink-filled
+(the ink its own solid, white where the ring is black), and a polished
+steel hand with a counterweight on the pinion's extended pivot. The
+shader's recess term takes the keyhole as two circles (`Aperture2`). The
+heart was not made smaller, on the owner's instruction; it got bigger.
 
 **7. Cosmetic - done; the crystal since redone as glass.** The crystal is
 now a box sapphire with a bevel standing proud of the bezel, and its shader

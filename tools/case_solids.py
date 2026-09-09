@@ -35,7 +35,7 @@ import sys
 
 from build123d import (Axis, Circle, Compound, Cylinder, Line, Location, Plane,
                        Polyline, Shell, Solid, ThreePointArc, chamfer, extrude,
-                       make_face, revolve)
+                       make_face, offset, revolve)
 from build123d import export_step
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -190,19 +190,38 @@ def crystal():
     return revolve(profile(pts), Axis.Z)
 
 
+# The opening is a keyhole: the heart round the balance, bulged out round
+# the seconds arbor at nine so a real sub-dial fits there. The plate's cut
+# follows it (gltf_export.SECONDS_WINDOW_R), with a bar and two bosses
+# under the bulge that hold the train's bearings and carry the fixture.
+SECONDS_WIN_R = 4.6
+WELL_DEPTH_AT_SECONDS = 2.8              # the well wall stops above the plate's bar there (world -2.96)
+
+
+def window():
+    return Circle(APERTURE_R).moved(Location(APERTURE)) + Circle(SECONDS_WIN_R).moved(Location(SECONDS_ARBOR))
+
+
 def dial():
     """The dial plate, 0.4 mm, with the opening and the centre bore cut clean
     through. The printing and the minute track are ink, in the shader."""
-    sk = Circle(BEZEL_IN - DIAL_CLEARANCE) - Circle(DIAL_BORE_R) - Circle(DIAL_HOLE_R).moved(Location(APERTURE))
+    sk = Circle(BEZEL_IN - DIAL_CLEARANCE) - Circle(DIAL_BORE_R) - offset(window(), WELL_WALL + 0.05)
     return extrude(sk, DIAL_T).moved(Location((0, 0, -DIAL_T)))
 
 
 def rehaut():
-    """The polished ring standing in the opening, with the well wall inside it."""
-    ri, ro = APERTURE_R, REHAUT_OUT
-    pts = [(ro, 0.0), (ro, 0.22), (ro - 0.14, 0.36), (ri + 0.16, 0.36), (ri, 0.20),
-           (ri, -WELL_DEPTH), (ri + WELL_WALL, -WELL_DEPTH), (ri + WELL_WALL, 0.0)]
-    return revolve(profile(pts), Axis.Z).moved(Location(APERTURE))
+    """The polished ring standing in the opening, with the well wall inside
+    it: a flange on the dial, chamfered, and the wall down into the well -
+    deep round the heart, shallower round the seconds where the plate's bar
+    stands higher."""
+    win = window()
+    flange = extrude(offset(win, 0.6) - win, 0.36)
+    flange = chamfer(flange.edges().group_by(Axis.Z)[-1], 0.12)
+    wall = extrude(offset(win, WELL_WALL) - win, WELL_DEPTH_AT_SECONDS).moved(Location((0, 0, -WELL_DEPTH_AT_SECONDS)))
+    heart = Circle(APERTURE_R).moved(Location(APERTURE))
+    bulge = offset(Circle(SECONDS_WIN_R).moved(Location(SECONDS_ARBOR)), WELL_WALL)
+    deep = extrude((offset(heart, WELL_WALL) - heart) - bulge, WELL_DEPTH - WELL_DEPTH_AT_SECONDS).moved(Location((0, 0, -WELL_DEPTH)))
+    return flange + wall + deep
 
 
 def baton(deg, half_w, offset):
@@ -307,15 +326,14 @@ def minute_hand():
 # it. Everything below is a solid that could be made; the ring's outer edge
 # stops 0.19 mm short of the rehaut's well wall, which is what sets its
 # size (the arbor sits 7.46 mm from the aperture's centre, the wall at 10.2).
-SECONDS_RING_R_OUT = 2.55
-SECONDS_RING_R_IN = 1.95
-SECONDS_RING_TOP = -1.15                 # world z of the ring's face; the hand rides above, the plate floor is at -4.86
+SECONDS_RING_R_OUT = 4.25                # 0.35 inside the bulge's wall
+SECONDS_RING_R_IN = 3.2
+SECONDS_RING_TOP = -1.15                 # world z of the ring's face; the hand rides above
 SECONDS_RING_T = 0.25
 SECONDS_POST_R = 0.35
-SECONDS_POST_AT = 2.25                   # the posts' radius from the arbor, at the ring's nine and three: the
-                                         # plate's face in the window is a skin over the third wheel at its six,
-                                         # and the assembly check found the post's foot on the wheel's teeth there
-SECONDS_FLOOR_Z = -0.05 + MOVEMENT_Z     # the plate's face inside the window: gltf_export.OPEN_HEART_FLOOR_Y
+SECONDS_POST_AT = 3.6                    # the posts' radius from the arbor, at the ring's twelve and six: on
+                                         # the plate's bar, which runs through the seconds arbor that way
+SECONDS_FLOOR_Z = 1.85 + MOVEMENT_Z      # the bar's face: gltf_export.BAR_TOP_Y
 TRACK_DEPTH = 0.06
 
 
@@ -325,8 +343,8 @@ def _track_grooves():
     grooves = None
     for i in range(60):
         five = i % 5 == 0
-        w = 0.09 if five else 0.05
-        r0, r1 = (2.00, 2.50) if five else (2.08, 2.42)
+        w = 0.10 if five else 0.05
+        r0, r1 = (3.28, 4.15) if five else (3.42, 4.02)
         box = extrude(make_face(Polyline((-w / 2, r0), (w / 2, r0), (w / 2, r1), (-w / 2, r1), (-w / 2, r0))), TRACK_DEPTH + 0.02)
         box = box.moved(Location((0, 0, SECONDS_RING_TOP - TRACK_DEPTH), (0, 0, -i * 6.0)))
         grooves = box if grooves is None else grooves + box
@@ -335,8 +353,8 @@ def _track_grooves():
 
 def _post_holes():
     holes = None
-    for sx in (SECONDS_POST_AT, -SECONDS_POST_AT):
-        h = Cylinder(SECONDS_POST_R + 0.02, SECONDS_RING_T + 0.2, align=(None, None, None)).moved(Location((sx, 0, SECONDS_RING_TOP - SECONDS_RING_T - 0.1)))
+    for sy in (SECONDS_POST_AT, -SECONDS_POST_AT):
+        h = Cylinder(SECONDS_POST_R + 0.02, SECONDS_RING_T + 0.2, align=(None, None, None)).moved(Location((0, sy, SECONDS_RING_TOP - SECONDS_RING_T - 0.1)))
         holes = h if holes is None else holes + h
     return holes
 
@@ -360,11 +378,11 @@ def seconds_track():
 def seconds_post(sign):
     """A post from the plate's face in the window up through the ring, and
     the screw head that holds the ring down: one turned part with a slotted
-    head, at the ring's three (sign +1) or nine (sign -1)."""
-    x = sign * SECONDS_POST_AT
-    post = Cylinder(SECONDS_POST_R, SECONDS_RING_TOP - SECONDS_FLOOR_Z, align=(None, None, None)).moved(Location((x, 0, SECONDS_FLOOR_Z)))
-    head = Cylinder(0.50, 0.12, align=(None, None, None)).moved(Location((x, 0, SECONDS_RING_TOP)))
-    slot = extrude(make_face(Polyline((-0.06, -0.6), (0.06, -0.6), (0.06, 0.6), (-0.06, 0.6), (-0.06, -0.6))), 0.1).moved(Location((x, 0, SECONDS_RING_TOP + 0.07)))
+    head, at the ring's twelve (sign +1) or six (sign -1)."""
+    y = sign * SECONDS_POST_AT
+    post = Cylinder(SECONDS_POST_R, SECONDS_RING_TOP - SECONDS_FLOOR_Z, align=(None, None, None)).moved(Location((0, y, SECONDS_FLOOR_Z)))
+    head = Cylinder(0.50, 0.12, align=(None, None, None)).moved(Location((0, y, SECONDS_RING_TOP)))
+    slot = extrude(make_face(Polyline((-0.6, -0.06), (0.6, -0.06), (0.6, 0.06), (-0.6, 0.06), (-0.6, -0.06))), 0.1).moved(Location((0, y, SECONDS_RING_TOP + 0.07)))
     return (post + head - slot).moved(Location(SECONDS_ARBOR))
 
 
@@ -372,10 +390,10 @@ def seconds_hand():
     """A blued needle with a counterweight, riding 0.2 mm over the ring's
     face on a collar pressed onto the pinion's extended pivot."""
     # Bolder than a blued sliver: the well is dark and the wall is far.
-    length, tail, w, z_lo, z_hi = 2.40, 0.85, 0.11, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.32
-    outline = [(-0.03, length), (0.03, length), (w, 0.4), (w, -tail), (-w, -tail), (-w, 0.4)]
+    length, tail, w, z_lo, z_hi = 4.0, 1.25, 0.13, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.32
+    outline = [(-0.03, length), (0.03, length), (w, 0.6), (w, -tail), (-w, -tail), (-w, 0.6)]
     needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
-    weight = extrude(Circle(0.34) - Circle(0.14), z_hi - z_lo).moved(Location((0, -tail - 0.05, z_lo)))
+    weight = extrude(Circle(0.42) - Circle(0.16), z_hi - z_lo).moved(Location((0, -tail - 0.1, z_lo)))
     collar = Cylinder(0.42, z_hi - (SECONDS_RING_TOP - 0.55), align=(None, None, None)).moved(Location((0, 0, SECONDS_RING_TOP - 0.55)))
     pivot = Cylinder(0.24, z_hi - SECONDS_PINION_TOP, align=(None, None, None)).moved(Location((0, 0, SECONDS_PINION_TOP)))
     return (needle + weight + collar + pivot).moved(Location(SECONDS_ARBOR))

@@ -286,6 +286,20 @@ OPEN_HEART_TOP_Y = 5.0                 # above the plate's dial face (4.41)
 LINE_OF_CENTRES = ((-8.06, 3.51), (-3.68, 7.90))   # staff, escape wheel
 BAR_WIDTH = 1.6
 BAR_TOP_Y = 1.85                       # the jewel seats end at 1.65
+# The second bar, and the two bosses it carries. The window as first cut
+# left the dial-side bushes of the seconds pinion (train_bearing_2, cad
+# (0, 8), y 1.31) and the third pinion (train_bearing, cad (4.45, 8.12))
+# with no plate round them: the interference check never asked whether a
+# bearing was HELD, and in a made watch the train would have fallen over.
+# So the plate keeps a boss round each, on a bar from the third's boss
+# through the seconds' to the window's wall - the bridge an openworked
+# plate has - and the small-seconds fixture stands on that bar.
+SECONDS_ARBOR_CAD = (0.0, 8.0)         # cad (x, z): world (-8, 0)
+THIRD_ARBOR_CAD = (4.453, 8.124)       # cad (x, z): world (-8.12, -4.45)
+BOSS_R = 1.45
+# The keyhole: the window bulges out round the seconds arbor so a real
+# sub-dial fits there; case_solids.SECONDS_WIN_R plus the wall.
+SECONDS_WINDOW_R = 4.6 + 0.55
 BAR_CLEAR_OF_WALL = 0.60               # the well wall is 0.5 thick inside the window's edge, plus clearance
 # The parts the window is cut through: the plate and the two dial-side plates
 # over it. Nothing that moves, nothing that is a jewel.
@@ -353,21 +367,37 @@ def open_heart(shape):
     import math
     part = Part(shape)
     cx, cz = OPEN_HEART_CENTRE
+    sx, sz = SECONDS_ARBOR_CAD
     height = OPEN_HEART_TOP_Y - OPEN_HEART_FLOOR_Y
-    window = Cylinder(OPEN_HEART_R, height, align=(None, None, None))
-    # A cylinder is built along Z; the plate's thickness is Y, so lay it on
-    # its side and centre it on the window at mid height.
-    window = window.moved(Location((cx, (OPEN_HEART_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, cz), (90, 0, 0)))
-    (x0, z0), (x1, z1) = LINE_OF_CENTRES
-    length = math.hypot(x1 - x0, z1 - z0) + 2 * 2.6
-    angle = math.degrees(math.atan2(z1 - z0, x1 - x0))
-    bar = Box(length, BAR_TOP_Y - OPEN_HEART_FLOOR_Y, BAR_WIDTH, align=(None, None, None))
-    bar = bar.moved(Location(((x0 + x1) / 2, (BAR_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, (z0 + z1) / 2), (0, -angle, 0)))
-    # The bar stops short of the well wall, which stands in the outer half
-    # millimetre of the window; the assembly check found the bar's end
+    mid_y = (OPEN_HEART_TOP_Y + OPEN_HEART_FLOOR_Y) / 2
+
+    def cyl(r, x, z, h=height, y=mid_y):
+        # A cylinder is built along Z; the plate's thickness is Y, so lay it
+        # on its side and centre it at the given height.
+        return Cylinder(r, h, align=(None, None, None)).moved(Location((x, y, z), (90, 0, 0)))
+
+    window = cyl(OPEN_HEART_R, cx, cz) + cyl(SECONDS_WINDOW_R, sx, sz)
+
+    def bar_between(p0, p1, extend0, extend1):
+        (x0, z0), (x1, z1) = p0, p1
+        length = math.hypot(x1 - x0, z1 - z0) + extend0 + extend1
+        angle = math.degrees(math.atan2(z1 - z0, x1 - x0))
+        ux, uz = math.cos(math.radians(angle)), math.sin(math.radians(angle))
+        mx = (x0 + x1) / 2 + ux * (extend1 - extend0) / 2
+        mz = (z0 + z1) / 2 + uz * (extend1 - extend0) / 2
+        box = Box(length, BAR_TOP_Y - OPEN_HEART_FLOOR_Y, BAR_WIDTH, align=(None, None, None))
+        return box.moved(Location((mx, (BAR_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, mz), (0, -angle, 0)))
+
+    bar = bar_between(*LINE_OF_CENTRES, 2.6, 2.6)
+    bar += bar_between(THIRD_ARBOR_CAD, SECONDS_ARBOR_CAD, 1.5, 9.0)
+    boss_h = BAR_TOP_Y - OPEN_HEART_FLOOR_Y
+    boss_y = (BAR_TOP_Y + OPEN_HEART_FLOOR_Y) / 2
+    bar += cyl(BOSS_R, THIRD_ARBOR_CAD[0], THIRD_ARBOR_CAD[1], boss_h, boss_y)
+    bar += cyl(BOSS_R, sx, sz, boss_h, boss_y)
+    # The bars stop short of the well wall, which stands in the outer half
+    # millimetre of the window; the assembly check found a bar's end
     # inside the wall.
-    inside = Cylinder(OPEN_HEART_R - BAR_CLEAR_OF_WALL, height, align=(None, None, None))
-    inside = inside.moved(Location((cx, (OPEN_HEART_TOP_Y + OPEN_HEART_FLOOR_Y) / 2, cz), (90, 0, 0)))
+    inside = cyl(OPEN_HEART_R - BAR_CLEAR_OF_WALL, cx, cz) + cyl(SECONDS_WINDOW_R - BAR_CLEAR_OF_WALL, sx, sz)
     bar = bar & inside
     return (part - (window - bar)).wrapped
 

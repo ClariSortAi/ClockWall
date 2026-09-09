@@ -578,6 +578,8 @@ internal sealed class WatchScene : IDisposable
             Time = (float)seconds,
             ApertureCentre = d.ApertureCentre,
             ApertureRadius = d.ApertureRadius,
+            Aperture2Centre = d.Aperture2Centre,
+            Aperture2Radius = d.Aperture2Radius,
             TrackRadius = d.TrackRadius,
             DebugView = _debugView,
         };

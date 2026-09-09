@@ -46,6 +46,9 @@ internal sealed record WatchDesign
     /// whatever sits in the well. Must agree with case_solids.py.</summary>
     public Vector3 ApertureCentre { get; init; }
     public float ApertureRadius { get; init; }
+    /// <summary>The keyhole's bulge round the small seconds: case_solids.SECONDS_WIN_R at the seconds arbor.</summary>
+    public Vector3 Aperture2Centre { get; init; }
+    public float Aperture2Radius { get; init; }
 
     // ------------------------------------------------------------ the movement
 
@@ -128,6 +131,8 @@ internal sealed record WatchDesign
             TrackRadius = 268f * U,     // dial_render.CHAPTER_R
             ApertureCentre = aperture,
             ApertureRadius = 10.2f,
+            Aperture2Centre = new Vector3(-8f, 0f, 0f),
+            Aperture2Radius = 4.6f,
 
             MovementY = -4.81f,
             CotesDirection = new Vector3(0.94f, 0f, 0.34f),

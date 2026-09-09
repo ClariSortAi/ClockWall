@@ -80,6 +80,7 @@ internal struct FrameConstants
     public Vector3 LightDir; public float ShadowTexel;
     public Vector3 LightColour; public float Time;
     public Vector3 ApertureCentre; public float ApertureRadius;
+    public Vector3 Aperture2Centre; public float Aperture2Radius;   // the keyhole's bulge round the seconds
     public float TrackRadius; public float DebugView;
     public float EnvScale;      // the HDRI's units to pre-exposed lux: ambient / its own irradiance, times exposure
     public float LightHalfTan;  // tan of the key's angular radius: the softbox's size, for penumbra and highlight width
