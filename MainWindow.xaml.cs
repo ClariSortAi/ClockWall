@@ -472,7 +472,7 @@ public sealed partial class MainWindow : Window
     private void OnLightAmbientDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.AmbientLux, -1);
     private void OnLightEvUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Ev100, 1);
     private void OnLightEvDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Ev100, -1);
-    private void OnLightReadout(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) { a.Handled = true; HeroClock.ShowLightReadout(); }
+    private void OnLightReadout(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) { a.Handled = true; HeroClock.ToggleStudio(); }
     private void OnLightReset(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) { a.Handled = true; HeroClock.ResetLight(); }
 
     private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)

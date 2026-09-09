@@ -31,7 +31,7 @@
     <local:StudioStrip x:Name="Studio"
                        VerticalAlignment="Top"
                        HorizontalAlignment="Center"
-                       Margin="{StaticResource WallEdgeMargin}"
+                       Margin="{StaticResource StudioStripMargin}"
                        Visibility="Collapsed" />
     <StackPanel HorizontalAlignment="Center"
                 VerticalAlignment="Center"

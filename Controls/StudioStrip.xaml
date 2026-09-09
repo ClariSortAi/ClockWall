@@ -8,20 +8,32 @@
 
     <!--
         The studio's seven numbers, as a strip above the live face: a caption
-        in the wall's small type, the value in white, a chevron either side.
-        Every value is a physical quantity (Rendering/Lighting.cs) and every
-        chevron is one press of the same key the keyboard has, so the two
-        never disagree. No buttons: the chevrons are TextBlocks with Tapped,
-        which keeps the strip as quiet as the rest of the wall (no hover
-        plates, no borders) and stays inside Theme.xaml's resources.
+        in the wall's small type, a slider, the value in white under it.
+        Every value is a physical quantity (Rendering/Lighting.cs) and each
+        slider's scale comes from there too - the amounts of light run in
+        stops, the angles and the temperature in their own units - so what a
+        drag means is decided next to the physics. The keys still work and
+        the sliders follow them. The sliders are WinUI's own, restyled in the
+        wall's white through Theme.xaml's resource keys.
 
         The wall's root is the window's drag region, which swallows pointer
         input; MainWindow cuts a passthrough hole for this strip's bounds so
         the chevrons can be tapped at all. See StudioBoundsChanged.
     -->
-    <StackPanel x:Name="Root"
-                Orientation="Horizontal"
-                HorizontalAlignment="Center"
-                Spacing="{StaticResource SpacingMedium}" />
+    <StackPanel HorizontalAlignment="Center" Spacing="{StaticResource SpacingSmall}">
+        <!-- The toggle: one word in the caption type. Tapped, or the L key,
+             shows the sliders or puts them away; the wall runs with them
+             away, and they are there when somebody wants to move a light. -->
+        <TextBlock x:Name="Toggle"
+                   Style="{StaticResource StudioCaptionTextStyle}"
+                   HorizontalAlignment="Center"
+                   Padding="{StaticResource StudioTogglePadding}"
+                   Text="STUDIO  ▸" />
+        <StackPanel x:Name="Root"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="{StaticResource SpacingSmall}"
+                    Visibility="Collapsed" />
+    </StackPanel>
 
 </UserControl>

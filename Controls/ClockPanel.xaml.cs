@@ -113,12 +113,23 @@ public sealed partial class ClockPanel : UserControl
     public ClockPanel()
     {
         InitializeComponent();
-        Studio.Adjusted += (control, steps) => AdjustLight(control, steps);
+        Studio.Changed += (control, value) =>
+        {
+            if (_face != Live) return;
+            LiveFace.SetLight(control, value);
+            Studio.Sync(LiveFace.LightCells ?? Array.Empty<(double, string)>());
+            // Saved and logged once the drag settles, not sixty times a second.
+            _studioCommit ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
+            _studioCommit.Stop();
+            _studioCommit.Tick -= CommitStudio;
+            _studioCommit.Tick += CommitStudio;
+            _studioCommit.Start();
+        };
         Studio.SizeChanged += (_, _) => PublishStudioBounds();
         Studio.LayoutUpdated += (_, _) => PublishStudioBounds();
         // The live face's scene builds after the first frame; the strip's
         // values are refreshed when it reports in.
-        LiveFace.SceneReady += () => Studio.SetValues(LiveFace.LightValues);
+        LiveFace.SceneReady += () => SyncStudio();
         BuildFaceTicks();
 
         try
@@ -190,14 +201,28 @@ public sealed partial class ClockPanel : UserControl
     {
         if (_face != Live) return;
         LiveFace.AdjustLight(control, steps);
-        Studio.SetValues(LiveFace.LightValues);
+        SyncStudio();
     }
 
     public void ResetLight()
     {
         if (_face != Live) return;
         LiveFace.ResetLight();
-        Studio.SetValues(LiveFace.LightValues);
+        SyncStudio();
+    }
+
+    private DispatcherTimer? _studioCommit;
+
+    private void CommitStudio(object? sender, object e)
+    {
+        _studioCommit?.Stop();
+        if (_face == Live) LiveFace.CommitLight();
+    }
+
+    private void SyncStudio()
+    {
+        var cells = LiveFace.LightCells;
+        if (cells is not null) Studio.Sync(cells);
     }
 
     /// <summary>The strip's bounds in the window, physical pixels, or null
@@ -218,9 +243,13 @@ public sealed partial class ClockPanel : UserControl
             (int)Math.Ceiling(Studio.ActualWidth * scale), (int)Math.Ceiling(Studio.ActualHeight * scale)));
     }
 
-    public void ShowLightReadout()
+    /// <summary>L: the studio's sliders shown or put away.</summary>
+    public void ToggleStudio()
     {
-        if (_face == Live) LiveFace.ShowReadout();
+        if (_face != Live) return;
+        Studio.IsOpen = !Studio.IsOpen;
+        if (Studio.IsOpen) SyncStudio();
+        PublishStudioBounds();
     }
 
     private void ApplyMode()
@@ -239,7 +268,7 @@ public sealed partial class ClockPanel : UserControl
         LiveFace.SetRunning(_loaded && _face == Live);
 
         Studio.Visibility = _face == Live ? Visibility.Visible : Visibility.Collapsed;
-        if (_face == Live) Studio.SetValues(LiveFace.LightValues);
+        if (_face == Live) SyncStudio();
         PublishStudioBounds();
     }
 

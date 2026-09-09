@@ -44,6 +44,21 @@
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
             <StaticResource x:Key="WallAccentTextBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
 
+            <!-- The studio strip's sliders, in the wall's own white rather
+                 than the accent: a rail in the tertiary text, the filled
+                 part and the thumb in the primary. Lightweight styling of
+                 WinUI's Slider by its resource keys. -->
+            <StaticResource x:Key="SliderTrackValueFill"            ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPressed"     ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFill"                 ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPointerOver"      ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPressed"          ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackground"           ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPressed"    ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderInnerThumbBackground"      ResourceKey="ClockPrimaryTextBrush" />
+
             <!-- Agent status. Hue never carries the meaning on its own - it is
                  always paired with a text label on the card. -->
             <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemFillColorCautionBrush" />
@@ -110,6 +125,21 @@
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="AccentFillColorDefaultBrush" />
             <StaticResource x:Key="WallAccentTextBrush" ResourceKey="AccentTextFillColorPrimaryBrush" />
 
+            <!-- The studio strip's sliders, in the wall's own white rather
+                 than the accent: a rail in the tertiary text, the filled
+                 part and the thumb in the primary. Lightweight styling of
+                 WinUI's Slider by its resource keys. -->
+            <StaticResource x:Key="SliderTrackValueFill"            ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPressed"     ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFill"                 ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPointerOver"      ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPressed"          ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackground"           ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPressed"    ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderInnerThumbBackground"      ResourceKey="ClockPrimaryTextBrush" />
+
             <!-- Agent status -->
             <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemFillColorCautionBrush" />
             <StaticResource x:Key="AgentStatusIdleBrush"    ResourceKey="SystemFillColorSuccessBrush" />
@@ -151,6 +181,21 @@
 
             <StaticResource x:Key="WallAccentBrush"     ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="WallAccentTextBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+
+            <!-- The studio strip's sliders, in the wall's own white rather
+                 than the accent: a rail in the tertiary text, the filled
+                 part and the thumb in the primary. Lightweight styling of
+                 WinUI's Slider by its resource keys. -->
+            <StaticResource x:Key="SliderTrackValueFill"            ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackValueFillPressed"     ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFill"                 ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPointerOver"      ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderTrackFillPressed"          ResourceKey="ClockTertiaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackground"           ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPointerOver" ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderThumbBackgroundPressed"    ResourceKey="ClockPrimaryTextBrush" />
+            <StaticResource x:Key="SliderInnerThumbBackground"      ResourceKey="ClockPrimaryTextBrush" />
 
             <StaticResource x:Key="AgentStatusBusyBrush"    ResourceKey="SystemColorHighlightColorBrush" />
             <StaticResource x:Key="AgentStatusIdleBrush"    ResourceKey="SystemColorWindowTextColorBrush" />
@@ -204,8 +249,11 @@
     <!-- The studio strip over the live face: a caption, a value, chevrons. -->
     <x:Double x:Key="StudioCaptionFontSize">15</x:Double>
     <x:Double x:Key="StudioValueFontSize">24</x:Double>
-    <x:Double x:Key="StudioChevronFontSize">30</x:Double>
-    <x:Double x:Key="StudioValueMinWidth">92</x:Double>
+    <x:Double x:Key="StudioSliderWidth">104</x:Double>
+    <Thickness x:Key="StudioTogglePadding">8</Thickness>
+    <!-- Open, the strip is about 130px tall and the live face's panel begins
+         at about 230 from the wall's top; it starts high so it clears it. -->
+    <Thickness x:Key="StudioStripMargin">0,16,0,0</Thickness>
 
     <!-- Printed dial text ("4 Hz · 28,800 vph"). Small on purpose: on a real
          dial this is the line you only read when you go looking for it. -->
@@ -325,7 +373,7 @@
         <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource SystemMeterLabelFontSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="CharacterSpacing" Value="120" />
         <Setter Property="Foreground" Value="{ThemeResource SystemMeterLabelTextBrush}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="IsTextSelectionEnabled" Value="False" />
@@ -344,7 +392,7 @@
         <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource SectionHeaderFontSize}" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="CharacterSpacing" Value="120" />
         <Setter Property="Foreground" Value="{ThemeResource SectionHeaderTextBrush}" />
         <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
@@ -390,7 +438,7 @@
         <Setter Property="FontFamily" Value="{StaticResource WallSmallFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource StudioCaptionFontSize}" />
         <Setter Property="Foreground" Value="{ThemeResource ClockTertiaryTextBrush}" />
-        <Setter Property="CharacterSpacing" Value="180" />
+        <Setter Property="CharacterSpacing" Value="120" />
         <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
 
@@ -398,14 +446,6 @@
         <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
         <Setter Property="FontSize" Value="{StaticResource StudioValueFontSize}" />
         <Setter Property="Foreground" Value="{ThemeResource ClockPrimaryTextBrush}" />
-        <Setter Property="IsTextSelectionEnabled" Value="False" />
-    </Style>
-
-    <Style x:Key="StudioChevronTextStyle" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource WallTextFontFamily}" />
-        <Setter Property="FontSize" Value="{StaticResource StudioChevronFontSize}" />
-        <Setter Property="Foreground" Value="{ThemeResource ClockTertiaryTextBrush}" />
-        <Setter Property="Padding" Value="{StaticResource SpacingXSmall}" />
         <Setter Property="IsTextSelectionEnabled" Value="False" />
     </Style>
 

@@ -158,11 +158,12 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
   the room's ambient lux (the HDRI, calibrated off its own irradiance), and the
   camera's EV100. `Ctrl+Left`/`Ctrl+Right` walk the key round, `Ctrl+Up`/`Ctrl+Down`
   raise and lower it; `K`, `T`, `G`, `A`, `E` raise the key's lux, kelvin, size,
-  the ambient lux and the EV, `Shift` with them lowers; `L` shows the readout for
-  four seconds, `Ctrl+L` puts the studio back. The same seven numbers sit in a
-  strip across the top of the wall while the live face is up, each with a
-  chevron either side that does one press of the key; the strip is the one
-  place on the wall that takes the pointer (the rest drags the window). The setting persists in
+  the ambient lux and the EV, `Shift` with them lowers; `Ctrl+L` puts the studio
+  back. The same seven numbers are sliders across the top of the wall while the
+  live face is up, behind a `STUDIO` word that shows them or puts them away (`L`
+  does the same); a slider runs in stops where the number is an amount of light.
+  The strip is the one place on the wall that takes the pointer (the rest drags
+  the window). A dragged setting is saved once the drag settles. The setting persists in
   `%LOCALAPPDATA%\ClockWall\light.txt`; delete it for the defaults, which are
   the face as designed, read back in real units.
 - `CLOCKWALL_DEBUG_VIEW=1` in the environment renders the live face as a mirror of

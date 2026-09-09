@@ -134,6 +134,17 @@ internal sealed class WatchScene : IDisposable
 
     public string LightReadout => _light.Describe();
     public string[] LightValues => _light.Values();
+    public (double Slider, string Text)[] LightCells => _light.Cells();
+
+    /// <summary>A slider moving: the number follows live, nothing is
+    /// written. <see cref="CommitLight"/> when the drag settles.</summary>
+    public void SetLight(LightControl control, double sliderValue) => _light.SetFromSlider(control, sliderValue);
+
+    public void CommitLight()
+    {
+        _light.Save(LightRig.DefaultPath);
+        Log?.Invoke("studio: " + _light.Describe());
+    }
 
     /// <summary>The crown pulled out or pushed in, from the S key. Out, the
     /// arrow keys turn it; the crown itself moves 0.6mm on the stem.</summary>

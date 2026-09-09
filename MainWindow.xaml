@@ -60,7 +60,8 @@
                  Ctrl+arrows walk the key round (bearing) and up (elevation);
                  K, T, G, A, E raise the key's lux, its kelvin, its angular
                  size, the room's lux and the camera's EV, Shift lowers them.
-                 L shows the readout, Ctrl+L puts the studio back. -->
+                 L shows the sliders or puts them away, Ctrl+L puts the
+                 studio back to the designed face. -->
             <KeyboardAccelerator Key="Right" Modifiers="Control" Invoked="OnLightBearingUp" />
             <KeyboardAccelerator Key="Left" Modifiers="Control" Invoked="OnLightBearingDown" />
             <KeyboardAccelerator Key="Up" Modifiers="Control" Invoked="OnLightElevationUp" />

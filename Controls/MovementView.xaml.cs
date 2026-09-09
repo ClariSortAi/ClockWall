@@ -60,6 +60,9 @@ public sealed partial class MovementView : UserControl
     }
 
     public string[] LightValues => _renderer.LightValues;
+    public (double Slider, string Text)[]? LightCells => _renderer.LightCells;
+    public void SetLight(LightControl control, double sliderValue) => _renderer.SetLight(control, sliderValue);
+    public void CommitLight() => _renderer.CommitLight();
 
     /// <summary>Fires on the UI thread once the renderer's scene is built,
     /// so the strip can read real values rather than blanks.</summary>

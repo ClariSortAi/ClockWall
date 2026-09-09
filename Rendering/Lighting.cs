@@ -87,6 +87,64 @@ internal sealed class LightRig
         "key {0:0}° / {1:0}°  ·  {2:#,0} lx  ·  {3:0} K  ·  {4:0}° wide     ambient {5:#,0} lx     EV {6:0.0}",
         BearingDeg, ElevationDeg, KeyLux, Kelvin, AngularDeg, AmbientLux, Ev100);
 
+    /// <summary>A control's slider: its range, its step, and whether the
+    /// slider runs in stops (log2) rather than in the unit itself. Amounts
+    /// of light are in stops because that is how they feel - a third of a
+    /// stop is a third of a stop at 100 lux and at 10,000 - and angles and
+    /// temperature are what they are.</summary>
+    public readonly record struct SliderScale(double Min, double Max, double Step, bool Stops);
+
+    public static SliderScale Scale(LightControl control) => control switch
+    {
+        LightControl.Bearing => new(0, 360, 5, false),
+        LightControl.Elevation => new(5, 85, 5, false),
+        LightControl.KeyLux => new(Math.Log2(10), Math.Log2(200000), 1.0 / 3, true),
+        LightControl.Kelvin => new(1800, 12000, 100, false),
+        LightControl.AngularSize => new(1, 90, 1, false),
+        LightControl.AmbientLux => new(0, Math.Log2(100000), 1.0 / 3, true),
+        _ => new(-2, 20, 1.0 / 3, false),
+    };
+
+    /// <summary>The value a slider should show for a control now.</summary>
+    public double SliderValue(LightControl control) => control switch
+    {
+        LightControl.Bearing => BearingDeg,
+        LightControl.Elevation => ElevationDeg,
+        LightControl.KeyLux => Math.Log2(KeyLux),
+        LightControl.Kelvin => Kelvin,
+        LightControl.AngularSize => AngularDeg,
+        LightControl.AmbientLux => Math.Log2(AmbientLux),
+        _ => Ev100,
+    };
+
+    /// <summary>A slider moved: set the number it stands for.</summary>
+    public void SetFromSlider(LightControl control, double value)
+    {
+        var s = Scale(control);
+        value = Math.Clamp(value, s.Min, s.Max);
+        var amount = (float)(s.Stops ? Math.Pow(2, value) : value);
+        switch (control)
+        {
+            case LightControl.Bearing: BearingDeg = amount % 360f; break;
+            case LightControl.Elevation: ElevationDeg = amount; break;
+            case LightControl.KeyLux: KeyLux = amount; break;
+            case LightControl.Kelvin: Kelvin = amount; break;
+            case LightControl.AngularSize: AngularDeg = amount; break;
+            case LightControl.AmbientLux: AmbientLux = amount; break;
+            default: Ev100 = amount; break;
+        }
+    }
+
+    /// <summary>The seven cells for the strip: where each slider sits and
+    /// what to print under it, in the order of <see cref="LightControl"/>.</summary>
+    public (double Slider, string Text)[] Cells()
+    {
+        var text = Values();
+        var cells = new (double, string)[text.Length];
+        for (var i = 0; i < text.Length; i++) cells[i] = (SliderValue((LightControl)i), text[i]);
+        return cells;
+    }
+
     /// <summary>The seven values as the strip shows them, in the order of
     /// <see cref="LightControl"/>.</summary>
     public string[] Values() => new[]

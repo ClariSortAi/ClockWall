@@ -93,6 +93,9 @@ public sealed class WatchRenderer : IDisposable
     public void ResetLight() => _scene?.ResetLight();
     public string LightReadout => _scene?.LightReadout ?? "";
     public string[] LightValues => _scene?.LightValues ?? new[] { "", "", "", "", "", "", "" };
+    public (double Slider, string Text)[]? LightCells => _scene?.LightCells;
+    public void SetLight(LightControl control, double sliderValue) => _scene?.SetLight(control, sliderValue);
+    public void CommitLight() => _scene?.CommitLight();
 
     /// <summary>The wall colour behind the panel, sRGB 0..1. The control
     /// reads it off its themed Background so the renderer never names a
