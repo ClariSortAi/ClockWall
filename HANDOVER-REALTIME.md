@@ -359,6 +359,18 @@ bearings measure in the STL what the table says (intermediate_bearing
 clashes, on both machines, and the intermediate clears both its bearings.
 Done.
 
+**The studio, in physical units (2026-09-08).** `Rendering/Lighting.cs`:
+seven numbers - key bearing, elevation, lux, kelvin, angular size; ambient
+lux; EV100 - on keys through the same chain as the crown, with a four-second
+readout on the panel and a one-line file for persistence. Colour from
+Planck's law; the HDRI calibrated off its own irradiance read back after
+the bake; the softbox's size in the penumbra (PCSS) and in the highlight
+width (Karis); exposure the Filament way. Defaults reproduce the designed
+face: 700 lux key, 1000 lux ambient, EV 8.2. Not done: the panorama's own
+softbox and the key are two copies of one light (the key dominates it
+five to one); a rectangular area light (linearly transformed cosines,
+anisotropic) would replace both with one.
+
 **7. Cosmetic - done; the crystal since redone as glass.** The crystal is
 now a box sapphire with a bevel standing proud of the bezel, and its shader
 a light path: a four-layer anti-reflective stack by the transfer-matrix

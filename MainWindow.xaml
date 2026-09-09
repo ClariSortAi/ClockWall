@@ -56,6 +56,27 @@
             <KeyboardAccelerator Key="Left" Invoked="OnCrownBackAccelerator" />
             <KeyboardAccelerator Key="Right" Modifiers="Shift" Invoked="OnCrownForwardHourAccelerator" />
             <KeyboardAccelerator Key="Left" Modifiers="Shift" Invoked="OnCrownBackHourAccelerator" />
+            <!-- The studio. Seven physical numbers (Rendering/Lighting.cs):
+                 Ctrl+arrows walk the key round (bearing) and up (elevation);
+                 K, T, G, A, E raise the key's lux, its kelvin, its angular
+                 size, the room's lux and the camera's EV, Shift lowers them.
+                 L shows the readout, Ctrl+L puts the studio back. -->
+            <KeyboardAccelerator Key="Right" Modifiers="Control" Invoked="OnLightBearingUp" />
+            <KeyboardAccelerator Key="Left" Modifiers="Control" Invoked="OnLightBearingDown" />
+            <KeyboardAccelerator Key="Up" Modifiers="Control" Invoked="OnLightElevationUp" />
+            <KeyboardAccelerator Key="Down" Modifiers="Control" Invoked="OnLightElevationDown" />
+            <KeyboardAccelerator Key="K" Invoked="OnLightKeyUp" />
+            <KeyboardAccelerator Key="K" Modifiers="Shift" Invoked="OnLightKeyDown" />
+            <KeyboardAccelerator Key="T" Invoked="OnLightKelvinUp" />
+            <KeyboardAccelerator Key="T" Modifiers="Shift" Invoked="OnLightKelvinDown" />
+            <KeyboardAccelerator Key="G" Invoked="OnLightSizeUp" />
+            <KeyboardAccelerator Key="G" Modifiers="Shift" Invoked="OnLightSizeDown" />
+            <KeyboardAccelerator Key="A" Invoked="OnLightAmbientUp" />
+            <KeyboardAccelerator Key="A" Modifiers="Shift" Invoked="OnLightAmbientDown" />
+            <KeyboardAccelerator Key="E" Invoked="OnLightEvUp" />
+            <KeyboardAccelerator Key="E" Modifiers="Shift" Invoked="OnLightEvDown" />
+            <KeyboardAccelerator Key="L" Invoked="OnLightReadout" />
+            <KeyboardAccelerator Key="L" Modifiers="Control" Invoked="OnLightReset" />
         </Grid.KeyboardAccelerators>
 
         <Viewbox x:Name="DesignScaler" Stretch="Uniform" StretchDirection="Both">

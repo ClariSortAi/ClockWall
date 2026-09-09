@@ -30,7 +30,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;   // unit vector TOWARD the light
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
-    float    TrackRadius; float DebugView; float2 _pad0;
+    float    TrackRadius; float DebugView; float EnvScale; float LightHalfTan;
 };
 
 cbuffer Object : register(b1)
@@ -54,6 +54,7 @@ TextureCube<float4> EnvDiffuse   : register(t1);   // cosine-convolved
 Texture2D<float2>   BrdfLut      : register(t2);   // split-sum scale / bias
 Texture2D<float>    ShadowMap    : register(t3);
 Texture2D<float>    DialPrint    : register(t4);   // the lettering, a coverage mask in face units
+SamplerState        ShadowPoint  : register(s2);   // the shadow map read raw, for the blocker search
 
 SamplerState              LinearClamp : register(s0);
 SamplerComparisonState    ShadowCmp   : register(s1);
@@ -225,14 +226,30 @@ float Shadow(float3 P, float3 N, float NoL)
     // range over 0..1, so this is a tenth of a millimetre.
     float z = p.z - 0.0006;
 
-    // 5x5 PCF at a 2.5-texel step: about 0.4mm of penumbra on a 62mm map.
-    // Wider than a point light would give on purpose - the hands stand a
-    // millimetre off the dial under a softbox a metre wide, so their
-    // shadows are soft, and the kernel is the penumbra.
+    // The penumbra from the light's SIZE: percentage-closer soft shadows
+    // (Fernando 2005). A softbox of angular radius a throws, from a blocker
+    // d millimetres above the receiver, a penumbra d * tan(a) wide either
+    // side. First the blockers: the mean depth of what is nearer the light
+    // than this point, over the widest footprint a blocker in range could
+    // cast. Then the kernel at that width. Fixed sample counts both ways,
+    // so the cost does not move with the light.
+    const float mmPerDepth = 180.0;             // the ortho light's near-to-far
+    const float mmPerTexel = 66.0 / 2048.0;     // the map's 66mm over its texels
+    float searchTexels = clamp(LightHalfTan * 8.0 / mmPerTexel, 2.0, 48.0);   // blockers up to 8mm off
+    float blockerSum = 0; int blockers = 0;
+    [unroll] for (int j = -2; j <= 2; j++)
+    [unroll] for (int i = -2; i <= 2; i++)
+    {
+        float d = ShadowMap.SampleLevel(ShadowPoint, uv + float2(i, j) * (searchTexels * 0.5 * ShadowTexel), 0);
+        if (d < z) { blockerSum += d; blockers++; }
+    }
+    if (blockers == 0) return 1;
+    float dBlocker = (z - blockerSum / blockers) * mmPerDepth;
+    float radiusTexels = clamp(dBlocker * LightHalfTan / mmPerTexel, 1.5, 48.0);
     float sum = 0;
     [unroll] for (int y = -2; y <= 2; y++)
     [unroll] for (int x = -2; x <= 2; x++)
-        sum += ShadowMap.SampleCmpLevelZero(ShadowCmp, uv + float2(x, y) * (2.5 * ShadowTexel), z);
+        sum += ShadowMap.SampleCmpLevelZero(ShadowCmp, uv + float2(x, y) * (radiusTexels * 0.5 * ShadowTexel), z);
     return sum / 25.0;
 }
 
@@ -259,7 +276,7 @@ PsOut PsMain(VsOut i)
     // and was wrong twice.
     if (DebugView > 0.5)
     {
-        float3 dbg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 0).rgb;
+        float3 dbg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 0).rgb * EnvScale;
         result.colour = float4(dbg * Exposure, 1);
         return result;
     }
@@ -346,8 +363,16 @@ PsOut PsMain(VsOut i)
         float3 H = normalize(L + V);
         float NoH = saturate(dot(N, H));
         float VoH = saturate(dot(V, H));
-        float D = D_Aniso(at, ab, dot(T, H), dot(B, H), NoH);
-        float Vis = V_Aniso(at, ab, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NoV, NoL);
+        // The key is a softbox, not a point: its angular radius widens the
+        // lobe (Karis 2013: alpha' = alpha + tan(radius) / 2) and the lobe
+        // is renormalised so the light's energy does not grow with it. On
+        // a mirror this is what turns a pinprick into the soft rectangle a
+        // softbox actually leaves.
+        float wide = LightHalfTan * 0.5;
+        float atL = at + wide, abL = ab + wide;
+        float norm = (at * ab) / (atL * abL);
+        float D = D_Aniso(atL, abL, dot(T, H), dot(B, H), NoH) * norm;
+        float Vis = V_Aniso(atL, abL, dot(T, V), dot(B, V), dot(T, L), dot(B, L), NoV, NoL);
         float3 F = F_Schlick(f0, VoH);
         float3 spec = D * Vis * F;
         float3 diff = albedo / PI;
@@ -357,10 +382,10 @@ PsOut PsMain(VsOut i)
         {
             // Clear coat: an isotropic, very smooth dielectric layer on top,
             // on the peel's normal rather than the metal's.
-            float a = 0.06 * 0.06;
+            float a = 0.06 * 0.06 + wide;
             float NcoH = saturate(dot(Nc, H));
             float d = NcoH * NcoH * (a - 1) + 1;
-            float Dc = a / (PI * d * d);
+            float Dc = a / (PI * d * d) * (0.06 * 0.06 / a);
             float Fc = 0.04 + 0.96 * pow(1 - VoH, 5);
             direct += Dc * Fc * 0.25 * Lacquer * NoL * LightColour * shadow;
         }
@@ -396,7 +421,7 @@ PsOut PsMain(VsOut i)
             float ang = w * spread;
             float3 n2 = normalize(N * cos(ang) + cross(T, N) * sin(ang));
             float3 R2 = reflect(-V, n2);
-            sum += EnvSpecular.SampleLevel(LinearClamp, mul(R2, (float3x3)EnvRot), mipAlong).rgb * weight;
+            sum += EnvSpecular.SampleLevel(LinearClamp, mul(R2, (float3x3)EnvRot), mipAlong).rgb * EnvScale * weight;
             wsum += weight;
         }
         specIbl = sum / wsum;
@@ -404,11 +429,11 @@ PsOut PsMain(VsOut i)
     else
     {
         float3 R = reflect(-V, N);
-        specIbl = EnvSpecular.SampleLevel(LinearClamp, mul(R, (float3x3)EnvRot), roughMean * maxMip).rgb;
+        specIbl = EnvSpecular.SampleLevel(LinearClamp, mul(R, (float3x3)EnvRot), roughMean * maxMip).rgb * EnvScale;
     }
     float2 brdf = BrdfLut.Sample(LinearClamp, float2(NoV, roughMean));
     specIbl *= (f0 * brdf.x + brdf.y);
-    float3 diffIbl = EnvDiffuse.SampleLevel(LinearClamp, envN, 0).rgb * albedo;
+    float3 diffIbl = EnvDiffuse.SampleLevel(LinearClamp, envN, 0).rgb * EnvScale * albedo;
 
     if (Lacquer > 0)
     {
@@ -418,7 +443,7 @@ PsOut PsMain(VsOut i)
         // few microns thick over a brushed metal is never that flat anyway.
         float3 Rc = mul(reflect(-V, Nc), (float3x3)EnvRot);
         float Fc = 0.04 + 0.96 * pow(1 - NoV, 5);
-        specIbl += EnvSpecular.SampleLevel(LinearClamp, Rc, 2.6).rgb * Fc * Lacquer;
+        specIbl += EnvSpecular.SampleLevel(LinearClamp, Rc, 2.6).rgb * EnvScale * Fc * Lacquer;
     }
 
     float3 ambient = (specIbl + diffIbl) * lerp(0.45, 1.0, shadow);
@@ -468,7 +493,7 @@ PsOut PsMain(VsOut i)
         float2 faceUv = P.xz * (11.780018 / 640.0) + 0.5;
         float print = DialPrint.Sample(LinearClamp, faceUv);
         float3 ink = float3(0.80, 0.85, 0.96);
-        float3 inkLit = ink * (EnvDiffuse.SampleLevel(LinearClamp, envN, 0).rgb * lerp(0.45, 1.0, shadow)
+        float3 inkLit = ink * (EnvDiffuse.SampleLevel(LinearClamp, envN, 0).rgb * EnvScale * lerp(0.45, 1.0, shadow)
                                + LightColour * NoL * shadow / PI);
         colour = lerp(colour, inkLit, max(onMark, print));
     }

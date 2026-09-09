@@ -88,6 +88,11 @@ public sealed class WatchRenderer : IDisposable
     public void ToggleCrown() => _scene?.ToggleCrown();
     public void TurnCrown(TimeSpan byHands) => _scene?.TurnCrown(byHands);
 
+    /// <summary>The studio's lights, in physical units. See LightRig.</summary>
+    public void AdjustLight(LightControl control, int steps) => _scene?.AdjustLight(control, steps);
+    public void ResetLight() => _scene?.ResetLight();
+    public string LightReadout => _scene?.LightReadout ?? "";
+
     /// <summary>The wall colour behind the panel, sRGB 0..1. The control
     /// reads it off its themed Background so the renderer never names a
     /// colour; see post.hlsl for why the panel composites itself.</summary>

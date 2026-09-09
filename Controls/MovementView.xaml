@@ -17,9 +17,17 @@
         pixel of the openworked face came from Blender. What lives here is
         only the size and the plumbing.
     -->
-    <SwapChainPanel x:Name="Panel"
-                    Width="{StaticResource WatchFaceWidth}"
-                    Height="{StaticResource WatchFaceSize}"
-                    HorizontalAlignment="Center" />
+    <Grid Width="{StaticResource WatchFaceWidth}"
+          Height="{StaticResource WatchFaceSize}"
+          HorizontalAlignment="Center">
+        <SwapChainPanel x:Name="Panel" />
+        <!-- The studio's readout: shown for a few seconds after a lighting
+             key, in the wall's smallest type, then gone. -->
+        <TextBlock x:Name="LightReadout"
+                   Style="{StaticResource AgentMetaTextStyle}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Bottom"
+                   Visibility="Collapsed" />
+    </Grid>
 
 </UserControl>

@@ -28,7 +28,7 @@ public sealed partial class MainWindow : Window
     private const int DesignHeight = 1920;
 
     /// <summary>How long the screenshot path lets the UI settle and the session scan land.</summary>
-    private static readonly TimeSpan ScreenshotSettleDelay = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan ScreenshotSettleDelay = TimeSpan.FromSeconds(6);   // the live face builds its scene in about 3 s; a shorter wait captured a never-painted swap chain, black
 
     /// <summary>Hard ceiling on the screenshot path. It must always terminate.</summary>
     private static readonly TimeSpan ScreenshotWatchdog = TimeSpan.FromSeconds(30);
@@ -430,6 +430,29 @@ public sealed partial class MainWindow : Window
         args.Handled = true;
         HeroClock.TurnCrown(TimeSpan.FromHours(-1));
     }
+
+    // ---- the studio (Rendering/Lighting.cs)
+    private void Light(KeyboardAcceleratorInvokedEventArgs args, ClockWall.Rendering.LightControl control, int steps)
+    {
+        args.Handled = true;
+        HeroClock.AdjustLight(control, steps);
+    }
+    private void OnLightBearingUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Bearing, 1);
+    private void OnLightBearingDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Bearing, -1);
+    private void OnLightElevationUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Elevation, 1);
+    private void OnLightElevationDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Elevation, -1);
+    private void OnLightKeyUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.KeyLux, 1);
+    private void OnLightKeyDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.KeyLux, -1);
+    private void OnLightKelvinUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Kelvin, 1);
+    private void OnLightKelvinDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Kelvin, -1);
+    private void OnLightSizeUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.AngularSize, 1);
+    private void OnLightSizeDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.AngularSize, -1);
+    private void OnLightAmbientUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.AmbientLux, 1);
+    private void OnLightAmbientDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.AmbientLux, -1);
+    private void OnLightEvUp(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Ev100, 1);
+    private void OnLightEvDown(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) => Light(a, ClockWall.Rendering.LightControl.Ev100, -1);
+    private void OnLightReadout(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) { a.Handled = true; HeroClock.ShowLightReadout(); }
+    private void OnLightReset(KeyboardAccelerator s, KeyboardAcceleratorInvokedEventArgs a) { a.Handled = true; HeroClock.ResetLight(); }
 
     private void OnFullScreenAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {

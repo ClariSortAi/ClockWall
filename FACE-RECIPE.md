@@ -138,14 +138,30 @@ renders as a mirror of the studio by its normal. Adjust, rebuild, look again.
 
 Then the fill. `ibl.hlsl`'s `PsEquirect` scales the panorama, knees its
 peaks, lifts its floor and adds a diffuser over the main box. Those numbers
-are the studio's exposure and are shared by every face; if a new face
-changes them, re-check the old one.
+shape the room; they are NOT its exposure any more. The room's level is a
+number in lux: after the bake `Environment.IrradianceUnits` reads the
+irradiance the panorama delivers to the dial in its own units, and
+`LightRig.AmbientLux` scales it to what a meter would read. Change the
+panorama and the calibration follows by itself.
 
 ## 5. The key light and the rig
 
 `KeyBearingDeg` / `KeyElevationDeg` and their swings; `CameraTiltDeg` and
 its swing. The key throws the shadows and the crisp lobes; its wander is
 what makes the sunburst sweep. Lower elevation means longer hand shadows.
+
+The key is in physical units (`Rendering/Lighting.cs`, the Frostbite /
+Filament formulation): illuminance in lux at the dial, colour from Planck's
+law at a temperature in kelvin integrated against the CIE 1931 matching
+functions, and an angular size in degrees that widens the specular lobe
+(Karis) and sets the penumbra (percentage-closer soft shadows in
+`watch.hlsl`'s `Shadow`). The camera is an EV100; lights are pre-exposed on
+the CPU and the shaders' `Exposure` is 1. The design's numbers are the
+defaults, translated: the old unitless key of 2.0 over an unscaled panorama
+came out as 700 lux over 1000 lux ambient at EV 8.2, which is a dim room and
+is why the first thing to try on the wall is `K` a few times. The room turns
+with the key's bearing, since the panorama's softbox is the key's own
+reflection; elevation moves the key alone.
 
 Check with a sequence, not a still: `--screenshot-seq 4 9000` and lay the
 frames side by side. The lobes must move between frames.

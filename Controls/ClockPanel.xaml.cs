@@ -177,6 +177,22 @@ public sealed partial class ClockPanel : UserControl
         if (_face == Live) LiveFace.TurnCrown(byHands);
     }
 
+    /// <summary>The studio's lights, live face only. See LightRig.</summary>
+    public void AdjustLight(ClockWall.Rendering.LightControl control, int steps)
+    {
+        if (_face == Live) LiveFace.AdjustLight(control, steps);
+    }
+
+    public void ResetLight()
+    {
+        if (_face == Live) LiveFace.ResetLight();
+    }
+
+    public void ShowLightReadout()
+    {
+        if (_face == Live) LiveFace.ShowReadout();
+    }
+
     private void ApplyMode()
     {
         for (var i = 0; i < FaceNames.Length; i++)

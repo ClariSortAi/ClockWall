@@ -151,6 +151,17 @@ If you are running Smart App Control, sign the output or turn SAC off on the wal
   `Shift+Left`/`Shift+Right` an hour. The system clock is consulted exactly once,
   when the app starts, which is the owner setting the watch. The fault log records
   its rate at launch, its drift hourly, and every wind, set and stop.
+- The live face's studio is seven physical numbers (`Rendering/Lighting.cs`):
+  the key light's bearing and elevation, its illuminance in lux at the dial, its
+  colour temperature in kelvin (Planck's law, nothing chosen), its angular size in
+  degrees (a softbox's; it sets the shadows' softness and the highlights' width),
+  the room's ambient lux (the HDRI, calibrated off its own irradiance), and the
+  camera's EV100. `Ctrl+Left`/`Ctrl+Right` walk the key round, `Ctrl+Up`/`Ctrl+Down`
+  raise and lower it; `K`, `T`, `G`, `A`, `E` raise the key's lux, kelvin, size,
+  the ambient lux and the EV, `Shift` with them lowers; `L` shows the readout for
+  four seconds, `Ctrl+L` puts the studio back. The setting persists in
+  `%LOCALAPPDATA%\ClockWall\light.txt`; delete it for the defaults, which are
+  the face as designed, read back in real units.
 - `CLOCKWALL_DEBUG_VIEW=1` in the environment renders the live face as a mirror of
   its studio, for checking where the light is.
 - The live face logs any failure to build its scene to

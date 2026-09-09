@@ -45,6 +45,39 @@ public sealed partial class MovementView : UserControl
     public void ToggleCrown() => _renderer.ToggleCrown();
     public void TurnCrown(TimeSpan byHands) => _renderer.TurnCrown(byHands);
 
+    /// <summary>The studio's lights (LightRig): a control moved, or L to
+    /// read them, or Ctrl+L to reset. The readout shows for four seconds.</summary>
+    public void AdjustLight(LightControl control, int steps)
+    {
+        _renderer.AdjustLight(control, steps);
+        ShowReadout();
+    }
+
+    public void ResetLight()
+    {
+        _renderer.ResetLight();
+        ShowReadout();
+    }
+
+    public void ShowReadout()
+    {
+        LightReadout.Text = _renderer.LightReadout;
+        LightReadout.Visibility = Visibility.Visible;
+        _readoutTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+        _readoutTimer.Stop();
+        _readoutTimer.Tick -= HideReadout;
+        _readoutTimer.Tick += HideReadout;
+        _readoutTimer.Start();
+    }
+
+    private DispatcherTimer? _readoutTimer;
+
+    private void HideReadout(object? sender, object e)
+    {
+        _readoutTimer?.Stop();
+        LightReadout.Visibility = Visibility.Collapsed;
+    }
+
     /// <summary>Starts or stops the frame loop. See the class remarks for
     /// who calls it and why it is not Loaded.</summary>
     public void SetRunning(bool running)

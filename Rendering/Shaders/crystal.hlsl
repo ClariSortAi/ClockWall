@@ -47,7 +47,7 @@ cbuffer Frame : register(b0)
     float3   LightDir;    float ShadowTexel;
     float3   LightColour; float Time;
     float3   ApertureCentre; float ApertureRadius;
-    float    TrackRadius; float DebugView; float2 _pad0;
+    float    TrackRadius; float DebugView; float EnvScale; float LightHalfTan;
 };
 
 cbuffer Object : register(b1)
@@ -194,9 +194,15 @@ float4 PsMain(VsOut i) : SV_Target
     // Sampled blurred on purpose: the studio's softbox has an eggcrate
     // grid, and a polished dome reflecting it crisply laid a plaid over
     // the whole dial. A crystal is not where that detail belongs.
-    float3 envTop = EnvSpecular.SampleLevel(LinearClamp, Rtop, 2.6).rgb;
+    float3 envTop = EnvSpecular.SampleLevel(LinearClamp, Rtop, 2.6).rgb * EnvScale;
     float3 H = normalize(LightDir + V);
-    float glintTop = Glint(saturate(dot(N, H)), 0.03) * saturate(dot(N, LightDir));
+    // The key's glint: a polished surface (alpha 0.03^2) widened by the
+    // softbox's angular radius (Karis 2013), so the glint is the softbox's
+    // own luminance E / Omega spread over its size, not a pinprick of
+    // infinite brightness. D * F / (4 NoV) is the mirror-limit BRDF times
+    // cos, times E, and the energy is renormalised for the widening.
+    float aTop = 0.03 * 0.03 + LightHalfTan * 0.5;
+    float glintTop = Glint(saturate(dot(N, H)), sqrt(aTop)) * (0.03 * 0.03 / aTop) / (4.0 * max(NoV, 0.05)) * saturate(dot(N, LightDir));
 
     // ---- 2. through the glass
     float3 Tin = refract(-V, N, 1.0 / N_REFRACT);          // into the sapphire, heading down
@@ -231,7 +237,7 @@ float4 PsMain(VsOut i) : SV_Target
         float3 Tr = reflect(Tin, up);                        // back up inside the glass
         float3 Rout = refract(Tr, -N, N_REFRACT);            // out through the top
         if (dot(Rout, Rout) > 0.5)
-            envInner = EnvSpecular.SampleLevel(LinearClamp, mul(Rout, (float3x3)EnvRot), 2.6).rgb;
+            envInner = EnvSpecular.SampleLevel(LinearClamp, mul(Rout, (float3x3)EnvRot), 2.6).rgb * EnvScale;
         else
             envInner = envTop;                               // trapped: it leaves elsewhere, near enough the same room
         // The key light's glint on the underside: the light refracted in
@@ -241,14 +247,15 @@ float4 PsMain(VsOut i) : SV_Target
         if (Lin.y < 0)
         {
             float3 Hu = normalize(-Tin + -Lin);
-            glintUnder = Glint(saturate(Hu.y), 0.02) * saturate(dot(N, LightDir));
+            float aUnder = 0.02 * 0.02 + LightHalfTan * 0.5;
+            glintUnder = Glint(saturate(Hu.y), sqrt(aUnder)) * (0.02 * 0.02 / aUnder) / (4.0 * max(NoV, 0.05)) * saturate(dot(N, LightDir));
         }
     }
 
     float3 T1 = 1 - R1;
     float3 colour = transmitted * T1 * (1 - R2)                                  // the dial, through both surfaces
-                  + (envTop * R1 + LightColour * glintTop * R1 * 6.0) * Exposure   // the top surface's room and glint
-                  + (envInner + LightColour * glintUnder * 6.0) * T1 * R2 * T1 * Exposure; // the underside's, twice through the top
+                  + (envTop * R1 + LightColour * glintTop * R1) * Exposure          // the top surface's room and glint
+                  + (envInner + LightColour * glintUnder) * T1 * R2 * T1 * Exposure; // the underside's, twice through the top
 
     // ---- 4. the wear: one hairline scratch and a little dust (tools/crystal_wear.py)
     // A scratch is a groove: a tiny cylinder lying in the surface. It
@@ -267,7 +274,7 @@ float4 PsMain(VsOut i) : SV_Target
         float TH = dot(Tsc, H);
         float sinTH = sqrt(saturate(1 - TH * TH));
         float groove = pow(sinTH, 40.0) * saturate(dot(N, LightDir));
-        float3 roomAvg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 4.5).rgb;
+        float3 roomAvg = EnvSpecular.SampleLevel(LinearClamp, mul(N, (float3x3)EnvRot), 4.5).rgb * EnvScale;
         float3 scratch = (LightColour * groove * 0.9 + roomAvg * 0.35) * wear.r;
         float3 dust = (LightColour * saturate(dot(N, LightDir)) * 0.30 + roomAvg * 0.45) * wear.g * float3(0.92, 0.92, 0.88);
         colour += (scratch + dust) * Exposure;

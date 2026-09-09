@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -32,6 +33,14 @@ internal sealed class Environment : IDisposable
     public ID3D11ShaderResourceView Diffuse { get; }
     public ID3D11ShaderResourceView BrdfLut { get; }
 
+    /// <summary>The irradiance the baked environment delivers to a surface
+    /// whose normal points along <c>dialNormalInEnv</c>, in the HDRI's own
+    /// units (pi times the irradiance map's value there). This is what
+    /// calibrates the room: "ambient N lux" scales the HDRI so this reads N.
+    /// Read back off the diffuse cube after the bake, from the texel that
+    /// direction lands on.</summary>
+    public float IrradianceUnits { get; private set; }
+
     private readonly ID3D11Texture2D _specularTex;
     private readonly ID3D11Texture2D _diffuseTex;
     private readonly ID3D11Texture2D _lutTex;
@@ -45,7 +54,54 @@ internal sealed class Environment : IDisposable
         public int Samples;
     }
 
-    public Environment(ID3D11Device device, ID3D11DeviceContext context, string hdrPath)
+    private static float ReadIrradiance(ID3D11Device device, ID3D11DeviceContext context, ID3D11Texture2D cube, Vector3 dir)
+    {
+        // The cube face and texel the direction lands on, D3D's convention.
+        var a = new[] { MathF.Abs(dir.X), MathF.Abs(dir.Y), MathF.Abs(dir.Z) };
+        int face; float u, v, m;
+        if (a[0] >= a[1] && a[0] >= a[2]) { m = a[0]; face = dir.X > 0 ? 0 : 1; u = dir.X > 0 ? -dir.Z : dir.Z; v = -dir.Y; }
+        else if (a[1] >= a[2]) { m = a[1]; face = dir.Y > 0 ? 2 : 3; u = dir.X; v = dir.Y > 0 ? dir.Z : -dir.Z; }
+        else { m = a[2]; face = dir.Z > 0 ? 4 : 5; u = dir.Z > 0 ? dir.X : -dir.X; v = -dir.Y; }
+        var px = (int)Math.Clamp((u / m * 0.5f + 0.5f) * DiffuseSize, 0, DiffuseSize - 1);
+        var py = (int)Math.Clamp((v / m * 0.5f + 0.5f) * DiffuseSize, 0, DiffuseSize - 1);
+
+        using var staging = device.CreateTexture2D(new Texture2DDescription
+        {
+            Width = DiffuseSize, Height = DiffuseSize, MipLevels = 1, ArraySize = 1,
+            Format = Format.R16G16B16A16_Float, SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Staging, CPUAccessFlags = CpuAccessFlags.Read,
+        });
+        context.CopySubresourceRegion(staging, 0, 0, 0, 0, cube, (uint)face);
+        var map = context.Map(staging, 0, MapMode.Read);
+        try
+        {
+            // A 3x3 mean round the texel: the map is smooth, and it dodges a
+            // face seam.
+            float sum = 0; var n = 0;
+            for (var dy = -1; dy <= 1; dy++)
+            for (var dx = -1; dx <= 1; dx++)
+            {
+                var x = Math.Clamp(px + dx, 0, DiffuseSize - 1);
+                var y = Math.Clamp(py + dy, 0, DiffuseSize - 1);
+                unsafe
+                {
+                    var row = (ushort*)((byte*)map.DataPointer + y * map.RowPitch);
+                    var r = (float)BitConverter.UInt16BitsToHalf(row[x * 4 + 0]);
+                    var g = (float)BitConverter.UInt16BitsToHalf(row[x * 4 + 1]);
+                    var b = (float)BitConverter.UInt16BitsToHalf(row[x * 4 + 2]);
+                    sum += 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                }
+                n++;
+            }
+            return MathF.PI * sum / n;
+        }
+        finally
+        {
+            context.Unmap(staging, 0);
+        }
+    }
+
+    public Environment(ID3D11Device device, ID3D11DeviceContext context, string hdrPath, Vector3 dialNormalInEnv)
     {
         var sw = Stopwatch.StartNew();
         var (width, height, pixels) = ReadRadianceHdr(hdrPath);
@@ -136,6 +192,9 @@ internal sealed class Environment : IDisposable
             context.UpdateSubresource(new Params { Face = face }, cb);
             context.Draw(3, 0);
         }
+
+        // ---- the calibration read-back: see IrradianceUnits
+        IrradianceUnits = ReadIrradiance(device, context, _diffuseTex, dialNormalInEnv);
 
         // ---- the BRDF table
         _lutTex = device.CreateTexture2D(new Texture2DDescription

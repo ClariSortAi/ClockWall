@@ -110,6 +110,29 @@ internal sealed class WatchScene : IDisposable
     public Action<string>? Log { get; set; }
     private double _nextReportAt = 3600.0;
     private bool _stopLogged;
+    private readonly LightRig _light;
+    private readonly ID3D11SamplerState _shadowPoint;
+
+    /// <summary>One press of a lighting control; see <see cref="LightRig"/>.
+    /// Persists at once, and logs, since the wall runs unattended and a
+    /// changed studio should be in the record.</summary>
+    public void AdjustLight(LightControl control, int steps)
+    {
+        _light.Adjust(control, steps);
+        _light.Save(LightRig.DefaultPath);
+        Log?.Invoke("studio: " + _light.Describe());
+    }
+
+    public void ResetLight()
+    {
+        var fresh = LightRig.Default(_design, _environment.IrradianceUnits);
+        _light.BearingDeg = fresh.BearingDeg; _light.ElevationDeg = fresh.ElevationDeg; _light.KeyLux = fresh.KeyLux;
+        _light.Kelvin = fresh.Kelvin; _light.AngularDeg = fresh.AngularDeg; _light.AmbientLux = fresh.AmbientLux; _light.Ev100 = fresh.Ev100;
+        _light.Save(LightRig.DefaultPath);
+        Log?.Invoke("studio reset: " + _light.Describe());
+    }
+
+    public string LightReadout => _light.Describe();
 
     /// <summary>The crown pulled out or pushed in, from the S key. Out, the
     /// arrow keys turn it; the crown itself moves 0.6mm on the stem.</summary>
@@ -239,7 +262,15 @@ internal sealed class WatchScene : IDisposable
         _design = design;
         var sw = Stopwatch.StartNew();
 
-        _environment = new Environment(device, context, Path.Combine(assetDirectory, "studio.hdr"));
+        // The environment is calibrated at the dial: the direction the dial's
+        // normal has in the panorama's frame, at the design's base yaw.
+        var baseEnvRot = Matrix4x4.CreateRotationX(design.EnvPitchDeg * MathF.PI / 180f) * Matrix4x4.CreateRotationY(design.EnvYaw);
+        _environment = new Environment(device, context, Path.Combine(assetDirectory, "studio.hdr"),
+            Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, baseEnvRot)));
+        _light = LightRig.Default(design, _environment.IrradianceUnits);
+        _light.TryLoad(LightRig.DefaultPath);
+        _shadowPoint = device.CreateSamplerState(new SamplerDescription(Filter.MinMagMipPoint,
+            TextureAddressMode.Clamp, TextureAddressMode.Clamp, TextureAddressMode.Clamp));
         _movement = GltfLoader.Load(device, Path.Combine(assetDirectory, "movement.glb"));
         _case = GltfLoader.Load(device, Path.Combine(assetDirectory, "case.glb"));
         _dialPrint = Gpu.LoadMask(device, Path.Combine(assetDirectory, "dial-print.png"));
@@ -263,7 +294,7 @@ internal sealed class WatchScene : IDisposable
         (_hairspringInnerRadius, _hairspringOuterRadius) = Mechanism.LoadHairspringRadii(assetDirectory);
         _mechanism = new Mechanism(Caliber.Swiss4Hz, DateTime.Now, numbers);
         var (hertz, amplitude, perDay) = Mechanism.Measure(Caliber.Swiss4Hz, numbers, 30.0);
-        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={numbers.Inertia:0.000e0} kg m2, k={numbers.Stiffness:0.000e0} N m/rad, spring {_mechanism.BarrelTorqueFull * 1e3:0.00} N mm over {numbers.TurnsUsable:0.0} turns, from mechanism.json)";
+        StartupReport = $"mechanism keeps {hertz:0.0000} Hz at {amplitude:0.0} deg, {perDay:+0.0;-0.0} s/day against the caliber's {Caliber.Swiss4Hz.Hertz:0.0} Hz (I={numbers.Inertia:0.000e0} kg m2, k={numbers.Stiffness:0.000e0} N m/rad, spring {_mechanism.BarrelTorqueFull * 1e3:0.00} N mm over {numbers.TurnsUsable:0.0} turns, from mechanism.json); studio: {_light.Describe()} (HDRI irradiance {_environment.IrradianceUnits:0.000} of its own units at the dial)";
 
         // ---- shaders
         using (var vs = Gpu.Compile("watch.hlsl", "VsMain", "vs_5_0"))
@@ -453,7 +484,7 @@ internal sealed class WatchScene : IDisposable
         public readonly Matrix4x4 View, Proj, LightViewProj, EnvRot;
         public readonly Vector3 Eye, LightDir;
 
-        public Rig(WatchDesign d, double seconds, float aspect)
+        public Rig(WatchDesign d, LightRig light, double seconds, float aspect)
         {
             var t = (float)seconds;
             const float toRad = MathF.PI / 180f;
@@ -468,8 +499,10 @@ internal sealed class WatchScene : IDisposable
             Proj = Matrix4x4.CreatePerspectiveFieldOfView(fov, aspect, distance * 0.66f, distance * 1.4f);
 
             // ---- key light
-            var bearing = (d.KeyBearingDeg + d.KeyBearingSwingDeg * MathF.Sin(t / 29f)) * toRad;
-            var elevation = (d.KeyElevationDeg + d.KeyElevationSwingDeg * MathF.Sin(t / 37f)) * toRad;
+            // The rig's numbers are the studio's (LightRig); the design's swing
+            // is the slow drift on top of them.
+            var bearing = (light.BearingDeg + d.KeyBearingSwingDeg * MathF.Sin(t / 29f)) * toRad;
+            var elevation = (light.ElevationDeg + d.KeyElevationSwingDeg * MathF.Sin(t / 37f)) * toRad;
             LightDir = Vector3.Normalize(new Vector3(
                 MathF.Sin(bearing) * MathF.Cos(elevation),
                 MathF.Sin(elevation),
@@ -480,7 +513,14 @@ internal sealed class WatchScene : IDisposable
 
             // ---- environment
             var yaw = d.EnvYaw + d.EnvYawSwing * MathF.Sin(t / 67f);
-            EnvRot = Matrix4x4.CreateRotationX(d.EnvPitchDeg * toRad) * Matrix4x4.CreateRotationY(yaw);
+            // The room turns WITH the key about the dial's normal: the
+            // panorama's softbox is the key light's own reflection, so when
+            // the bearing moves, the softbox in the polished parts moves
+            // with it. Elevation cannot follow (the softbox's height is
+            // fixed in the panorama) and moves the key alone.
+            var turned = (light.BearingDeg - d.KeyBearingDeg) * toRad;
+            EnvRot = Matrix4x4.CreateRotationY(-turned)
+                   * Matrix4x4.CreateRotationX(d.EnvPitchDeg * toRad) * Matrix4x4.CreateRotationY(yaw);
         }
     }
 
@@ -493,7 +533,7 @@ internal sealed class WatchScene : IDisposable
         EnsureTargets(width, height);
         var ctx = _context;
         var d = _design;
-        var rig = new Rig(d, seconds, (float)width / height);
+        var rig = new Rig(d, _light, seconds, (float)width / height);
         _mechanism.Advance();
         var reading = _mechanism.Read();
         if (_mechanism.Stopped && !_stopLogged)
@@ -514,10 +554,15 @@ internal sealed class WatchScene : IDisposable
             LightViewProj = rig.LightViewProj,
             EnvRot = rig.EnvRot,
             CameraPos = rig.Eye,
-            Exposure = d.Exposure,
+            // Pre-exposed physical units: the key in lux times its
+            // blackbody colour, the room scaled to its ambient lux, both
+            // times the camera's exposure, so the shaders' Exposure is 1.
+            Exposure = 1f,
             LightDir = rig.LightDir,
             ShadowTexel = 1f / ShadowSize,
-            LightColour = d.KeyColour,
+            LightColour = LightRig.Blackbody(_light.Kelvin) * _light.KeyLux * _light.Exposure,
+            EnvScale = _light.AmbientLux / _environment.IrradianceUnits * _light.Exposure,
+            LightHalfTan = _light.HalfAngleTan,
             Time = (float)seconds,
             ApertureCentre = d.ApertureCentre,
             ApertureRadius = d.ApertureRadius,
@@ -562,6 +607,7 @@ internal sealed class WatchScene : IDisposable
         ctx.PSSetShaderResource(4, _dialPrint);
         ctx.PSSetSampler(0, _linearClamp);
         ctx.PSSetSampler(1, _shadowCmp);
+        ctx.PSSetSampler(2, _shadowPoint);
         DrawOpaque(reading);
         _previousBalance = reading.Balance;
 
@@ -810,7 +856,7 @@ internal sealed class WatchScene : IDisposable
         foreach (var disposable in new IDisposable[]
         {
             _vsWatch, _vsShadow, _vsCrystal, _vsPost, _psWatch, _psShadow, _psCrystal, _psPost, _layout,
-            _frameCb, _objectCb, _postCb, _linearClamp, _shadowCmp, _point, _rasterMain, _rasterShadow, _rasterCrystal,
+            _frameCb, _objectCb, _postCb, _linearClamp, _shadowCmp, _point, _shadowPoint, _rasterMain, _rasterShadow, _rasterCrystal,
             _depthOn, _depthReadOnly, _depthOff, _blendOpaque, _blendCrystal, _blendSmear,
             _shadowSrv, _shadowDsv, _shadowTex, _dialPrint, _crystalWear, _environment,
         }) disposable.Dispose();
