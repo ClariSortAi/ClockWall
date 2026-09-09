@@ -148,12 +148,14 @@ internal sealed record WatchDesign
                 ["indices"] = steel,
                 ["hour_hand"] = steel,
                 ["minute_hand"] = steel,
-                ["seconds_hand"] = new(Material.Blued, 1f, 0.10f, 0.10f, Recess: true),
-                // The small-seconds chapter ring: white lacquer over brass,
-                // its engraved track filled with black ink, on two polished
-                // posts. All inside the well, so all in the recess's light.
-                ["seconds_ring"] = new(new Vector3(0.80f, 0.79f, 0.75f), 0f, 0.35f, 0.35f, Recess: true, Lacquer: 0.4f),
-                ["seconds_track"] = new(new Vector3(0.02f, 0.02f, 0.02f), 0f, 0.6f, 0.6f, Recess: true),
+                ["seconds_hand"] = steel with { Recess = true },
+                // The small-seconds chapter ring: black lacquer over brass,
+                // its engraved track filled with white ink, on two polished
+                // posts; the hand polished steel like the big hands. Dark
+                // ring, bright marks, bright hand: the well is dim and the
+                // wall is far, and a blued hand on a white ring vanished.
+                ["seconds_ring"] = new(new Vector3(0.03f, 0.03f, 0.035f), 0f, 0.30f, 0.30f, Recess: true, Lacquer: 0.5f),
+                ["seconds_track"] = new(new Vector3(0.85f, 0.85f, 0.82f), 0f, 0.6f, 0.6f, Recess: true),
                 ["seconds_post"] = steel with { Recess = true },
                 ["seconds_post_2"] = steel with { Recess = true },
                 ["cap"] = steel,

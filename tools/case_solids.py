@@ -371,8 +371,9 @@ def seconds_post(sign):
 def seconds_hand():
     """A blued needle with a counterweight, riding 0.2 mm over the ring's
     face on a collar pressed onto the pinion's extended pivot."""
-    length, tail, w, z_lo, z_hi = 2.32, 0.80, 0.075, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.30
-    outline = [(-0.02, length), (0.02, length), (w, 0.3), (w, -tail), (-w, -tail), (-w, 0.3)]
+    # Bolder than a blued sliver: the well is dark and the wall is far.
+    length, tail, w, z_lo, z_hi = 2.40, 0.85, 0.11, SECONDS_RING_TOP + 0.20, SECONDS_RING_TOP + 0.32
+    outline = [(-0.03, length), (0.03, length), (w, 0.4), (w, -tail), (-w, -tail), (-w, 0.4)]
     needle = extrude(make_face(Polyline(*outline, outline[0])), z_hi - z_lo).moved(Location((0, 0, z_lo)))
     weight = extrude(Circle(0.34) - Circle(0.14), z_hi - z_lo).moved(Location((0, -tail - 0.05, z_lo)))
     collar = Cylinder(0.42, z_hi - (SECONDS_RING_TOP - 0.55), align=(None, None, None)).moved(Location((0, 0, SECONDS_RING_TOP - 0.55)))
@@ -424,9 +425,9 @@ def main():
         ("indices", indices(), STEEL),
         ("hour_hand", hour_hand(), STEEL),
         ("minute_hand", minute_hand(), STEEL),
-        ("seconds_hand", seconds_hand(), BLUED),
-        ("seconds_ring", seconds_ring(), DIAL),
-        ("seconds_track", seconds_track(), BLUED),
+        ("seconds_hand", seconds_hand(), STEEL),
+        ("seconds_ring", seconds_ring(), BLUED),
+        ("seconds_track", seconds_track(), DIAL),
         ("seconds_post", seconds_post(+1), STEEL),
         ("seconds_post_2", seconds_post(-1), STEEL),
         ("cap", cap(), STEEL),
