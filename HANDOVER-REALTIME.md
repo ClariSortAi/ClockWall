@@ -359,7 +359,13 @@ bearings measure in the STL what the table says (intermediate_bearing
 clashes, on both machines, and the intermediate clears both its bearings.
 Done.
 
-**7. Cosmetic - done, with one measured and declined.** Depth of field: a
+**7. Cosmetic - done; the crystal since redone as glass.** The crystal is
+now a box sapphire with a bevel standing proud of the bezel, and its shader
+a light path: a four-layer anti-reflective stack by the transfer-matrix
+method, refraction through the sapphire to what is behind, the underside as
+a second mirror, the key's glint on both surfaces, and the wear. See
+`FACE-RECIPE.md` 6b. The refraction that was declined below was declined
+for the OLD low dome; the bevel is where it earns its place. Depth of field: a
 second target carries view distance out of the watch pass and the post
 pass gathers a small disc weighted by each tap's own circle of confusion;
 focus a millimetre behind the dial, a pixel of blur per four millimetres,

@@ -51,8 +51,19 @@ U = 1.0 / 11.780018          # mm per face unit: case_geometry.py's numbers carr
 DIAL_R = 288 * U
 BEZEL_IN = 289 * U
 CASE_R = 314 * U
-CRYSTAL_EDGE = 2.7
-CRYSTAL_PEAK = 3.5
+# The crystal. A box sapphire: flat underneath at CRYSTAL_UNDER, seated in
+# the bezel up to CRYSTAL_SEAT, then its polished side stands PROUD of the
+# bezel's ledge to CRYSTAL_SIDE, turns in through a bevel CRYSTAL_BEVEL
+# wide, and domes gently to CRYSTAL_PEAK. The first crystal was a low dome
+# whose side sat entirely inside the seat; optically it was a flat plate
+# (0.27 px of refraction at the rim) and it never read as glass. Glass is
+# read at its EDGE, where the bevel and the side bend what is behind them.
+CRYSTAL_UNDER = 1.9
+CRYSTAL_SEAT = 2.7
+CRYSTAL_SIDE = 3.15
+CRYSTAL_BEVEL = 0.55
+CRYSTAL_BEVEL_TOP = 3.55
+CRYSTAL_PEAK = 4.05
 
 INDEX_IN, INDEX_OUT, INDEX_HALF_W = 246 * U, 279 * U, 7.5 * U
 INDEX_H, INDEX_CHAMFER = 0.45, 0.12
@@ -131,7 +142,7 @@ def profile(points_and_arcs):
 def case():
     """Bezel, rehaut wall, case band and the flange the dial sits on, one
     solid of revolution. Same profile the render lathe had, closed."""
-    ri, ro, seat = BEZEL_IN, CASE_R, CRYSTAL_EDGE
+    ri, ro, seat = BEZEL_IN, CASE_R, CRYSTAL_SEAT
     x0, x1 = ri + 0.9, ro - 0.55
     top = seat + 0.62
     dome_r = 22.0
@@ -165,16 +176,17 @@ def caseback():
 
 
 def crystal():
-    """A domed sapphire: spherical top from the seat to the peak, 0.8 mm thick
-    at the edge, flat underneath."""
+    """A box sapphire: flat underneath, a polished side proud of the bezel,
+    a bevel, and a gentle spherical dome. See the constants above."""
     chord = BEZEL_IN - 0.05
-    sag = CRYSTAL_PEAK - CRYSTAL_EDGE
-    sphere_r = (chord ** 2 + sag ** 2) / (2 * sag)
+    inner = chord - CRYSTAL_BEVEL
+    sag = CRYSTAL_PEAK - CRYSTAL_BEVEL_TOP
+    sphere_r = (inner ** 2 + sag ** 2) / (2 * sag)
     cz = CRYSTAL_PEAK - sphere_r
-    mid_x = chord * 0.5
+    mid_x = inner * 0.5
     mid = (mid_x, cz + math.sqrt(sphere_r ** 2 - mid_x ** 2))
-    pts = [(0, CRYSTAL_EDGE - 0.8), (chord, CRYSTAL_EDGE - 0.8), (chord, CRYSTAL_EDGE),
-           ("arc", mid, (0, CRYSTAL_PEAK))]
+    pts = [(0, CRYSTAL_UNDER), (chord, CRYSTAL_UNDER), (chord, CRYSTAL_SIDE),
+           (inner, CRYSTAL_BEVEL_TOP), ("arc", mid, (0, CRYSTAL_PEAK))]
     return revolve(profile(pts), Axis.Z)
 
 
@@ -304,7 +316,7 @@ def cap():
     # both hands' collars, and the assembly check said so.
     r = CAP_R * 0.85
     base = MINUTE["base"] + MINUTE["ridge"]
-    top = CRYSTAL_EDGE - 0.8 - 0.05
+    top = CRYSTAL_UNDER - 0.05
     sag = top - base
     sphere_r = (r * r + sag * sag) / (2 * sag)
     cz = top - sphere_r

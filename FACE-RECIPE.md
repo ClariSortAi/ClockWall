@@ -155,7 +155,7 @@ frames side by side. The lobes must move between frames.
 In order of how much each buys, from `ART-DIRECTION.md`:
 
 1. the sunburst sweeps (step 5)
-2. the crystal: a faint sheet that moves independently (`crystal.hlsl`; keep it subtle)
+2. the crystal: a piece of glass, computed (`crystal.hlsl`, below in 6b); keep it subtle by physics, not by a constant
 3. the bezel has a wall and casts a shadow (the case profile, and the shadow map)
 4. indices are faceted geometry (chamfered prisms in the CAD)
 5. the hands cast shadows that sweep (hand heights in the CAD - higher hands throw longer shadows)
@@ -173,6 +173,24 @@ all light-driven so they move with the rig:
   smooth; and the lacquer has orange peel, a millimetre-scale ripple on the
   clear coat's normal, which is what tells lacquer from glass. Tune the
   wobble amplitudes there; too much reads as banding across the lobes.
+- **The crystal itself** (`crystal.hlsl`, and `crystal()` in `tools/case_solids.py`):
+  a box sapphire whose polished side stands proud of the bezel's ledge and
+  turns in through a bevel, because glass is read at its edge. The shader
+  is a light path, not a sheet: the opaque frame is resolved before the
+  crystal pass and the crystal REPLACES it with what a ray sees - the top
+  surface's Fresnel reflection of the room and the key, by the
+  transfer-matrix reflectance of a four-layer broadband anti-reflective
+  stack at three wavelengths (0.1-0.2% at normal incidence, a few percent
+  toward grazing, red-biased: what a real coating does); the ray refracted
+  through the sapphire to its flat underside and out to the dial, the
+  landing point reprojected to the screen (a fraction of a pixel under the
+  dome, millimetres at the bevel, where the track and the indices bend
+  round the edge); the underside as a second mirror showing the room again,
+  fainter and offset; the key's glint on both surfaces. The first coating
+  tried, a single quarter-wave MgF2 film, laid a magenta veil over the
+  whole dial - measured, 60% more red - and was replaced; check the dial's
+  colour through the crystal against the dial without it (`captures/`),
+  and expect it within a few percent.
 - **The crystal's wear** (`tools/crystal_wear.py` -> `Assets/crystal-wear.png`,
   read by `crystal.hlsl`): one hairline scratch, an arc across the upper
   left, lit as a groove so it flares only when the key light drifts across

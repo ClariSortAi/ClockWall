@@ -82,7 +82,8 @@ internal sealed class WatchScene : IDisposable
     private readonly ID3D11ShaderResourceView _dialPrint, _crystalWear;
 
     private int _width, _height;
-    private ID3D11Texture2D? _colourMsaa, _depthMsaa, _resolved, _distanceMsaa, _distance;
+    private ID3D11Texture2D? _colourMsaa, _depthMsaa, _resolved, _distanceMsaa, _distance, _behind;
+    private ID3D11ShaderResourceView? _behindSrv;
     private ID3D11RenderTargetView? _colourRtv, _distanceRtv;
     private ID3D11DepthStencilView? _depthDsv;
     private ID3D11ShaderResourceView? _resolvedSrv, _distanceSrv;
@@ -318,9 +319,11 @@ internal sealed class WatchScene : IDisposable
         _depthReadOnly = device.CreateDepthStencilState(DepthStencilDescription.DepthRead);
         _depthOff = device.CreateDepthStencilState(DepthStencilDescription.None);
         _blendOpaque = device.CreateBlendState(BlendDescription.Opaque);
-        // The crystal adds light and leaves coverage alone: colour ONE/ONE,
-        // alpha ZERO/ONE.
-        _blendCrystal = device.CreateBlendState(new BlendDescription(Blend.One, Blend.One, Blend.Zero, Blend.One));
+        // The crystal REPLACES what is under it: it has read the opaque frame
+        // through itself (Behind, resolved before this pass) and composed
+        // transmission, both surfaces' reflections and the wear into one
+        // colour. Coverage is left alone: colour ONE/ZERO, alpha ZERO/ONE.
+        _blendCrystal = device.CreateBlendState(new BlendDescription(Blend.One, Blend.Zero, Blend.Zero, Blend.One));
         // A smear copy: ordinary alpha over what is there, and the coverage
         // channel kept at its maximum so the corners' composite still sees
         // the panel as painted wherever any copy landed.
@@ -393,6 +396,16 @@ internal sealed class WatchScene : IDisposable
             Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource | BindFlags.RenderTarget,
         });
         _resolvedSrv = _device.CreateShaderResourceView(_resolved);
+        // The opaque frame as the crystal sees it: resolved once before the
+        // crystal pass, which reads it through the glass (refraction) and
+        // writes over it. Same format as the resolved frame.
+        _behind = _device.CreateTexture2D(new Texture2DDescription
+        {
+            Width = (uint)width, Height = (uint)height, MipLevels = 1, ArraySize = 1,
+            Format = Format.R16G16B16A16_Float, SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Default, BindFlags = BindFlags.ShaderResource,
+        });
+        _behindSrv = _device.CreateShaderResourceView(_behind);
 
         // View distance per pixel, for the focus pass. Half float, MSAA to
         // match the colour target so the two resolve alike.
@@ -414,6 +427,8 @@ internal sealed class WatchScene : IDisposable
 
     private void ReleaseTargets()
     {
+        _behindSrv?.Dispose(); _behindSrv = null;
+        _behind?.Dispose(); _behind = null;
         _distanceSrv?.Dispose(); _distanceSrv = null;
         _distance?.Dispose(); _distance = null;
         _distanceRtv?.Dispose(); _distanceRtv = null;
@@ -551,6 +566,10 @@ internal sealed class WatchScene : IDisposable
         _previousBalance = reading.Balance;
 
         // ---- 3. the crystal
+        // First the opaque frame as it stands, resolved, for the glass to
+        // look through; then the crystal over it.
+        ctx.OMSetRenderTargets((ID3D11RenderTargetView?)null);
+        ctx.ResolveSubresource(_behind!, 0, _colourMsaa!, 0, Format.R16G16B16A16_Float);
         ctx.OMSetRenderTargets(_colourRtv!, _depthDsv);
         ctx.RSSetState(_rasterCrystal);
         ctx.OMSetDepthStencilState(_depthReadOnly);
@@ -558,8 +577,10 @@ internal sealed class WatchScene : IDisposable
         ctx.VSSetShader(_vsCrystal);
         ctx.PSSetShader(_psCrystal);
         ctx.PSSetShaderResource(1, _crystalWear);
+        ctx.PSSetShaderResource(2, _behindSrv);
         Draw(_case["crystal"], d.Polished, Matrix4x4.Identity);
         ctx.PSSetShaderResource(1, null);
+        ctx.PSSetShaderResource(2, null);
 
         // ---- 4. resolve and present
         ctx.PSSetShaderResource(3, null);
